@@ -1,0 +1,272 @@
+[
+  {
+    "id": "DOC_001",
+    "nom": "Dr. Jean Mukendi",
+    "prenom": "Jean",
+    "nom_famille": "Mukendi",
+    "specialite": "Cardiologie",
+    "departement": "Cardiologie",
+    "departement_id": "d7a27a55-728b-46c1-a4cd-92737a7e6862",
+    "email": "j.mukendi@okapiamedical.com",
+    "telephone": "+243 81 234 5678",
+    "rpps": "RDC-CARD-001",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+      "heures": {
+        "debut": "08:00",
+        "fin": "16:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=JeanMukendi",
+    "bio": "Cardiologue expérimenté spécialisé dans les pathologies coronariennes et l'hypertension artérielle. Diplômé de l'Université de Kinshasa avec une formation complémentaire en cardiologie interventionnelle.",
+    "annees_experience": 15,
+    "langues": ["Français", "Lingala", "Kikongo"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 100.00,
+    "note_moyenne": 4.8,
+    "total_consultations": 450
+  },
+  {
+    "id": "DOC_002",
+    "nom": "Dr. Sarah Kapinga",
+    "prenom": "Sarah",
+    "nom_famille": "Kapinga",
+    "specialite": "Pédiatrie",
+    "departement": "Pédiatrie",
+    "departement_id": "d45c47be-a0d0-413d-ace8-c7ad3e118f7e",
+    "email": "s.kapinga@okapiamedical.com",
+    "telephone": "+243 82 345 6789",
+    "rpps": "RDC-PED-002",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+      "heures": {
+        "debut": "09:00",
+        "fin": "17:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=SarahKapinga",
+    "bio": "Pédiatre dévouée aux soins des nourrissons, enfants et adolescents. Spécialisée en vaccination et suivi de croissance.",
+    "annees_experience": 12,
+    "langues": ["Français", "Swahili", "Anglais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 80.00,
+    "note_moyenne": 4.9,
+    "total_consultations": 580
+  },
+  {
+    "id": "DOC_003",
+    "nom": "Dr. Marie-Louise Nzuji",
+    "prenom": "Marie-Louise",
+    "nom_famille": "Nzuji",
+    "specialite": "Gynécologie-Obstétrique",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "ml.nzuji@okapiamedical.com",
+    "telephone": "+243 83 456 7890",
+    "rpps": "RDC-GYN-003",
+    "disponibilite": {
+      "jours": ["mardi", "mercredi", "jeudi", "vendredi", "samedi"],
+      "heures": {
+        "debut": "10:00",
+        "fin": "18:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=MarieLouiseNzuji",
+    "bio": "Gynécologue-obstétricienne expérimentée, spécialisée en santé reproductive et suivi de grossesse. Approche bienveillante et écoute attentive.",
+    "annees_experience": 18,
+    "langues": ["Français", "Lingala", "Tshiluba"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 90.00,
+    "note_moyenne": 4.9,
+    "total_consultations": 620
+  },
+  {
+    "id": "DOC_004",
+    "nom": "Dr. Patrick Bolamba",
+    "prenom": "Patrick",
+    "nom_famille": "Bolamba",
+    "specialite": "Médecine Générale",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "p.bolamba@okapiamedical.com",
+    "telephone": "+243 84 567 8901",
+    "rpps": "RDC-MED-004",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+      "heures": {
+        "debut": "07:00",
+        "fin": "15:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=PatrickBolamba",
+    "bio": "Médecin généraliste avec approche holistique centrée sur le patient et la prévention. Consultation pour toute la famille.",
+    "annees_experience": 10,
+    "langues": ["Français", "Kikongo", "Anglais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 60.00,
+    "note_moyenne": 4.7,
+    "total_consultations": 720
+  },
+  {
+    "id": "DOC_005",
+    "nom": "Dr. Alice Watuna",
+    "prenom": "Alice",
+    "nom_famille": "Watuna",
+    "specialite": "Médecine Générale",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "a.watuna@okapiamedical.com",
+    "telephone": "+243 85 678 9012",
+    "rpps": "RDC-MED-005",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+      "heures": {
+        "debut": "14:00",
+        "fin": "22:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=AliceWatuna",
+    "bio": "Médecin généraliste disponible en horaires tardifs pour les consultations en soirée. Expertise en médecine d'urgence.",
+    "annees_experience": 8,
+    "langues": ["Français", "Swahili", "Lingala"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 60.00,
+    "note_moyenne": 4.6,
+    "total_consultations": 410
+  },
+  {
+    "id": "DOC_006",
+    "nom": "Dr. Robert Kasongo",
+    "prenom": "Robert",
+    "nom_famille": "Kasongo",
+    "specialite": "Chirurgie Générale",
+    "departement": "Chirurgie",
+    "departement_id": "29188c05-7910-4f5b-8ab5-d81228ed669e",
+    "email": "r.kasongo@okapiamedical.com",
+    "telephone": "+243 86 789 0123",
+    "rpps": "RDC-CHIR-006",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi"],
+      "heures": {
+        "debut": "08:00",
+        "fin": "16:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=RobertKasongo",
+    "bio": "Chirurgien spécialisé en chirurgie viscérale et digestive. Expert en laparoscopie et chirurgie mini-invasive.",
+    "annees_experience": 16,
+    "langues": ["Français", "Swahili", "Anglais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 120.00,
+    "note_moyenne": 4.8,
+    "total_consultations": 350
+  },
+  {
+    "id": "DOC_007",
+    "nom": "Dr. Hélène Yowa",
+    "prenom": "Hélène",
+    "nom_famille": "Yowa",
+    "specialite": "Neurologie",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "h.yowa@okapiamedical.com",
+    "telephone": "+243 87 890 1234",
+    "rpps": "RDC-NEU-007",
+    "disponibilite": {
+      "jours": ["mardi", "mercredi", "jeudi", "vendredi"],
+      "heures": {
+        "debut": "09:00",
+        "fin": "17:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=HeleneYowa",
+    "bio": "Neurologue spécialisée dans les troubles neurologiques, migraines, épilepsie et maladies neurodégénératives.",
+    "annees_experience": 14,
+    "langues": ["Français", "Kikongo", "Portugais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 110.00,
+    "note_moyenne": 4.8,
+    "total_consultations": 380
+  },
+  {
+    "id": "DOC_008",
+    "nom": "Dr. David Mutombo",
+    "prenom": "David",
+    "nom_famille": "Mutombo",
+    "specialite": "Ophtalmologie",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "d.mutombo@okapiamedical.com",
+    "telephone": "+243 88 901 2345",
+    "rpps": "RDC-OPH-008",
+    "disponibilite": {
+      "jours": ["lundi", "mercredi", "vendredi"],
+      "heures": {
+        "debut": "08:00",
+        "fin": "14:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=DavidMutombo",
+    "bio": "Ophtalmologue expert en santé oculaire, dépistage de la vue, et chirurgie de la cataracte. Équipement moderne disponible.",
+    "annees_experience": 13,
+    "langues": ["Français", "Lingala", "Anglais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 95.00,
+    "note_moyenne": 4.7,
+    "total_consultations": 460
+  },
+  {
+    "id": "DOC_009",
+    "nom": "Dr. Sophie Kalala",
+    "prenom": "Sophie",
+    "nom_famille": "Kalala",
+    "specialite": "Radiologie",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "s.kalala@okapiamedical.com",
+    "telephone": "+243 89 012 3456",
+    "rpps": "RDC-RAD-009",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi"],
+      "heures": {
+        "debut": "07:00",
+        "fin": "19:00"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=SophieKalala",
+    "bio": "Radiologue spécialisée en imagerie médicale : radiographie, échographie, scanner et IRM. Interprétation rapide et précise.",
+    "annees_experience": 11,
+    "langues": ["Français", "Swahili", "Tshiluba"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 85.00,
+    "note_moyenne": 4.9,
+    "total_consultations": 890
+  },
+  {
+    "id": "DOC_010",
+    "nom": "Dr. Marc Zola",
+    "prenom": "Marc",
+    "nom_famille": "Zola",
+    "specialite": "Médecine d'Urgence",
+    "departement": "Médecine Générale",
+    "departement_id": "2308fcfd-b71b-4010-b926-f8a351ef7796",
+    "email": "m.zola@okapiamedical.com",
+    "telephone": "+243 90 123 4567",
+    "rpps": "RDC-URG-010",
+    "disponibilite": {
+      "jours": ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"],
+      "heures": {
+        "debut": "00:00",
+        "fin": "23:59"
+      }
+    },
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=MarcZola",
+    "bio": "Urgentiste disponible 24h/24 et 7j/7. Expertise en prise en charge des urgences vitales, traumatologie et réanimation.",
+    "annees_experience": 9,
+    "langues": ["Français", "Lingala", "Kikongo", "Anglais"],
+    "accepte_nouveaux_patients": true,
+    "frais_consultation": 150.00,
+    "note_moyenne": 4.8,
+    "total_consultations": 1200
+  }
+]

@@ -1,0 +1,189 @@
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { LanguageProvider } from './contexts/LanguageContext';
+import { NotificationProvider } from './core/contexts/NotificationContext';
+import { WorkflowProvider } from './core/contexts/WorkflowContext';
+import { RBACProvider } from './contexts/RBACContext';
+import { PublicLayout } from './pages/public/PublicLayout';
+import { StaffLogin } from './pages/staff/StaffLogin';
+import { StaffRegister } from './pages/staff/StaffRegister';
+import { StaffLayout } from './pages/staff/StaffLayout';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { RoleBasedRedirect } from './routes/RoleBasedRedirect';
+import { DoctorRoutes } from './routes/DoctorRoutes';
+import { LaboratoryRoutes } from './routes/LaboratoryRoutes';
+import { PharmacyRoutes } from './routes/PharmacyRoutes';
+import { PatientRoutes } from './routes/PatientRoutes';
+import { RadiologyRoutes } from './routes/RadiologyRoutes';
+import { AccessDenied } from './components/AccessDenied';
+
+// Import all staff pages
+import { DRCDashboard } from './pages/staff/DRCDashboard';
+import { EmployeesPage } from './pages/staff/EmployeesPage';
+import { PayrollPage } from './pages/staff/PayrollPage';
+import { ShiftSchedulingPage } from './pages/staff/ShiftSchedulingPage';
+import { InsurancePage } from './pages/staff/InsurancePage';
+import ContractsPage from './pages/staff/hr/contracts/ContractsPage';
+import AdministrationDashboard from './pages/staff/AdministrationDashboard';
+import AdministrativeStaffPage from './pages/staff/AdministrativeStaffPage';
+import AdminTasksPage from './pages/staff/AdminTasksPage';
+import AdminPoliciesPage from './pages/staff/AdminPoliciesPage';
+import AdminFacilitiesPage from './pages/staff/AdminFacilitiesPage';
+import AdminVendorsPage from './pages/staff/AdminVendorsPage';
+import { AppointmentsPage } from './pages/staff/AppointmentsPage';
+import { PatientManagement } from './pages/staff/PatientManagement';
+import { LaboratoryPage } from './pages/staff/LaboratoryPage';
+import DoctorsDashboardPage from './pages/staff/DoctorsDashboardPage';
+import PurchaseOrdersPage from './pages/staff/PurchaseOrdersPage';
+import { ConsultationsPage } from './pages/staff/ConsultationsPage';
+import { PharmacyPage } from './pages/staff/PharmacyPage';
+import { PrescriptionsPage } from './pages/staff/PrescriptionsPage';
+import DoctorVisibilityPage from './pages/staff/DoctorVisibilityPage';
+import LogisticsPage from './pages/staff/LogisticsPage';
+import TransportManagementPage from './pages/staff/TransportManagementPage';
+import SuppliersPage from './pages/staff/SuppliersPage';
+import { PatientCheckInPage } from './pages/staff/PatientCheckInPage';
+import ExpenseManagementPage from './pages/staff/ExpenseManagementPage';
+import { BillingPage } from './pages/staff/BillingPage';
+import { BillingAnalyticsPage } from './pages/staff/BillingAnalyticsPage';
+import FinancialAnalytics from './pages/finance/FinancialAnalytics';
+import UnifiedPersonnelPage from './pages/staff/UnifiedPersonnelPage';
+import { RoleManagementPage } from './pages/staff/RoleManagementPage';
+import RadiologyPage from './pages/staff/RadiologyPage';
+import PrescribeExamPage from './pages/staff/radiology/PrescribeExamPage';
+import ExamQueuePage from './pages/staff/radiology/ExamQueuePage';
+import ExamWorkspacePage from './pages/staff/radiology/ExamWorkspacePage';
+import ReportViewerPage from './pages/staff/radiology/ReportViewerPage';
+import ExamHistoryPage from './pages/staff/radiology/ExamHistoryPage';
+import OkapiaConnectPage from './pages/staff/OkapiaConnectPage';
+import MessagingPage from './pages/staff/MessagingPage';
+import SmartPunchPage from './pages/staff/SmartPunchPage';
+import SmartPunchDashboard from './pages/staff/SmartPunchDashboard';
+import { FeedbackDashboard } from './pages/staff/FeedbackDashboard';
+import { FeedbackPage } from './pages/public/FeedbackPage';
+
+function App() {
+  return (
+    <BrowserRouter>
+      <LanguageProvider>
+        <AuthProvider>
+          <RBACProvider>
+            <NotificationProvider>
+              <WorkflowProvider>
+                <Routes>
+                <Route path="/" element={<PublicLayout />} />
+                <Route path="/feedback" element={<FeedbackPage />} />
+                <Route path="/staff/login" element={<StaffLogin />} />
+                <Route path="/staff/register" element={<StaffRegister />} />
+                <Route path="/admin" element={<StaffLogin />} />
+                <Route path="/register" element={<StaffRegister />} />
+
+                <Route path="/dashboard" element={<RoleBasedRedirect />} />
+
+                <Route path="/doctor/*" element={<DoctorRoutes />} />
+
+                <Route path="/laboratory/*" element={<LaboratoryRoutes />} />
+
+                <Route path="/pharmacy/*" element={<PharmacyRoutes />} />
+
+                <Route path="/patient/*" element={<PatientRoutes />} />
+
+                <Route path="/staff/radiology/*" element={<RadiologyRoutes />} />
+
+                <Route
+                  path="/tableau-de-bord"
+                  element={
+                    <ProtectedRoute>
+                      <StaffLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DRCDashboard />} />
+                  <Route path="appointments" element={<AppointmentsPage />} />
+                  <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
+                  <Route path="patients" element={<PatientManagement />} />
+                  <Route path="laboratory" element={<LaboratoryPage />} />
+                  <Route path="pharmacy" element={<PharmacyPage />} />
+                  <Route path="administration" element={<AdministrationDashboard />} />
+                  <Route path="admin-staff" element={<AdministrativeStaffPage />} />
+                  <Route path="admin-tasks" element={<AdminTasksPage />} />
+                  <Route path="admin-policies" element={<AdminPoliciesPage />} />
+                  <Route path="admin-facilities" element={<AdminFacilitiesPage />} />
+                  <Route path="admin-vendors" element={<AdminVendorsPage />} />
+                  <Route path="employees" element={<EmployeesPage />} />
+                  <Route path="payroll" element={<PayrollPage />} />
+                  <Route path="shifts" element={<ShiftSchedulingPage />} />
+                  <Route path="insurance" element={<InsurancePage />} />
+                  <Route path="contracts" element={<ContractsPage />} />
+                  <Route path="pharmacy-inventory" element={<Navigate to="/pharmacy/inventory" replace />} />
+                  <Route path="exchange-rates" element={<div className="text-center py-12 text-gray-500">Module Taux de Change - En développement</div>} />
+                </Route>
+
+                <Route
+                  path="/staff"
+                  element={
+                    <ProtectedRoute>
+                      <StaffLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<Navigate to="/staff/dashboard" replace />} />
+                  <Route path="dashboard" element={<DRCDashboard />} />
+                  <Route path="appointments" element={<AppointmentsPage />} />
+                  <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
+                  <Route path="patients" element={<PatientManagement />} />
+                  <Route path="laboratory" element={<LaboratoryPage />} />
+                  <Route path="radiology" element={<RadiologyPage />} />
+                  <Route path="radiology/prescribe" element={<PrescribeExamPage />} />
+                  <Route path="radiology/queue" element={<ExamQueuePage />} />
+                  <Route path="radiology/workspace/:examId" element={<ExamWorkspacePage />} />
+                  <Route path="radiology/viewer/:examId" element={<ReportViewerPage />} />
+                  <Route path="radiology/history" element={<ExamHistoryPage />} />
+                  <Route path="administration" element={<AdministrationDashboard />} />
+                  <Route path="employees" element={<EmployeesPage />} />
+                  <Route path="payroll" element={<PayrollPage />} />
+                  <Route path="shift-scheduling" element={<ShiftSchedulingPage />} />
+                  <Route path="insurance" element={<InsurancePage />} />
+                  <Route path="contracts" element={<ContractsPage />} />
+                  <Route path="pharmacy-inventory" element={<Navigate to="/pharmacy/inventory" replace />} />
+                  <Route path="billing" element={<BillingPage />} />
+                  <Route path="billing-analytics" element={<BillingAnalyticsPage />} />
+                  <Route path="financial-analytics" element={<FinancialAnalytics />} />
+                  <Route path="settings" element={<div className="text-center py-12 text-gray-500">Module Paramètres - En développement</div>} />
+                  <Route path="drc-dashboard" element={<DRCDashboard />} />
+                  <Route path="posts" element={<div className="text-center py-12 text-gray-500">Module Actualités - En développement</div>} />
+                  <Route path="unified-personnel" element={<UnifiedPersonnelPage />} />
+                  <Route path="break-compliance" element={<Navigate to="/staff/smart-punch" replace />} />
+                  <Route path="smart-punch" element={<SmartPunchPage />} />
+                  <Route path="smart-punch-dashboard" element={<SmartPunchDashboard />} />
+                  <Route path="logistics" element={<LogisticsPage />} />
+                  <Route path="transport" element={<TransportManagementPage />} />
+                  <Route path="facilities" element={<AdminFacilitiesPage />} />
+                  <Route path="consultations" element={<ConsultationsPage />} />
+                  <Route path="prescriptions" element={<PrescriptionsPage />} />
+                  <Route path="pharmacy" element={<PharmacyPage />} />
+                  <Route path="patient-checkin" element={<PatientCheckInPage />} />
+                  <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
+                  <Route path="suppliers" element={<SuppliersPage />} />
+                  <Route path="expenses" element={<ExpenseManagementPage />} />
+                  <Route path="doctor-visibility" element={<DoctorVisibilityPage />} />
+                  <Route path="role-management" element={<RoleManagementPage />} />
+                  <Route path="okapia-connect" element={<OkapiaConnectPage />} />
+                  <Route path="messaging" element={<MessagingPage />} />
+                  <Route path="feedback" element={<FeedbackDashboard />} />
+                </Route>
+
+                <Route path="/access-denied" element={<AccessDenied />} />
+
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </WorkflowProvider>
+          </NotificationProvider>
+          </RBACProvider>
+        </AuthProvider>
+      </LanguageProvider>
+    </BrowserRouter>
+  );
+}
+
+export default App;

@@ -1,0 +1,92 @@
+.okapia-logo {
+  object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.okapia-logo-mini {
+  width: 30px;
+  height: 50px;
+}
+
+.okapia-logo-small {
+  width: 40px;
+  height: auto;
+  max-height: 66px;
+}
+
+.okapia-logo-medium {
+  width: 48px;
+  height: auto;
+  max-height: 80px;
+}
+
+.okapia-logo-large {
+  width: 60px;
+  height: auto;
+  max-height: 100px;
+}
+
+.okapia-logo-xlarge {
+  width: 500px;
+  height: 500px;
+}
+
+.okapia-logo-header {
+  height: 48px;
+  width: auto;
+}
+
+.okapia-logo-sidebar {
+  height: 40px;
+  width: auto;
+}
+
+.okapia-logo-sidebar-collapsed {
+  height: 32px;
+  width: auto;
+}
+
+.okapia-logo-footer {
+  height: 48px;
+  width: auto;
+}
+
+@media (max-width: 640px) {
+  .okapia-logo-header {
+    height: 40px;
+  }
+
+  .okapia-logo-footer {
+    height: 40px;
+  }
+}
+
+.okapia-logo-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.okapia-logo-container {
+  position: relative;
+  overflow: hidden;
+}
+
+.okapia-logo-container img {
+  transition: transform 0.3s ease;
+}
+
+.okapia-logo-container:hover img {
+  transform: scale(1.05);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .okapia-logo-container img {
+    transition: none;
+  }
+
+  .okapia-logo-container:hover img {
+    transform: none;
+  }
+}

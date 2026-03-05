@@ -1,0 +1,159 @@
+@import './styles/logo.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.4s ease-out;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.5s ease-out;
+}
+
+@keyframes pulse-once {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.animate-pulse-once {
+  animation: pulse-once 1s ease-in-out 2;
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out;
+}
+
+.animate-fadeIn,
+.animate-slideDown,
+.transition-all,
+.transition-colors,
+.transition-opacity {
+  will-change: transform, opacity;
+}
+
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+.transition-smooth {
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+}
+
+.contain-layout {
+  contain: layout style;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transition-all,
+  .transition-colors,
+  .transition-opacity,
+  .animate-fadeIn,
+  .animate-slideDown,
+  .animate-fade-in {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* QR Code Social - Animations personnalisées */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes qr-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  50% {
+    box-shadow: 0 8px 15px rgba(59, 130, 246, 0.3), 0 0 0 8px rgba(59, 130, 246, 0.1);
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+.qr-hover-effect:hover {
+  animation: qr-pulse 1.5s ease-in-out infinite;
+}
+
+/* Optimisation GPU pour les transitions QR */
+.qr-hover-effect {
+  will-change: transform, box-shadow;
+  transform: translateZ(0);
+  backface-visibility: hidden;
+}
+
+/* Accessibilité - Réduction des animations pour QR code */
+@media (prefers-reduced-motion: reduce) {
+  .qr-hover-effect:hover {
+    animation: none !important;
+  }
+
+  .animate-slide-in-right {
+    animation: none !important;
+  }
+}
