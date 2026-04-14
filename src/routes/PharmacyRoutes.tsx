@@ -7,7 +7,25 @@ import { PharmacyDashboard } from '@/modules/pharmacy/pages/PharmacyDashboard';
 import { EnhancedPharmacyPage } from '@/pages/staff/EnhancedPharmacyPage';
 
 const PharmacyInventoryPage = React.lazy(() =>
-  import('@/pages/staff/PharmacyInventoryPage').then(m => ({ default: m.PharmacyInventoryPage }))
+  import('@/pages/staff/PharmacyInventoryPage').then(m => ({ default: m.default }))
+);
+
+const PharmacyPrescriptionsPage = React.lazy(() =>
+  import('@/pages/staff/pharmacy/PharmacyPrescriptionsPage').then(m => ({ default: m.default }))
+);
+
+const PharmacyLowStockPage = React.lazy(() =>
+  import('@/pages/staff/pharmacy/PharmacyLowStockPage').then(m => ({ default: m.default }))
+);
+
+const PharmacyOrdersPage = React.lazy(() =>
+  import('@/pages/staff/pharmacy/PharmacyOrdersPage').then(m => ({ default: m.default }))
+);
+
+const Fallback = () => (
+  <div className="flex items-center justify-center h-full">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+  </div>
 );
 
 export const PharmacyRoutes: React.FC = () => {
@@ -20,12 +38,36 @@ export const PharmacyRoutes: React.FC = () => {
           <Route
             path="inventory"
             element={
-              <React.Suspense fallback={<div>Chargement...</div>}>
+              <React.Suspense fallback={<Fallback />}>
                 <PharmacyInventoryPage />
               </React.Suspense>
             }
           />
           <Route path="inventory-management" element={<EnhancedPharmacyPage />} />
+          <Route
+            path="prescriptions"
+            element={
+              <React.Suspense fallback={<Fallback />}>
+                <PharmacyPrescriptionsPage />
+              </React.Suspense>
+            }
+          />
+          <Route
+            path="low-stock"
+            element={
+              <React.Suspense fallback={<Fallback />}>
+                <PharmacyLowStockPage />
+              </React.Suspense>
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              <React.Suspense fallback={<Fallback />}>
+                <PharmacyOrdersPage />
+              </React.Suspense>
+            }
+          />
         </Route>
       </Routes>
     </ProtectedRoute>

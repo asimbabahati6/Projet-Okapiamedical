@@ -6,7 +6,8 @@ import {
   LayoutDashboard,
   Package,
   FileText,
-  History,
+  AlertTriangle,
+  ShoppingCart,
   Bell,
   Settings,
   LogOut
@@ -24,8 +25,9 @@ export const PharmacyLayout: React.FC = () => {
   const menuItems = [
     { path: '/pharmacy/dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
     { path: '/pharmacy/inventory', label: 'Inventaire', icon: Package },
-    { path: '/staff/prescriptions', label: 'Ordonnances', icon: FileText },
-    { path: '/pharmacy/history', label: 'Historique', icon: History }
+    { path: '/pharmacy/prescriptions', label: 'Ordonnances', icon: FileText },
+    { path: '/pharmacy/low-stock', label: 'Stock Bas', icon: AlertTriangle },
+    { path: '/pharmacy/orders', label: 'Commandes', icon: ShoppingCart }
   ];
 
   const handleSignOut = async () => {

@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Package, Plus, Download, Search, Eye, Edit, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Package, Plus, Download, Search, Eye, CreditCard as Edit, Trash2, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { getMedications, deleteMedication, getPharmacyStats, getStockAlerts } from '../../services/pharmacyService';
 import { Medication, PharmacyStats, MedicationStockAlert } from '../../types/pharmacy';
 import { AddMedicationModal } from '../../components/pharmacy/AddMedicationModal';
 import { useToast } from '../../hooks/useToast';
 
 export default function PharmacyInventoryPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [medications, setMedications] = useState<Medication[]>([]);
   const [filteredMedications, setFilteredMedications] = useState<Medication[]>([]);
   const [stats, setStats] = useState<PharmacyStats>({
@@ -20,10 +22,10 @@ export default function PharmacyInventoryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [formFilter, setFormFilter] = useState<string>('all');
-  const [stockFilter, setStockFilter] = useState<string>('all');
+  const [stockFilter, setStockFilter] = useState<string>(searchParams.get('filter') === 'low_stock' ? 'low_stock' : 'all');
   const [activeFilter, setActiveFilter] = useState<string>('all');
 
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(searchParams.get('action') === 'add');
   const [selectedMedication, setSelectedMedication] = useState<Medication | null>(null);
 
   const { showToast } = useToast();
