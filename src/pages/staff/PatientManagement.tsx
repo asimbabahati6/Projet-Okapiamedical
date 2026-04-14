@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Plus, User, Edit, FileText, Download, FileSpreadsheet } from 'lucide-react';
+import { Search, Plus, User, CreditCard as Edit, FileText, Download, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Patient } from '../../types/database';
 import { AddPatientModal } from '../../components/patients/AddPatientModal';
@@ -337,7 +337,7 @@ export function PatientManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm text-gray-900">
-                        {calculateAge(patient.date_of_birth)} yrs / {patient.gender}
+                        {calculateAge(patient.date_of_birth)} ans ({patient.gender.charAt(0).toUpperCase()})
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
