@@ -64,17 +64,6 @@ function addDays(dateStr: string, days: number): string {
 
 async function generateQRCodeDataURL(text: string, size: number): Promise<string | null> {
   try {
-    const qrModule = await import('qrcode').catch(() => null);
-    if (qrModule) {
-      return await qrModule.default.toDataURL(text, {
-        width: size,
-        margin: 1,
-        color: { dark: '#1e3a5f', light: '#ffffff' },
-      });
-    }
-  } catch (_) {}
-
-  try {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
