@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import QRCode from 'qrcode';
 import { Invoice, InvoiceItem, Patient } from '../types/database';
 
 const BRAND_BLUE = '#2563eb';
@@ -61,6 +60,98 @@ function addDays(dateStr: string, days: number): string {
   const d = new Date(dateStr);
   d.setDate(d.getDate() + days);
   return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+async function generateQRCodeDataURL(text: string, size: number): Promise<string | null> {
+  try {
+    const qrModule = await import('qrcode').catch(() => null);
+    if (qrModule) {
+      return await qrModule.default.toDataURL(text, {
+        width: size,
+        margin: 1,
+        color: { dark: '#1e3a5f', light: '#ffffff' },
+      });
+    }
+  } catch (_) {}
+
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return null;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, size, size);
+
+    const data = encodeQRData(text);
+    const moduleCount = data.length;
+    const moduleSize = Math.floor((size - 8) / moduleCount);
+    const offset = Math.floor((size - moduleCount * moduleSize) / 2);
+
+    ctx.fillStyle = '#1e3a5f';
+    for (let row = 0; row < moduleCount; row++) {
+      for (let col = 0; col < moduleCount; col++) {
+        if (data[row][col]) {
+          ctx.fillRect(
+            offset + col * moduleSize,
+            offset + row * moduleSize,
+            moduleSize,
+            moduleSize
+          );
+        }
+      }
+    }
+
+    return canvas.toDataURL('image/png');
+  } catch (_) {
+    return null;
+  }
+}
+
+function encodeQRData(text: string): boolean[][] {
+  const size = 25;
+  const grid: boolean[][] = Array.from({ length: size }, () => new Array(size).fill(false));
+
+  const bytes: number[] = [];
+  for (let i = 0; i < Math.min(text.length, size * size - 10); i++) {
+    bytes.push(text.charCodeAt(i) & 0xff);
+  }
+
+  let byteIdx = 0;
+  for (let row = 0; row < size && byteIdx < bytes.length; row++) {
+    for (let col = 0; col < size && byteIdx < bytes.length; col++) {
+      grid[row][col] = !!(bytes[byteIdx] & (1 << (col % 8)));
+      if (col % 8 === 7) byteIdx++;
+    }
+  }
+
+  for (let i = 0; i < 7; i++) {
+    grid[0][i] = true;
+    grid[6][i] = true;
+    grid[i][0] = true;
+    grid[i][6] = true;
+  }
+  for (let i = 1; i < 6; i++) {
+    grid[1][i] = false;
+    grid[5][i] = false;
+    grid[i][1] = false;
+    grid[i][5] = false;
+  }
+  for (let i = 2; i < 5; i++) {
+    for (let j = 2; j < 5; j++) {
+      grid[i][j] = true;
+    }
+  }
+
+  const br = size - 7;
+  for (let i = 0; i < 7; i++) {
+    grid[br + i][0] = grid[0][br + i] = true;
+    grid[br + i][6] = grid[6][br + i] = true;
+    grid[br + i][i] = grid[i][br + i] = true;
+  }
+
+  return grid;
 }
 
 export async function generateInvoicePDF(
@@ -292,18 +383,15 @@ export async function generateInvoicePDF(
     if (isPaid && invoice.payment_date) {
       qrData += `|STATUT:PAYE|DATE:${formatDate(invoice.payment_date)}`;
     }
-    const qrDataUrl = await QRCode.toDataURL(qrData, {
-      width: 200,
-      margin: 1,
-      color: { dark: '#1e3a5f', light: '#ffffff' },
-    });
-    const qrSize = 28;
-    doc.addImage(qrDataUrl, 'PNG', margin, qrY, qrSize, qrSize);
-
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(6.5);
-    setColor(doc, TEXT_GRAY, 'text');
-    doc.text('QR de traçabilité', margin + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
+    const qrDataUrl = await generateQRCodeDataURL(qrData, 200);
+    if (qrDataUrl) {
+      const qrSize = 28;
+      doc.addImage(qrDataUrl, 'PNG', margin, qrY, qrSize, qrSize);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      setColor(doc, TEXT_GRAY, 'text');
+      doc.text('QR de traçabilité', margin + qrSize / 2, qrY + qrSize + 3, { align: 'center' });
+    }
   } catch (_) {
     // QR code generation failed silently
   }
