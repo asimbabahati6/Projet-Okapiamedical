@@ -585,19 +585,23 @@ export interface Medication {
 
 export interface Invoice {
   id: string;
-  invoice_number: string;
+  invoice_number: string | null;
   patient_id: string;
   consultation_id: string | null;
   total_amount: number;
   paid_amount: number;
   balance: number;
-  status: 'pending' | 'partial' | 'paid' | 'cancelled';
+  status: 'draft' | 'pending' | 'partial' | 'paid' | 'cancelled';
   payment_method: string | null;
   payment_date: string | null;
   notes: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  tva_rate?: number;
+  tva_amount?: number;
+  net_to_pay?: number;
+  draft_number?: string | null;
   patient?: Patient;
 }
 

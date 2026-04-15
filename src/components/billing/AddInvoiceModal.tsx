@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Plus, Trash2 } from 'lucide-react';
+import { X, DollarSign, Plus, Trash2, FileEdit, Clock, Info } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+
+const TVA_RATE = 16;
 
 interface AddInvoiceModalProps {
   onClose: () => void;
@@ -9,20 +11,28 @@ interface AddInvoiceModalProps {
 
 interface InvoiceItem {
   description: string;
+  item_type: string;
   quantity: number;
   unit_price: number;
   total: number;
 }
 
+const ITEM_TYPES = [
+  { value: 'consultation', label: 'Consultation' },
+  { value: 'medication', label: 'Médicament' },
+  { value: 'lab_test', label: 'Analyse' },
+  { value: 'procedure', label: 'Procédure' },
+];
+
 export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
   const [patients, setPatients] = useState<any[]>([]);
   const [formData, setFormData] = useState({
     patient_id: '',
-    payment_method: '',
     notes: '',
+    initialStatus: 'pending' as 'draft' | 'pending',
   });
   const [items, setItems] = useState<InvoiceItem[]>([
-    { description: '', quantity: 1, unit_price: 0, total: 0 }
+    { description: '', item_type: 'consultation', quantity: 1, unit_price: 0, total: 0 }
   ]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -37,36 +47,33 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
         .from('patients')
         .select('id, patient_number, first_name, last_name')
         .order('first_name', { ascending: true })
-        .limit(50);
-
+        .limit(100);
       if (data) setPatients(data);
-    } catch (error) {
-      console.error('Error fetching patients:', error);
+    } catch (err) {
+      console.error('Error fetching patients:', err);
     }
   }
 
   function addItem() {
-    setItems([...items, { description: '', quantity: 1, unit_price: 0, total: 0 }]);
+    setItems([...items, { description: '', item_type: 'consultation', quantity: 1, unit_price: 0, total: 0 }]);
   }
 
   function removeItem(index: number) {
-    if (items.length > 1) {
-      setItems(items.filter((_, i) => i !== index));
-    }
+    if (items.length > 1) setItems(items.filter((_, i) => i !== index));
   }
 
   function updateItem(index: number, field: keyof InvoiceItem, value: string | number) {
-    const newItems = [...items];
-    newItems[index] = { ...newItems[index], [field]: value };
-
+    const updated = [...items];
+    updated[index] = { ...updated[index], [field]: value };
     if (field === 'quantity' || field === 'unit_price') {
-      newItems[index].total = newItems[index].quantity * newItems[index].unit_price;
+      updated[index].total = updated[index].quantity * updated[index].unit_price;
     }
-
-    setItems(newItems);
+    setItems(updated);
   }
 
-  const totalAmount = items.reduce((sum, item) => sum + item.total, 0);
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const tvaAmount = subtotal * (TVA_RATE / 100);
+  const netToPay = subtotal + tvaAmount;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,21 +81,27 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
     setError('');
 
     try {
-      const invoiceNumber = `INV${String(Math.floor(Math.random() * 900000) + 100000).padStart(6, '0')}`;
+      const isDraft = formData.initialStatus === 'draft';
+
+      const invoicePayload: any = {
+        patient_id: formData.patient_id,
+        total_amount: subtotal,
+        tva_rate: TVA_RATE,
+        tva_amount: tvaAmount,
+        net_to_pay: netToPay,
+        paid_amount: 0,
+        balance: netToPay,
+        status: isDraft ? 'draft' : 'pending',
+        notes: formData.notes || null,
+      };
+
+      if (!isDraft) {
+        invoicePayload.invoice_number = null;
+      }
 
       const { data: invoiceData, error: invoiceError } = await supabase
         .from('invoices')
-        .insert({
-          invoice_number: invoiceNumber,
-          patient_id: formData.patient_id,
-          total_amount: totalAmount,
-          paid_amount: formData.payment_method ? totalAmount : 0,
-          balance: formData.payment_method ? 0 : totalAmount,
-          status: formData.payment_method ? 'paid' : 'pending',
-          payment_method: formData.payment_method || null,
-          payment_date: formData.payment_method ? new Date().toISOString() : null,
-          notes: formData.notes || null,
-        })
+        .insert(invoicePayload)
         .select()
         .single();
 
@@ -98,6 +111,7 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
         const invoiceItems = items.map(item => ({
           invoice_id: invoiceData.id,
           description: item.description,
+          item_type: item.item_type || null,
           quantity: item.quantity,
           unit_price: item.unit_price,
           total_price: item.total,
@@ -129,10 +143,7 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
             </div>
             <h2 className="text-xl font-semibold text-gray-900">Nouvelle Facture</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -145,69 +156,123 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
           )}
 
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Patient *
-                </label>
-                <select
-                  required
-                  value={formData.patient_id}
-                  onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">Sélectionner un patient</option>
-                  {patients.map((patient) => (
-                    <option key={patient.id} value={patient.id}>
-                      {patient.first_name} {patient.last_name} ({patient.patient_number})
-                    </option>
-                  ))}
-                </select>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Patient *</label>
+              <select
+                required
+                value={formData.patient_id}
+                onChange={(e) => setFormData({ ...formData, patient_id: e.target.value })}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Sélectionner un patient</option>
+                {patients.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.first_name} {p.last_name} ({p.patient_number})
+                  </option>
+                ))}
+              </select>
+            </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Méthode de Paiement
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Statut initial
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                  formData.initialStatus === 'draft'
+                    ? 'border-gray-400 bg-gray-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="initialStatus"
+                    value="draft"
+                    checked={formData.initialStatus === 'draft'}
+                    onChange={() => setFormData({ ...formData, initialStatus: 'draft' })}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileEdit className="w-4 h-4 text-gray-500" />
+                      <span className="text-sm font-semibold text-gray-700">Brouillon</span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Pas de numéro OKA attribué. La facture ne peut pas être envoyée au patient tant qu'elle n'est pas validée.
+                    </p>
+                  </div>
                 </label>
-                <select
-                  value={formData.payment_method}
-                  onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                >
-                  <option value="">En attente de paiement</option>
-                  <option value="Espèces">Espèces</option>
-                  <option value="Carte bancaire">Carte bancaire</option>
-                  <option value="Mobile Money">Mobile Money</option>
-                  <option value="Assurance">Assurance</option>
-                </select>
+
+                <label className={`flex items-start gap-3 p-4 border-2 rounded-xl cursor-pointer transition-colors ${
+                  formData.initialStatus === 'pending'
+                    ? 'border-blue-500 bg-blue-50'
+                    : 'border-gray-200 hover:border-gray-300'
+                }`}>
+                  <input
+                    type="radio"
+                    name="initialStatus"
+                    value="pending"
+                    checked={formData.initialStatus === 'pending'}
+                    onChange={() => setFormData({ ...formData, initialStatus: 'pending' })}
+                    className="mt-0.5"
+                  />
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Clock className="w-4 h-4 text-yellow-600" />
+                      <span className="text-sm font-semibold text-gray-700">En attente</span>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Numéro OKA-AAAA-MM-XXXX généré immédiatement. La facture peut être envoyée au patient.
+                    </p>
+                  </div>
+                </label>
               </div>
             </div>
 
             <div className="border-t border-gray-200 pt-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-gray-900">Articles de la Facture</h3>
+                <h3 className="text-sm font-semibold text-gray-900">Actes Médicaux</h3>
                 <button
                   type="button"
                   onClick={addItem}
                   className="flex items-center gap-2 px-3 py-1 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
-                  Ajouter
+                  Ajouter un acte
                 </button>
+              </div>
+
+              <div className="hidden md:grid grid-cols-12 gap-3 mb-2 px-1">
+                <div className="col-span-4 text-xs font-medium text-gray-500">Description</div>
+                <div className="col-span-2 text-xs font-medium text-gray-500">Type</div>
+                <div className="col-span-2 text-xs font-medium text-gray-500">Qté</div>
+                <div className="col-span-2 text-xs font-medium text-gray-500">P.U. (USD)</div>
+                <div className="col-span-1 text-xs font-medium text-gray-500">Total HT</div>
+                <div className="col-span-1" />
               </div>
 
               <div className="space-y-3">
                 {items.map((item, index) => (
                   <div key={index} className="grid grid-cols-12 gap-3 items-start">
-                    <div className="col-span-5">
+                    <div className="col-span-4">
                       <input
                         type="text"
                         required
                         value={item.description}
                         onChange={(e) => updateItem(index, 'description', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        placeholder="Description"
+                        placeholder="Description de l'acte"
                       />
+                    </div>
+                    <div className="col-span-2">
+                      <select
+                        value={item.item_type}
+                        onChange={(e) => updateItem(index, 'item_type', e.target.value)}
+                        className="w-full px-2 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      >
+                        {ITEM_TYPES.map(t => (
+                          <option key={t.value} value={t.value}>{t.label}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="col-span-2">
                       <input
@@ -217,7 +282,6 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
                         value={item.quantity}
                         onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 1)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        placeholder="Qté"
                       />
                     </div>
                     <div className="col-span-2">
@@ -229,24 +293,22 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
                         value={item.unit_price}
                         onChange={(e) => updateItem(index, 'unit_price', parseFloat(e.target.value) || 0)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        placeholder="Prix"
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="col-span-1">
                       <input
                         type="text"
                         disabled
                         value={item.total.toFixed(2)}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm font-medium"
-                        placeholder="Total"
+                        className="w-full px-2 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm font-medium text-right"
                       />
                     </div>
-                    <div className="col-span-1">
+                    <div className="col-span-1 flex justify-center">
                       <button
                         type="button"
                         onClick={() => removeItem(index)}
                         disabled={items.length === 1}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -255,18 +317,29 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
                 ))}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 flex justify-end">
-                <div className="text-right">
-                  <p className="text-sm text-gray-600 mb-1">Montant Total</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalAmount.toFixed(2)} USD</p>
+              <div className="mt-5 pt-4 border-t border-gray-200">
+                <div className="ml-auto w-64 space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Sous-total HT</span>
+                    <span className="font-medium text-gray-900">{subtotal.toFixed(2)} USD</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 flex items-center gap-1">
+                      TVA {TVA_RATE}%
+                      <Info className="w-3.5 h-3.5 text-gray-400" />
+                    </span>
+                    <span className="font-medium text-gray-900">{tvaAmount.toFixed(2)} USD</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 flex items-center justify-between">
+                    <span className="text-sm font-bold text-gray-900">Net à Payer</span>
+                    <span className="text-xl font-bold text-blue-700">{netToPay.toFixed(2)} USD</span>
+                  </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes (optionnel)
-              </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Notes (optionnel)</label>
               <textarea
                 rows={3}
                 value={formData.notes}
@@ -281,14 +354,14 @@ export function AddInvoiceModal({ onClose, onSuccess }: AddInvoiceModalProps) {
             <button
               type="submit"
               disabled={loading}
-              className="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+              className="flex-1 bg-blue-600 text-white px-4 py-2.5 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-medium"
             >
-              {loading ? 'Création en cours...' : 'Créer la Facture'}
+              {loading ? 'Création en cours...' : formData.initialStatus === 'draft' ? 'Créer le Brouillon' : 'Créer la Facture'}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="px-6 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
             >
               Annuler
             </button>

@@ -1,9 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
-import { DollarSign, Search, Plus, CreditCard, Banknote, Smartphone, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { DollarSign, Search, Plus, CreditCard, Banknote, Smartphone, FileText, AlertCircle, CheckCircle, FileCheck } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Invoice } from '../../types/database';
 import { AddInvoiceModal } from '../../components/billing/AddInvoiceModal';
 import { InvoiceDetailsModal } from '../../components/billing/InvoiceDetailsModal';
+import { InvoiceStatusBadge } from '../../components/billing/InvoiceStatusBadge';
+import { InvoiceActionsMenu } from '../../components/billing/InvoiceActionsMenu';
+import { EncaisserModal } from '../../components/billing/EncaisserModal';
+import { PromoteDraftModal } from '../../components/billing/PromoteDraftModal';
 import { PeriodFilterBar } from '../../components/billing/PeriodFilterBar';
 import { EnhancedBillingKPICard } from '../../components/billing/EnhancedBillingKPICard';
 import { BillingTrendMiniChart } from '../../components/billing/BillingTrendMiniChart';
@@ -31,6 +35,8 @@ export function BillingPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showEncaisserModal, setShowEncaisserModal] = useState(false);
+  const [showPromoteDraftModal, setShowPromoteDraftModal] = useState(false);
   const [showReportInsertModal, setShowReportInsertModal] = useState(false);
   const [insertedReports, setInsertedReports] = useState<SavedFinancialReport[]>([]);
 
@@ -44,12 +50,9 @@ export function BillingPage() {
 
   async function fetchInvoices() {
     try {
-      const { data, error} = await supabase
+      const { data, error } = await supabase
         .from('invoices')
-        .select(`
-          *,
-          patient:patients(*)
-        `)
+        .select(`*, patient:patients(*)`)
         .order('created_at', { ascending: false })
         .limit(1000);
 
@@ -64,7 +67,7 @@ export function BillingPage() {
   }
 
   function generateMockInvoices() {
-    const statuses: Invoice['status'][] = ['pending', 'partial', 'paid', 'cancelled'];
+    const statuses: Array<Invoice['status'] | 'draft'> = ['draft', 'pending', 'partial', 'paid', 'cancelled'];
     const paymentMethods = ['Espèces', 'Carte bancaire', 'Mobile Money', 'Assurance'];
     const mockPatients = [
       { first_name: 'Jean', last_name: 'Dupont' },
@@ -86,22 +89,24 @@ export function BillingPage() {
       invoiceDate.setDate(today.getDate() + daysOffset);
 
       const patient = mockPatients[Math.floor(Math.random() * mockPatients.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)] as Invoice['status'];
       const totalAmount = 50 + Math.floor(Math.random() * 500);
+      const tvaAmount = totalAmount * 0.16;
+      const netToPay = totalAmount + tvaAmount;
       let paidAmount = 0;
 
       if (status === 'paid') {
-        paidAmount = totalAmount;
+        paidAmount = netToPay;
       } else if (status === 'partial') {
-        paidAmount = Math.floor(totalAmount * (0.3 + Math.random() * 0.5));
+        paidAmount = Math.floor(netToPay * (0.3 + Math.random() * 0.5));
       }
 
-      const balance = totalAmount - paidAmount;
-      const paymentMethod = status !== 'pending' ? paymentMethods[Math.floor(Math.random() * paymentMethods.length)] : null;
+      const balance = netToPay - paidAmount;
+      const paymentMethod = status !== 'pending' && status !== 'draft' ? paymentMethods[Math.floor(Math.random() * paymentMethods.length)] : null;
 
       mockData.push({
         id: `invoice-${i}`,
-        invoice_number: `INV${String(1000 + i).padStart(6, '0')}`,
+        invoice_number: status === 'draft' ? null : `OKA-2026-04-${String(1 + i).padStart(4, '0')}`,
         patient_id: `patient-${i}`,
         consultation_id: null,
         total_amount: totalAmount,
@@ -114,6 +119,10 @@ export function BillingPage() {
         created_by: null,
         created_at: invoiceDate.toISOString(),
         updated_at: invoiceDate.toISOString(),
+        tva_rate: 16,
+        tva_amount: tvaAmount,
+        net_to_pay: netToPay,
+        draft_number: status === 'draft' ? `DRAFT-${1000 + i}` : null,
         patient: {
           ...patient,
           id: `patient-${i}`,
@@ -121,7 +130,7 @@ export function BillingPage() {
           date_of_birth: '1990-01-01',
           gender: Math.random() < 0.5 ? 'M' : 'F',
           blood_group: 'O+',
-          phone: '+243 800 000 000',
+          phone: `+243 81${String(Math.floor(Math.random() * 9000000) + 1000000)}`,
           email: `${patient.first_name.toLowerCase()}@email.com`,
           address: 'Kinshasa, RDC',
           city: 'Kinshasa',
@@ -135,7 +144,7 @@ export function BillingPage() {
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
         },
-      } as Invoice);
+      } as any);
     }
 
     setAllInvoices(mockData);
@@ -146,18 +155,16 @@ export function BillingPage() {
       start: new Date(customStartDate),
       end: new Date(customEndDate)
     } : undefined;
-
     return filterInvoicesByPeriod(allInvoices, selectedPeriod, customRange);
   }, [allInvoices, selectedPeriod, customStartDate, customEndDate]);
 
   const filteredInvoices = useMemo(() => {
     return filteredByPeriod.filter(invoice => {
+      const invoiceNum = (invoice.invoice_number ?? (invoice as any).draft_number ?? '').toLowerCase();
       const matchesSearch =
-        invoice.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        invoiceNum.includes(searchTerm.toLowerCase()) ||
         `${invoice.patient?.first_name} ${invoice.patient?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase());
-
       const matchesStatus = statusFilter === 'all' || invoice.status === statusFilter;
-
       return matchesSearch && matchesStatus;
     });
   }, [filteredByPeriod, searchTerm, statusFilter]);
@@ -168,7 +175,6 @@ export function BillingPage() {
       const date = new Date(inv.created_at);
       return date >= prevRange.start && date <= prevRange.end;
     });
-
     return comparePeriods(filteredByPeriod, prevInvoices);
   }, [filteredByPeriod, allInvoices, selectedPeriod]);
 
@@ -178,8 +184,9 @@ export function BillingPage() {
       totalCollectedToday: filteredByPeriod
         .filter(i => i.payment_date && new Date(i.payment_date).toISOString().split('T')[0] === new Date().toISOString().split('T')[0])
         .reduce((sum, i) => sum + i.paid_amount, 0),
-      outstandingBalance: filteredByPeriod.reduce((sum, i) => sum + i.balance, 0),
+      outstandingBalance: filteredByPeriod.filter(i => i.status !== 'draft').reduce((sum, i) => sum + i.balance, 0),
       totalPaid: filteredByPeriod.filter(i => i.status === 'paid').length,
+      totalDrafts: filteredByPeriod.filter(i => i.status === 'draft').length,
     };
   }, [filteredByPeriod]);
 
@@ -189,10 +196,11 @@ export function BillingPage() {
     const month = filterInvoicesByPeriod(allInvoices, 'month');
 
     const calcStats = (invs: Invoice[]) => {
-      const totalInvoiced = invs.reduce((sum, inv) => sum + inv.total_amount, 0);
-      const totalCollected = invs.reduce((sum, inv) => sum + inv.paid_amount, 0);
+      const nonDraft = invs.filter(i => i.status !== 'draft');
+      const totalInvoiced = nonDraft.reduce((sum, inv) => sum + inv.total_amount, 0);
+      const totalCollected = nonDraft.reduce((sum, inv) => sum + inv.paid_amount, 0);
       return {
-        count: invs.length,
+        count: nonDraft.length,
         totalCollected,
         recoveryRate: totalInvoiced > 0 ? (totalCollected / totalInvoiced) * 100 : 0
       };
@@ -205,91 +213,40 @@ export function BillingPage() {
     };
   }, [allInvoices]);
 
-  const trendData = useMemo(() => {
-    return getLast7DaysData(filteredByPeriod);
-  }, [filteredByPeriod]);
+  const trendData = useMemo(() => getLast7DaysData(filteredByPeriod), [filteredByPeriod]);
 
   const insights = useMemo(() => {
-    const insights = [];
+    const list = [];
     const change = periodComparison.changes.totalCollected;
 
     if (change > 15) {
-      insights.push({
-        type: 'success' as const,
-        icon: 'trending-up' as const,
-        message: `Collections en hausse de ${change.toFixed(1)}% cette période`
-      });
+      list.push({ type: 'success' as const, icon: 'trending-up' as const, message: `Collections en hausse de ${change.toFixed(1)}% cette période` });
     } else if (change < -10) {
-      insights.push({
-        type: 'warning' as const,
-        icon: 'trending-down' as const,
-        message: `Collections en baisse de ${Math.abs(change).toFixed(1)}%`
-      });
+      list.push({ type: 'warning' as const, icon: 'trending-down' as const, message: `Collections en baisse de ${Math.abs(change).toFixed(1)}%` });
     }
 
     const overdue = filteredByPeriod.filter(inv => {
-      if (inv.status === 'paid' || inv.status === 'cancelled') return false;
-      const daysPast = (Date.now() - new Date(inv.created_at).getTime()) / (1000 * 60 * 60 * 24);
-      return daysPast > 30;
+      if (['paid', 'cancelled', 'draft'].includes(inv.status)) return false;
+      return (Date.now() - new Date(inv.created_at).getTime()) / (1000 * 60 * 60 * 24) > 30;
     }).length;
 
     if (overdue > 0) {
-      insights.push({
-        type: overdue > 5 ? 'danger' as const : 'warning' as const,
-        icon: 'alert' as const,
-        message: `${overdue} facture${overdue > 1 ? 's' : ''} en retard de plus de 30 jours`
-      });
+      list.push({ type: overdue > 5 ? 'danger' as const : 'warning' as const, icon: 'alert' as const, message: `${overdue} facture${overdue > 1 ? 's' : ''} en retard de plus de 30 jours` });
+    }
+
+    if (stats.totalDrafts > 0) {
+      list.push({ type: 'info' as const, icon: 'alert' as const, message: `${stats.totalDrafts} brouillon${stats.totalDrafts > 1 ? 's' : ''} en attente de validation` });
     }
 
     const recoveryRate = periodComparison.current.recoveryRate;
     if (recoveryRate >= 85) {
-      insights.push({
-        type: 'success' as const,
-        icon: 'check' as const,
-        message: `Excellent taux de recouvrement: ${recoveryRate.toFixed(1)}%`
-      });
+      list.push({ type: 'success' as const, icon: 'check' as const, message: `Excellent taux de recouvrement: ${recoveryRate.toFixed(1)}%` });
     } else if (recoveryRate < 70) {
-      insights.push({
-        type: 'warning' as const,
-        icon: 'alert' as const,
-        message: `Taux de recouvrement à améliorer: ${recoveryRate.toFixed(1)}%`
-      });
+      list.push({ type: 'warning' as const, icon: 'alert' as const, message: `Taux de recouvrement à améliorer: ${recoveryRate.toFixed(1)}%` });
     }
 
-    const bestDay = trendData.length > 0
-      ? trendData.reduce((max, d) => d.amount > max.amount ? d : max, trendData[0])
-      : null;
-
-    if (bestDay && bestDay.amount > 0) {
-      insights.push({
-        type: 'info' as const,
-        icon: 'calendar' as const,
-        message: `Meilleur jour: ${bestDay.date} (${bestDay.amount.toFixed(2)} USD collecté)`
-      });
-    }
-
-    return insights;
-  }, [periodComparison, filteredByPeriod, trendData]);
-
-  function getStatusColor(status: string) {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      partial: 'bg-orange-100 text-orange-800',
-      paid: 'bg-green-100 text-green-800',
-      cancelled: 'bg-red-100 text-red-800',
-    };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  }
-
-  function getStatusLabel(status: string) {
-    const labels = {
-      pending: 'En attente',
-      partial: 'Partiel',
-      paid: 'Payé',
-      cancelled: 'Annulé',
-    };
-    return labels[status as keyof typeof labels] || status;
-  }
+    return list;
+  }, [periodComparison, filteredByPeriod, stats.totalDrafts]);
 
   function formatCurrency(amount: number) {
     return `${amount.toFixed(2)} USD`;
@@ -321,21 +278,27 @@ export function BillingPage() {
             auto_update: options.autoUpdate
           });
 
-        if (insertError && !insertError.message.includes('duplicate')) {
-          throw insertError;
-        }
-
+        if (insertError && !insertError.message.includes('duplicate')) throw insertError;
         setInsertedReports([...insertedReports, report]);
       }
     } catch (error) {
       console.error('Error inserting report:', error);
-      alert('Erreur lors de l\'insertion du rapport');
     }
   };
 
   const handleRemoveReport = (reportId: string) => {
     setInsertedReports(insertedReports.filter(r => r.id !== reportId));
   };
+
+  function openEncaisser(invoice: Invoice) {
+    setSelectedInvoice(invoice);
+    setShowEncaisserModal(true);
+  }
+
+  function openPromoteDraft(invoice: Invoice) {
+    setSelectedInvoice(invoice);
+    setShowPromoteDraftModal(true);
+  }
 
   if (loading) {
     return (
@@ -384,16 +347,8 @@ export function BillingPage() {
           fetchInvoices();
           const report = insertedReports.find(r => r.id === reportId);
           if (!report) {
-            supabase
-              .from('financial_reports')
-              .select('*')
-              .eq('id', reportId)
-              .single()
-              .then(({ data }) => {
-                if (data) {
-                  setInsertedReports([...insertedReports, data]);
-                }
-              });
+            supabase.from('financial_reports').select('*').eq('id', reportId).single()
+              .then(({ data }) => { if (data) setInsertedReports([...insertedReports, data]); });
           }
         }}
         currentPeriod={{
@@ -410,11 +365,7 @@ export function BillingPage() {
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {insertedReports.map(report => (
-              <ReportSummaryCard
-                key={report.id}
-                report={report}
-                onRemove={() => handleRemoveReport(report.id)}
-              />
+              <ReportSummaryCard key={report.id} report={report} onRemove={() => handleRemoveReport(report.id)} />
             ))}
           </div>
         </div>
@@ -429,14 +380,12 @@ export function BillingPage() {
           change={periodComparison.changes.totalBalance}
           showTrend
         />
-
         <EnhancedBillingKPICard
           title="Collecté aujourd'hui"
           value={formatCurrency(stats.totalCollectedToday)}
           icon={DollarSign}
           color="green"
         />
-
         <EnhancedBillingKPICard
           title="Solde impayé"
           value={formatCurrency(stats.outstandingBalance)}
@@ -445,13 +394,12 @@ export function BillingPage() {
           change={periodComparison.changes.totalBalance}
           showTrend
         />
-
         <EnhancedBillingKPICard
           title="Factures payées"
           value={stats.totalPaid}
           icon={CheckCircle}
           color="blue"
-          subtitle={`sur ${filteredByPeriod.length} factures`}
+          subtitle={`sur ${filteredByPeriod.filter(i => i.status !== 'draft').length} factures`}
         />
       </div>
 
@@ -464,9 +412,7 @@ export function BillingPage() {
         onPeriodClick={(period) => setSelectedPeriod(period)}
       />
 
-      {trendData.length > 0 && (
-        <BillingTrendMiniChart data={trendData} />
-      )}
+      {trendData.length > 0 && <BillingTrendMiniChart data={trendData} />}
 
       <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
         <div className="flex flex-col md:flex-row gap-4">
@@ -474,23 +420,23 @@ export function BillingPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par numéro de facture ou patient..."
+              placeholder="Rechercher par numéro OKA, brouillon ou patient..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="all">Tous les statuts</option>
+            <option value="draft">Brouillon</option>
             <option value="pending">En attente</option>
             <option value="partial">Partiel</option>
-            <option value="paid">Payé</option>
-            <option value="cancelled">Annulé</option>
+            <option value="paid">Payée</option>
+            <option value="cancelled">Annulée</option>
           </select>
         </div>
       </div>
@@ -522,91 +468,100 @@ export function BillingPage() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  N° Facture
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Patient
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Montant Total
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Montant Payé
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Solde
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Méthode
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">N° Facture</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Patient</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">HT</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net à Payer</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Solde</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Statut</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredInvoices.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
                     Aucune facture trouvée
                   </td>
                 </tr>
               ) : (
-                filteredInvoices.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600">{invoice.invoice_number}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-medium text-gray-900">
-                        {invoice.patient?.first_name} {invoice.patient?.last_name}
-                      </p>
-                      <p className="text-xs text-gray-500">{invoice.patient?.patient_number}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">
-                        {new Date(invoice.created_at).toLocaleDateString('fr-FR')}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <span className="text-sm font-medium text-gray-900">{formatCurrency(invoice.total_amount)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <span className="text-sm text-gray-900">{formatCurrency(invoice.paid_amount)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <span className={`text-sm font-medium ${invoice.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                        {formatCurrency(invoice.balance)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{invoice.payment_method || '-'}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(invoice.status)}`}>
-                        {getStatusLabel(invoice.status)}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <button
-                        onClick={() => {
-                          setSelectedInvoice(invoice);
-                          setShowDetailsModal(true);
-                        }}
-                        className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                      >
-                        {invoice.status === 'pending' || invoice.status === 'partial' ? 'Payer' : 'Détails'}
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredInvoices.map((invoice) => {
+                  const isDraft = invoice.status === 'draft';
+                  const displayNumber = invoice.invoice_number ?? (invoice as any).draft_number ?? 'BROUILLON';
+                  const netToPay = (invoice as any).net_to_pay ?? invoice.total_amount;
+
+                  return (
+                    <tr key={invoice.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        {isDraft ? (
+                          <span className="text-sm font-mono text-gray-400 italic">{displayNumber}</span>
+                        ) : (
+                          <span className="text-sm font-semibold font-mono text-blue-700">{displayNumber}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <p className="text-sm font-medium text-gray-900">
+                          {invoice.patient?.first_name} {invoice.patient?.last_name}
+                        </p>
+                        <p className="text-xs text-gray-500">{invoice.patient?.patient_number}</p>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className="text-sm text-gray-900">
+                          {new Date(invoice.created_at).toLocaleDateString('fr-FR')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                        <span className="text-sm text-gray-700">{formatCurrency(invoice.total_amount)}</span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                        <span className="text-sm font-semibold text-gray-900">{formatCurrency(netToPay)}</span>
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-right">
+                        {isDraft ? (
+                          <span className="text-sm text-gray-400">—</span>
+                        ) : (
+                          <span className={`text-sm font-medium ${invoice.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            {formatCurrency(invoice.balance)}
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <InvoiceStatusBadge status={invoice.status} />
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-2">
+                          {isDraft && (
+                            <button
+                              onClick={() => openPromoteDraft(invoice)}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                              title="Valider le brouillon"
+                            >
+                              <FileCheck className="w-3.5 h-3.5" />
+                              Valider
+                            </button>
+                          )}
+                          {(invoice.status === 'pending' || invoice.status === 'partial') && (
+                            <button
+                              onClick={() => openEncaisser(invoice)}
+                              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              Encaisser
+                            </button>
+                          )}
+                          <InvoiceActionsMenu
+                            invoice={invoice}
+                            onView={() => {
+                              setSelectedInvoice(invoice);
+                              setShowDetailsModal(true);
+                            }}
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -622,20 +577,24 @@ export function BillingPage() {
       {showAddModal && (
         <AddInvoiceModal
           onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            fetchInvoices();
-            setShowAddModal(false);
-          }}
+          onSuccess={() => { fetchInvoices(); setShowAddModal(false); }}
         />
       )}
 
       {showDetailsModal && selectedInvoice && (
         <InvoiceDetailsModal
           invoice={selectedInvoice}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedInvoice(null);
-          }}
+          onClose={() => { setShowDetailsModal(false); setSelectedInvoice(null); }}
+          onEncaisser={
+            selectedInvoice.status === 'pending' || selectedInvoice.status === 'partial'
+              ? () => { setShowDetailsModal(false); setShowEncaisserModal(true); }
+              : undefined
+          }
+          onPromoteDraft={
+            selectedInvoice.status === 'draft'
+              ? () => { setShowDetailsModal(false); setShowPromoteDraftModal(true); }
+              : undefined
+          }
           onPayment={async (invoiceId, amount, method) => {
             try {
               const { error } = await supabase
@@ -648,15 +607,30 @@ export function BillingPage() {
                   payment_date: new Date().toISOString()
                 })
                 .eq('id', invoiceId);
-
               if (error) throw error;
               fetchInvoices();
               setShowDetailsModal(false);
               setSelectedInvoice(null);
-            } catch (error) {
-              console.error('Error processing payment:', error);
+            } catch (err) {
+              console.error('Error processing payment:', err);
             }
           }}
+        />
+      )}
+
+      {showEncaisserModal && selectedInvoice && (
+        <EncaisserModal
+          invoice={selectedInvoice}
+          onClose={() => { setShowEncaisserModal(false); setSelectedInvoice(null); }}
+          onSuccess={() => { fetchInvoices(); }}
+        />
+      )}
+
+      {showPromoteDraftModal && selectedInvoice && (
+        <PromoteDraftModal
+          invoice={selectedInvoice}
+          onClose={() => { setShowPromoteDraftModal(false); setSelectedInvoice(null); }}
+          onSuccess={() => { fetchInvoices(); setShowPromoteDraftModal(false); setSelectedInvoice(null); }}
         />
       )}
 
