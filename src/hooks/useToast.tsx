@@ -24,10 +24,15 @@ export function useToast() {
   const warning = useCallback((message: string) => addToast(message, 'warning'), [addToast]);
   const info = useCallback((message: string) => addToast(message, 'info'), [addToast]);
 
+  const showToast = useCallback((message: string, type: ToastType = 'info') => {
+    addToast(message, type);
+  }, [addToast]);
+
   return {
     toasts,
     addToast,
     removeToast,
+    showToast,
     success,
     error,
     warning,

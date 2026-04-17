@@ -7,9 +7,12 @@ import { EmployeeDetailsModal } from '../../components/employees/EmployeeDetails
 import { EditEmployeeModal } from '../../components/employees/EditEmployeeModal';
 import { DocumentManagementModal } from '../../components/employees/DocumentManagementModal';
 import { useAuth } from '../../contexts/AuthContext';
+import { ToastContainer } from '../../components/Toast';
+import { useToast } from '../../hooks/useToast';
 
 export function EmployeesPage() {
   const { canManageEmployees } = useAuth();
+  const { toasts, removeToast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -325,6 +328,8 @@ export function EmployeesPage() {
           onClose={() => setDocumentEmployee(null)}
         />
       )}
+
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }

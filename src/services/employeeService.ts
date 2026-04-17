@@ -261,7 +261,7 @@ export async function getEmployeeById(employeeId: string): Promise<EmployeeFormD
       .eq('id', employeeId)
       .maybeSingle();
 
-    if (hrError || !hrEmployee) return null;
+    if (hrError) return null;
 
     const { data: education } = await supabase
       .from('employee_education')
@@ -281,13 +281,13 @@ export async function getEmployeeById(employeeId: string): Promise<EmployeeFormD
 
     const formData: EmployeeFormData = {
       personalInfo: {
-        employeeNumber: hrEmployee.employee_number,
+        employeeNumber: hrEmployee?.employee_number || '',
         firstName: firstName || '',
         lastName: lastName || '',
         dateOfBirth: profile.date_of_birth || '',
         placeOfBirth: profile.place_of_birth || '',
         nationality: profile.nationality || 'République Démocratique du Congo',
-        socialSecurityNumber: hrEmployee.social_security_number || '',
+        socialSecurityNumber: hrEmployee?.social_security_number || '',
         gender: profile.gender || '',
       },
       academicBackground: {
@@ -314,26 +314,26 @@ export async function getEmployeeById(employeeId: string): Promise<EmployeeFormD
       professionalInfo: {
         departmentId: profile.department_id || '',
         position: profile.position || '',
-        contractType: hrEmployee.contract_type || '',
-        employmentStatus: hrEmployee.employment_status || '',
-        hireDate: hrEmployee.hire_date || '',
+        contractType: hrEmployee?.contract_type || '',
+        employmentStatus: hrEmployee?.employment_status || 'active',
+        hireDate: hrEmployee?.hire_date || '',
         isMedicalStaff: profile.is_medical_staff || false,
         rppsNumber: medical?.rpps_number || '',
         specialization: medical?.specialization || '',
       },
       bankingInfo: {
-        bankName: hrEmployee.bank_name || '',
-        iban: hrEmployee.bank_account || '',
-        bic: hrEmployee.swift_code || '',
-        accountHolder: profile.full_name,
-        currency: hrEmployee.salary_currency || 'USD',
+        bankName: hrEmployee?.bank_name || '',
+        iban: hrEmployee?.bank_account || '',
+        bic: hrEmployee?.swift_code || '',
+        accountHolder: profile.full_name || '',
+        currency: hrEmployee?.salary_currency || 'USD',
       },
       emergencyContact: {
-        fullName: hrEmployee.emergency_contact_name || '',
-        relationship: hrEmployee.emergency_contact_relationship || '',
-        phone: hrEmployee.emergency_contact_phone || '',
-        email: hrEmployee.emergency_contact_email || '',
-        address: hrEmployee.emergency_contact_address || '',
+        fullName: hrEmployee?.emergency_contact_name || '',
+        relationship: hrEmployee?.emergency_contact_relationship || '',
+        phone: hrEmployee?.emergency_contact_phone || '',
+        email: hrEmployee?.emergency_contact_email || '',
+        address: hrEmployee?.emergency_contact_address || '',
       },
     };
 
@@ -372,32 +372,35 @@ export async function updateEmployee(userId: string, formData: Partial<EmployeeF
     }
 
     if (formData.professionalInfo || formData.bankingInfo || formData.emergencyContact) {
-      const updateData: any = {};
+      const upsertData: any = { id: userId };
 
       if (formData.professionalInfo) {
-        updateData.hire_date = formData.professionalInfo.hireDate;
-        updateData.contract_type = formData.professionalInfo.contractType;
+        upsertData.hire_date = formData.professionalInfo.hireDate || null;
+        upsertData.contract_type = formData.professionalInfo.contractType || null;
+        upsertData.employment_status = formData.professionalInfo.employmentStatus || 'active';
+        if (formData.personalInfo?.employeeNumber) {
+          upsertData.employee_number = formData.personalInfo.employeeNumber;
+        }
       }
 
       if (formData.bankingInfo) {
-        updateData.bank_name = formData.bankingInfo.bankName;
-        updateData.bank_account = formData.bankingInfo.iban;
-        updateData.swift_code = formData.bankingInfo.bic;
-        updateData.salary_currency = formData.bankingInfo.currency;
+        upsertData.bank_name = formData.bankingInfo.bankName || null;
+        upsertData.bank_account = formData.bankingInfo.iban || null;
+        upsertData.swift_code = formData.bankingInfo.bic || null;
+        upsertData.salary_currency = formData.bankingInfo.currency || 'USD';
       }
 
       if (formData.emergencyContact) {
-        updateData.emergency_contact_name = formData.emergencyContact.fullName;
-        updateData.emergency_contact_phone = formData.emergencyContact.phone;
-        updateData.emergency_contact_relationship = formData.emergencyContact.relationship;
-        updateData.emergency_contact_email = formData.emergencyContact.email;
-        updateData.emergency_contact_address = formData.emergencyContact.address;
+        upsertData.emergency_contact_name = formData.emergencyContact.fullName || null;
+        upsertData.emergency_contact_phone = formData.emergencyContact.phone || null;
+        upsertData.emergency_contact_relationship = formData.emergencyContact.relationship || null;
+        upsertData.emergency_contact_email = formData.emergencyContact.email || null;
+        upsertData.emergency_contact_address = formData.emergencyContact.address || null;
       }
 
       const { error: hrError } = await supabase
         .from('hr_employees')
-        .update(updateData)
-        .eq('id', userId);
+        .upsert(upsertData, { onConflict: 'id' });
 
       if (hrError) throw hrError;
     }
