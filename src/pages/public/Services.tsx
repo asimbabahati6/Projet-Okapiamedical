@@ -33,93 +33,223 @@ interface CategoryEnrichment {
   icon: LucideIcon;
 }
 
+// Pexels images: free, no download, linked directly per Pexels license
 const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
   'Consultation générale': {
     description:
-      'Votre premier point de contact pour un bilan complet et un suivi de santé personnalisé.',
+      'Premier point de contact médical pour évaluer votre état de santé global, établir un diagnostic initial et coordonner votre parcours de soins. Nos médecins généralistes assurent un suivi personnalisé et la prévention des maladies chroniques.',
     subServices: ['Médecine générale', 'Bilans de santé', 'Suivi chronique', 'Médecine préventive'],
-    defaultImage: '/1753795663398.jpg',
+    defaultImage: 'https://images.pexels.com/photos/5214958/pexels-photo-5214958.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Stethoscope,
   },
   'Radiologie diagnostique': {
     description:
-      'Imagerie de haute précision (Échographie, Scanner) pour un diagnostic rapide et des interventions minimalement invasives.',
-    subServices: ['Échographie', 'Scanner', 'IRM', 'Radiologie interventionnelle'],
-    defaultImage: '/intervention-01.jpg',
+      'Imagerie médicale de haute résolution pour visualiser les structures internes avec précision. Nos équipements de dernière génération (Échographie, Scanner, Radiographie) permettent un diagnostic rapide, fiable et non invasif.',
+    subServices: ['Échographie', 'Scanner (TDM)', 'Radiographie', 'Mammographie'],
+    defaultImage: 'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Scan,
   },
   Radiologie: {
     description:
-      'Imagerie de haute précision (Échographie, Scanner) pour un diagnostic rapide et des interventions minimalement invasives.',
-    subServices: ['Échographie', 'Scanner', 'IRM', 'Radiologie interventionnelle'],
-    defaultImage: '/intervention-01.jpg',
+      'Imagerie médicale de haute résolution pour visualiser les structures internes avec précision. Nos équipements de dernière génération permettent un diagnostic rapide, fiable et non invasif.',
+    subServices: ['Échographie', 'Scanner (TDM)', 'Radiographie', 'Mammographie'],
+    defaultImage: 'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Scan,
   },
   'Radiologie interventionnelle': {
     description:
-      'Interventions guidées par imagerie pour des procédures précises et minimalement invasives.',
-    subServices: ['Biopsie guidée', 'Embolisation', 'Drainage', 'Traitement des varices'],
-    defaultImage: '/intervention-02.jpg',
+      'Procédures mini-invasives guidées par imagerie en temps réel pour traiter des pathologies vasculaires, tumorales et kystiques sans chirurgie ouverte. Une alternative efficace qui réduit la douleur et accélère la récupération.',
+    subServices: ['Biopsie guidée', 'Embolisation', 'Drainage percutané', 'Traitement des varices'],
+    defaultImage: 'https://images.pexels.com/photos/3992933/pexels-photo-3992933.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Activity,
   },
   'Consultation spécialisée': {
     description:
-      'Consultations avec des spécialistes expérimentés pour une prise en charge adaptée à chaque pathologie.',
+      'Accès à un large panel de spécialistes médicaux pour une prise en charge ciblée et approfondie selon votre pathologie. Chaque consultation débouche sur un plan thérapeutique personnalisé, en coordination avec votre médecin référent.',
     subServices: ['Cardiologie', 'Neurologie', 'Gynécologie', 'Pédiatrie'],
-    defaultImage: '/image-copy.png',
+    defaultImage: 'https://images.pexels.com/photos/5407206/pexels-photo-5407206.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.UserCheck,
   },
   Dentisterie: {
     description:
-      'Des soins bucco-dentaires complets, de la prévention esthétique aux traitements complexes.',
+      'Soins bucco-dentaires complets alliant prévention, restauration et esthétique dans un environnement clinique moderne. De la détartrage à la chirurgie implantaire, notre équipe prend en charge toute la sphère orale avec douceur et expertise.',
     subServices: ['Soins conservateurs', 'Chirurgie dentaire', 'Orthodontie', 'Esthétique dentaire'],
-    defaultImage: '/intervention-04.jpg',
+    defaultImage: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Smile,
   },
   'Laboratoire médical': {
     description:
-      'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
-    subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage: '/image-copy.png',
+      'Plateforme d\'analyses biologiques certifiée offrant des résultats précis et rapides pour soutenir vos décisions cliniques. Du prélèvement au rapport, chaque étape est maîtrisée selon les standards internationaux de qualité.',
+    subServices: ['Hématologie', 'Biochimie', 'Bactériologie', 'Immunologie'],
+    defaultImage: 'https://images.pexels.com/photos/3825586/pexels-photo-3825586.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Microscope,
   },
   Laboratoire: {
     description:
-      'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
-    subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage: '/image-copy.png',
+      'Plateforme d\'analyses biologiques certifiée offrant des résultats précis et rapides pour soutenir vos décisions cliniques. Du prélèvement au rapport, chaque étape est maîtrisée selon les standards internationaux de qualité.',
+    subServices: ['Hématologie', 'Biochimie', 'Bactériologie', 'Immunologie'],
+    defaultImage: 'https://images.pexels.com/photos/3825586/pexels-photo-3825586.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Microscope,
   },
   'Explorations médicales': {
     description:
-      'Examens approfondis (Endoscopie, EEG) pour une évaluation précise de vos organes internes.',
-    subServices: ['Endoscopie', 'EEG', 'ECG', 'Explorations fonctionnelles'],
-    defaultImage: '/intervention-04.jpg',
+      'Bilans fonctionnels et explorations endoscopiques pour évaluer le fonctionnement de vos organes en profondeur. Ces examens complémentaires orientent le diagnostic et guident les décisions thérapeutiques des spécialistes.',
+    subServices: ['Endoscopie digestive', 'Endoscopie bronchique', 'EEG', 'Explorations cardiaques'],
+    defaultImage: 'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Search,
   },
   Kinésithérapie: {
     description:
-      'Rééducation adaptée et soins personnalisés pour retrouver votre mobilité et soulager vos douleurs.',
+      'Programme de rééducation sur mesure pour restaurer la mobilité, soulager les douleurs et prévenir les récidives après blessure, chirurgie ou maladie chronique. Nos kinésithérapeutes certifiés combinent techniques manuelles, exercices actifs et physiothérapie.',
     subServices: [
       'Rééducation orthopédique',
       'Kinésithérapie respiratoire',
       'Massage thérapeutique',
       'Rééducation sportive',
     ],
-    defaultImage: '/intervention-02.jpg',
+    defaultImage: 'https://images.pexels.com/photos/5473177/pexels-photo-5473177.jpeg?auto=compress&cs=tinysrgb&w=800',
     icon: Icons.Activity,
+  },
+};
+
+// ─── Per-service enrichment (by service name) ─────────────────────────────────
+interface ServiceEnrichment {
+  description: string;
+  subServices: string[];
+  image: string;
+}
+
+const SERVICE_DATA: Record<string, ServiceEnrichment> = {
+  // Lab sub-services — each with a distinct description and relevant features
+  Hématologie: {
+    description:
+      'Analyse complète de la composition du sang (numération formule sanguine, bilan de coagulation, groupage) pour détecter anémies, infections, troubles de la coagulation et hémopathies.',
+    subServices: ['NFS / Hémogramme', 'Bilan de coagulation', 'Groupage sanguin', 'Électrophorèse'],
+    image: 'https://images.pexels.com/photos/8460157/pexels-photo-8460157.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Biochimie: {
+    description:
+      'Dosage des marqueurs biologiques sanguins et urinaires (glycémie, bilan hépatique, rénal, lipidique) pour surveiller les fonctions vitales et ajuster les traitements en cours.',
+    subServices: ['Glycémie / HbA1c', 'Bilan hépatique', 'Bilan rénal', 'Bilan lipidique'],
+    image: 'https://images.pexels.com/photos/3825586/pexels-photo-3825586.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Immunologie: {
+    description:
+      'Exploration du système immunitaire par la recherche d\'anticorps, de marqueurs d\'auto-immunité et d\'allergènes pour diagnostiquer maladies auto-immunes, infections chroniques et allergies.',
+    subServices: ['Sérologies infectieuses', 'Auto-anticorps', 'Bilan allergologique', 'Marqueurs tumoraux'],
+    image: 'https://images.pexels.com/photos/4031514/pexels-photo-4031514.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Bactériologie: {
+    description:
+      'Identification et antibiogramme des agents bactériens responsables d\'infections (urinaires, pulmonaires, cutanées) pour orienter précisément l\'antibiothérapie et limiter la résistance.',
+    subServices: ['Cultures et antibiogrammes', 'ECBU', 'Coproculture', 'Hémocultures'],
+    image: 'https://images.pexels.com/photos/2280571/pexels-photo-2280571.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Parasitologie: {
+    description:
+      'Détection microscopique et sérologique des parasites intestinaux, sanguins et tissulaires (paludisme, bilharziose, amibiase) avec rendu rapide pour une prise en charge antiparasitaire ciblée.',
+    subServices: ['Goutte épaisse / Frottis', 'Examen parasitologique des selles', 'Sérologies parasitaires', 'Scotch-test'],
+    image: 'https://images.pexels.com/photos/3938023/pexels-photo-3938023.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  // Radiology sub-services
+  Échographie: {
+    description:
+      'Imagerie en temps réel par ultrasons pour explorer l\'abdomen, la thyroïde, les vaisseaux et les organes pelviens sans radiation ionisante. Examen doux, rapide et sans préparation spécifique dans la majorité des cas.',
+    subServices: ['Échographie abdominale', 'Échographie pelvienne', 'Doppler vasculaire', 'Échographie obstétricale'],
+    image: 'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Scanner: {
+    description:
+      'Tomodensitométrie (TDM) à coupes millimétriques pour une visualisation tridimensionnelle des organes thoraciques, abdominaux, cérébraux et osseux avec une précision diagnostique inégalée.',
+    subServices: ['Scanner thoracique', 'Scanner abdomino-pelvien', 'Scanner cérébral', 'Scanner osseux'],
+    image: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Radiographie: {
+    description:
+      'Clichés radiographiques numériques pour évaluer rapidement l\'état des poumons, du squelette et des articulations. Technique rapide et disponible en urgence, avec traitement numérique pour une meilleure lisibilité.',
+    subServices: ['Radio pulmonaire', 'Radio osseuse', 'Radio articulaire', 'Radio digestive'],
+    image: 'https://images.pexels.com/photos/3992933/pexels-photo-3992933.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  // Interventional radiology sub-services
+  'Biopsie guidée': {
+    description:
+      'Prélèvement tissulaire ciblé guidé par échographie ou scanner pour analyse anatomopathologique. La précision du guidage garantit un prélèvement représentatif tout en minimisant le risque de complication.',
+    subServices: ['Biopsie hépatique', 'Biopsie pulmonaire', 'Biopsie rénale', 'Biopsie ganglionnaire'],
+    image: 'https://images.pexels.com/photos/3992933/pexels-photo-3992933.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Embolisation: {
+    description:
+      'Occlusion sélective de vaisseaux sanguins pathologiques (fibromes, saignements, tumeurs) par cathétérisme artériel guidé par imagerie, évitant une intervention chirurgicale à ciel ouvert.',
+    subServices: ['Embolisation utérine', 'Embolisation tumorale', 'Hémostase vasculaire', 'Embolisation prostatique'],
+    image: 'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  Drainage: {
+    description:
+      'Évacuation guidée par imagerie de collections liquidiennes (abcès, épanchements, kystes) à l\'aide d\'aiguilles et de drains de petit calibre pour un soulagement rapide sans chirurgie conventionnelle.',
+    subServices: ['Drainage d\'abcès', 'Ponction pleurale', 'Ponction d\'ascite', 'Drainage biliaire'],
+    image: 'https://images.pexels.com/photos/3992933/pexels-photo-3992933.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  'Traitement des varices': {
+    description:
+      'Sclérothérapie et techniques endovasculaires pour éliminer les varices et télangiectasies avec un résultat esthétique et fonctionnel durable, sans hospitalisation ni anesthésie générale.',
+    subServices: ['Sclérothérapie', 'Laser endoveineux', 'Phlébectomie ambulatoire', 'Ablation radiofréquence'],
+    image: 'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  // Explorations sub-services
+  EEG: {
+    description:
+      'Enregistrement de l\'activité électrique cérébrale pour diagnostiquer épilepsies, troubles du sommeil et encéphalopathies. Examen indolore réalisé en ambulatoire avec une lecture spécialisée par notre neurologue.',
+    subServices: ['EEG standard', 'EEG de sommeil', 'EEG vidéo', 'EEG de longue durée'],
+    image: 'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  'Endoscopie bronchique': {
+    description:
+      'Exploration visuelle directe des voies aériennes (trachée, bronches) pour diagnostiquer tumeurs, infections et corps étrangers, avec possibilité de prélèvement et de gestes thérapeutiques dans le même temps.',
+    subServices: ['Bronchoscopie diagnostique', 'Lavage broncho-alvéolaire', 'Biopsie bronchique', 'Fibroscopie souple'],
+    image: 'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  'Endoscopie digestive': {
+    description:
+      'Examen endoscopique du tube digestif (œsophage, estomac, côlon) pour détecter ulcères, polypes, cancers et maladies inflammatoires, avec ablation des polypes et biopsies réalisées en même temps.',
+    subServices: ['Gastroscopie', 'Coloscopie', 'Polypectomie', 'Biopsies digestives'],
+    image: 'https://images.pexels.com/photos/4173251/pexels-photo-4173251.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  'Explorations cardiaques': {
+    description:
+      'Bilan cardiovasculaire complet associant électrocardiogramme, épreuve d\'effort et échocardiographie pour évaluer la fonction cardiaque et dépister les pathologies coronariennes et valvulaires.',
+    subServices: ['Électrocardiogramme (ECG)', 'Échocardiographie', 'Holter ECG', 'Épreuve d\'effort'],
+    image: 'https://images.pexels.com/photos/5214958/pexels-photo-5214958.jpeg?auto=compress&cs=tinysrgb&w=800',
+  },
+  // Dentistry sub-services
+  'Soins dentaires': {
+    description:
+      'Soins bucco-dentaires complets alliant prévention, restauration et esthétique dans un environnement clinique moderne. De la détartrage à la chirurgie implantaire, notre équipe prend en charge toute la sphère orale avec douceur et expertise.',
+    subServices: ['Détartrage & prophylaxie', 'Soins conservateurs', 'Chirurgie dentaire', 'Prothèses'],
+    image: 'https://images.pexels.com/photos/3845810/pexels-photo-3845810.jpeg?auto=compress&cs=tinysrgb&w=800',
   },
 };
 
 const DEFAULT_ENRICHMENT: CategoryEnrichment = {
   description: 'Service médical de qualité supérieure pour votre santé.',
   subServices: [],
-  defaultImage: '/1753795663398.jpg',
+  defaultImage: 'https://images.pexels.com/photos/5214958/pexels-photo-5214958.jpeg?auto=compress&cs=tinysrgb&w=800',
   icon: Icons.Stethoscope,
 };
 
 function getEnrichment(categoryName: string): CategoryEnrichment {
   return CATEGORY_DATA[categoryName] ?? DEFAULT_ENRICHMENT;
+}
+
+function getServiceEnrichment(serviceName: string, categoryName: string): {
+  description: string;
+  subServices: string[];
+  image: string;
+} {
+  if (SERVICE_DATA[serviceName]) {
+    return SERVICE_DATA[serviceName];
+  }
+  const cat = getEnrichment(categoryName);
+  return { description: cat.description, subServices: cat.subServices, image: cat.defaultImage };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -306,9 +436,10 @@ export function Services({ onNavigate }: ServicesProps = {}) {
                   {/* Service cards grid */}
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {catServices.map((svc) => {
-                      const svcEnrichment = getEnrichment(category.name);
+                      const catEnrichment = getEnrichment(category.name);
+                      const svcEnrichment = getServiceEnrichment(svc.name, category.name);
                       const ServiceIcon =
-                        svc.icon ? (iconMap[svc.icon] ?? svcEnrichment.icon) : svcEnrichment.icon;
+                        svc.icon ? (iconMap[svc.icon] ?? catEnrichment.icon) : catEnrichment.icon;
 
                       return (
                         <ServiceCard
@@ -318,8 +449,8 @@ export function Services({ onNavigate }: ServicesProps = {}) {
                           icon={ServiceIcon}
                           description={svc.description ?? svcEnrichment.description}
                           subServices={svcEnrichment.subServices}
-                          imageUrl={svc.image_url ?? svcEnrichment.defaultImage}
-                          defaultImageUrl={svcEnrichment.defaultImage}
+                          imageUrl={svc.image_url ?? svcEnrichment.image}
+                          defaultImageUrl={svcEnrichment.image}
                           isAdmin={isAdmin}
                           isEditing={imageManager.editingId === svc.id}
                           isSaving={imageManager.saving}
