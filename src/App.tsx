@@ -61,6 +61,8 @@ import SmartPunchPage from './pages/staff/SmartPunchPage';
 import SmartPunchDashboard from './pages/staff/SmartPunchDashboard';
 import { FeedbackDashboard } from './pages/staff/FeedbackDashboard';
 import { FeedbackPage } from './pages/public/FeedbackPage';
+import AdminSetupPage from './pages/AdminSetupPage';
+import ChangePasswordPage from './pages/ChangePasswordPage';
 
 function App() {
   return (
@@ -77,6 +79,8 @@ function App() {
                 <Route path="/staff/register" element={<StaffRegister />} />
                 <Route path="/admin" element={<StaffLogin />} />
                 <Route path="/register" element={<StaffRegister />} />
+                <Route path="/admin-setup" element={<AdminSetupPage />} />
+                <Route path="/change-password" element={<ChangePasswordPage />} />
 
                 <Route path="/dashboard" element={<RoleBasedRedirect />} />
 

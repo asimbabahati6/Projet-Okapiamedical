@@ -10,6 +10,7 @@ interface UserProfile {
   avatar_url: string | null;
   department_id: string | null;
   is_active: boolean;
+  must_change_password: boolean;
   role?: {
     name: string;
     description: string;

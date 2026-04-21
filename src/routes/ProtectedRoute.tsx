@@ -30,6 +30,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/staff/login" state={{ from: location }} replace />;
   }
 
+  // Force password change for accounts with temporary passwords
+  if (profile?.must_change_password && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
   if (allowedRoles && allowedRoles.length > 0) {
     let effectiveRole: UserRole | undefined;
 

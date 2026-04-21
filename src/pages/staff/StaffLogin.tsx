@@ -192,6 +192,15 @@ export function StaffLogin() {
                 {t.auth.no_account}
               </button>
             </div>
+            <div className="pt-2 border-t border-gray-100">
+              <button
+                type="button"
+                onClick={() => navigate('/admin-setup')}
+                className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Restaurer l'accès administrateur
+              </button>
+            </div>
           </div>
         </div>
 
