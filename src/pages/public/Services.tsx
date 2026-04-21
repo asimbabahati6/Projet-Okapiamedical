@@ -66,7 +66,7 @@ const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
     description:
       'Consultations avec des spécialistes expérimentés pour une prise en charge adaptée à chaque pathologie.',
     subServices: ['Cardiologie', 'Neurologie', 'Gynécologie', 'Pédiatrie'],
-    defaultImage: '/image copy copy.png',
+    defaultImage: '/image-copy.png',
     icon: Icons.UserCheck,
   },
   Dentisterie: {
@@ -80,14 +80,14 @@ const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
     description:
       'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
     subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage: '/image copy copy.png',
+    defaultImage: '/image-copy.png',
     icon: Icons.Microscope,
   },
   Laboratoire: {
     description:
       'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
     subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage: '/image copy copy.png',
+    defaultImage: '/image-copy.png',
     icon: Icons.Microscope,
   },
   'Explorations médicales': {
