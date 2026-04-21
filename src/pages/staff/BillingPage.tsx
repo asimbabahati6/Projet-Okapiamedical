@@ -60,94 +60,10 @@ export function BillingPage() {
       setAllInvoices(data || []);
     } catch (error) {
       console.error('Error fetching invoices:', error);
-      generateMockInvoices();
+      setAllInvoices([]);
     } finally {
       setLoading(false);
     }
-  }
-
-  function generateMockInvoices() {
-    const statuses: Array<Invoice['status'] | 'draft'> = ['draft', 'pending', 'partial', 'paid', 'cancelled'];
-    const paymentMethods = ['Espèces', 'Carte bancaire', 'Mobile Money', 'Assurance'];
-    const mockPatients = [
-      { first_name: 'Jean', last_name: 'Dupont' },
-      { first_name: 'Marie', last_name: 'Koffi' },
-      { first_name: 'Paul', last_name: 'Mbala' },
-      { first_name: 'Sophie', last_name: 'Lukeni' },
-      { first_name: 'André', last_name: 'Kabila' },
-      { first_name: 'Claire', last_name: 'Tshisekedi' },
-      { first_name: 'David', last_name: 'Lumumba' },
-      { first_name: 'Emma', last_name: 'Mobutu' },
-    ];
-
-    const mockData: Invoice[] = [];
-    const today = new Date();
-
-    for (let i = 0; i < 45; i++) {
-      const daysOffset = Math.floor(Math.random() * 90) - 45;
-      const invoiceDate = new Date(today);
-      invoiceDate.setDate(today.getDate() + daysOffset);
-
-      const patient = mockPatients[Math.floor(Math.random() * mockPatients.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)] as Invoice['status'];
-      const totalAmount = 50 + Math.floor(Math.random() * 500);
-      const tvaAmount = totalAmount * 0.16;
-      const netToPay = totalAmount + tvaAmount;
-      let paidAmount = 0;
-
-      if (status === 'paid') {
-        paidAmount = netToPay;
-      } else if (status === 'partial') {
-        paidAmount = Math.floor(netToPay * (0.3 + Math.random() * 0.5));
-      }
-
-      const balance = netToPay - paidAmount;
-      const paymentMethod = status !== 'pending' && status !== 'draft' ? paymentMethods[Math.floor(Math.random() * paymentMethods.length)] : null;
-
-      mockData.push({
-        id: `invoice-${i}`,
-        invoice_number: status === 'draft' ? null : `OKA-2026-04-${String(1 + i).padStart(4, '0')}`,
-        patient_id: `patient-${i}`,
-        consultation_id: null,
-        total_amount: totalAmount,
-        paid_amount: paidAmount,
-        balance: balance,
-        status,
-        payment_method: paymentMethod,
-        payment_date: status === 'paid' ? invoiceDate.toISOString() : null,
-        notes: null,
-        created_by: null,
-        created_at: invoiceDate.toISOString(),
-        updated_at: invoiceDate.toISOString(),
-        tva_rate: 16,
-        tva_amount: tvaAmount,
-        net_to_pay: netToPay,
-        draft_number: status === 'draft' ? `DRAFT-${1000 + i}` : null,
-        patient: {
-          ...patient,
-          id: `patient-${i}`,
-          patient_number: `PAT${String(1000 + i).padStart(6, '0')}`,
-          date_of_birth: '1990-01-01',
-          gender: Math.random() < 0.5 ? 'M' : 'F',
-          blood_group: 'O+',
-          phone: `+243 81${String(Math.floor(Math.random() * 9000000) + 1000000)}`,
-          email: `${patient.first_name.toLowerCase()}@email.com`,
-          address: 'Kinshasa, RDC',
-          city: 'Kinshasa',
-          emergency_contact_name: null,
-          emergency_contact_phone: null,
-          emergency_contact_relationship: null,
-          insurance_provider: null,
-          insurance_number: null,
-          allergies: null,
-          chronic_conditions: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      } as any);
-    }
-
-    setAllInvoices(mockData);
   }
 
   const filteredByPeriod = useMemo(() => {
