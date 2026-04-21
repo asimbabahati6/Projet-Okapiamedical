@@ -38,72 +38,63 @@ const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
     description:
       'Votre premier point de contact pour un bilan complet et un suivi de santé personnalisé.',
     subServices: ['Médecine générale', 'Bilans de santé', 'Suivi chronique', 'Médecine préventive'],
-    defaultImage:
-      'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/1753795663398.jpg',
     icon: Icons.Stethoscope,
   },
   'Radiologie diagnostique': {
     description:
       'Imagerie de haute précision (Échographie, Scanner) pour un diagnostic rapide et des interventions minimalement invasives.',
     subServices: ['Échographie', 'Scanner', 'IRM', 'Radiologie interventionnelle'],
-    defaultImage:
-      'https://images.pexels.com/photos/3376790/pexels-photo-3376790.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-01.jpg',
     icon: Icons.Scan,
   },
   Radiologie: {
     description:
       'Imagerie de haute précision (Échographie, Scanner) pour un diagnostic rapide et des interventions minimalement invasives.',
     subServices: ['Échographie', 'Scanner', 'IRM', 'Radiologie interventionnelle'],
-    defaultImage:
-      'https://images.pexels.com/photos/3376790/pexels-photo-3376790.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-01.jpg',
     icon: Icons.Scan,
   },
   'Radiologie interventionnelle': {
     description:
       'Interventions guidées par imagerie pour des procédures précises et minimalement invasives.',
     subServices: ['Biopsie guidée', 'Embolisation', 'Drainage', 'Traitement des varices'],
-    defaultImage:
-      'https://images.pexels.com/photos/3376790/pexels-photo-3376790.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-02.jpg',
     icon: Icons.Activity,
   },
   'Consultation spécialisée': {
     description:
       'Consultations avec des spécialistes expérimentés pour une prise en charge adaptée à chaque pathologie.',
     subServices: ['Cardiologie', 'Neurologie', 'Gynécologie', 'Pédiatrie'],
-    defaultImage:
-      'https://images.pexels.com/photos/5452268/pexels-photo-5452268.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/image copy copy.png',
     icon: Icons.UserCheck,
   },
   Dentisterie: {
     description:
       'Des soins bucco-dentaires complets, de la prévention esthétique aux traitements complexes.',
     subServices: ['Soins conservateurs', 'Chirurgie dentaire', 'Orthodontie', 'Esthétique dentaire'],
-    defaultImage:
-      'https://images.pexels.com/photos/3845625/pexels-photo-3845625.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-04.jpg',
     icon: Icons.Smile,
   },
   'Laboratoire médical': {
     description:
       'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
     subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage:
-      'https://images.pexels.com/photos/3938023/pexels-photo-3938023.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/image copy copy.png',
     icon: Icons.Microscope,
   },
   Laboratoire: {
     description:
       'Analyses biologiques rigoureuses pour soutenir vos diagnostics médicaux avec fiabilité.',
     subServices: ['Hématologie', 'Biochimie', 'Microbiologie', 'Sérologie'],
-    defaultImage:
-      'https://images.pexels.com/photos/3938023/pexels-photo-3938023.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/image copy copy.png',
     icon: Icons.Microscope,
   },
   'Explorations médicales': {
     description:
       'Examens approfondis (Endoscopie, EEG) pour une évaluation précise de vos organes internes.',
     subServices: ['Endoscopie', 'EEG', 'ECG', 'Explorations fonctionnelles'],
-    defaultImage:
-      'https://images.pexels.com/photos/4226219/pexels-photo-4226219.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-04.jpg',
     icon: Icons.Search,
   },
   Kinésithérapie: {
@@ -115,8 +106,7 @@ const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
       'Massage thérapeutique',
       'Rééducation sportive',
     ],
-    defaultImage:
-      'https://images.pexels.com/photos/5473184/pexels-photo-5473184.jpeg?auto=compress&cs=tinysrgb&w=800',
+    defaultImage: '/intervention-02.jpg',
     icon: Icons.Activity,
   },
 };
@@ -124,8 +114,7 @@ const CATEGORY_DATA: Record<string, CategoryEnrichment> = {
 const DEFAULT_ENRICHMENT: CategoryEnrichment = {
   description: 'Service médical de qualité supérieure pour votre santé.',
   subServices: [],
-  defaultImage:
-    'https://images.pexels.com/photos/4386467/pexels-photo-4386467.jpeg?auto=compress&cs=tinysrgb&w=800',
+  defaultImage: '/1753795663398.jpg',
   icon: Icons.Stethoscope,
 };
 
