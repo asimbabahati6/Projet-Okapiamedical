@@ -63,6 +63,7 @@ import { FeedbackDashboard } from './pages/staff/FeedbackDashboard';
 import { FeedbackPage } from './pages/public/FeedbackPage';
 import AdminSetupPage from './pages/AdminSetupPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import { PostsManagementPage } from './pages/staff/PostsManagementPage';
 
 function App() {
   return (
@@ -155,7 +156,7 @@ function App() {
                   <Route path="financial-analytics" element={<FinancialAnalytics />} />
                   <Route path="settings" element={<div className="text-center py-12 text-gray-500">Module Paramètres - En développement</div>} />
                   <Route path="drc-dashboard" element={<DRCDashboard />} />
-                  <Route path="posts" element={<div className="text-center py-12 text-gray-500">Module Actualités - En développement</div>} />
+                  <Route path="posts" element={<PostsManagementPage />} />
                   <Route path="unified-personnel" element={<UnifiedPersonnelPage />} />
                   <Route path="break-compliance" element={<Navigate to="/staff/smart-punch" replace />} />
                   <Route path="smart-punch" element={<SmartPunchPage />} />
