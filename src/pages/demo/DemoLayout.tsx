@@ -143,7 +143,7 @@ function DemoInner() {
         {/* Back to app */}
         <div className={`px-2 py-3 border-t ${sidebarBorder}`}>
           <button
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/staff/dashboard')}
             className="flex items-center gap-3 w-full px-3 py-2 text-sm text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   FileText, FlaskConical, Pill, Users, Plus,
   ArrowRight, Clock, CheckCircle2, AlertCircle, TrendingUp,
+  X, Stethoscope, ChevronRight,
 } from 'lucide-react';
 import { useWorkflow } from '../../contexts/WorkflowContext';
 
@@ -42,9 +44,40 @@ function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
+const WORKFLOW_STEPS = [
+  {
+    role: 'medecin',
+    icon: Stethoscope,
+    color: 'text-blue-600',
+    bg: 'bg-blue-100',
+    label: 'Médecin',
+    action: 'Crée une consultation',
+    detail: 'Prescrit des examens labo et une ordonnance',
+  },
+  {
+    role: 'laborantin',
+    icon: FlaskConical,
+    color: 'text-emerald-600',
+    bg: 'bg-emerald-100',
+    label: 'Laborantin',
+    action: 'Traite les examens',
+    detail: 'Démarre et valide les demandes d\'analyses',
+  },
+  {
+    role: 'pharmacien',
+    icon: Pill,
+    color: 'text-orange-500',
+    bg: 'bg-orange-100',
+    label: 'Pharmacien',
+    action: 'Délivre les médicaments',
+    detail: 'Prépare et remet les ordonnances aux patients',
+  },
+];
+
 export function DoctorDashboard() {
   const navigate = useNavigate();
   const { consultations, labRequests, prescriptions } = useWorkflow();
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   const today = new Date().toDateString();
   const todayConsultations = consultations.filter(c => new Date(c.created_at).toDateString() === today);
@@ -91,6 +124,63 @@ export function DoctorDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Onboarding workflow banner */}
+      {!bannerDismissed && (
+        <div className="relative bg-gradient-to-br from-slate-800 to-slate-900 rounded-2xl p-5 text-white overflow-hidden">
+          {/* Background decoration */}
+          <div className="absolute inset-0 opacity-5">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+          </div>
+
+          <button
+            onClick={() => setBannerDismissed(true)}
+            className="absolute top-3 right-3 p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            aria-label="Fermer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          <div className="relative">
+            <p className="text-xs font-semibold text-blue-300 uppercase tracking-wider mb-1">Mode démonstration RBAC</p>
+            <h2 className="text-lg font-bold text-white mb-1">Workflow médical en 3 étapes</h2>
+            <p className="text-sm text-slate-300 mb-4">
+              Utilisez le sélecteur de rôle en haut à droite pour changer de perspective et suivre le parcours complet d'une consultation.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+              {WORKFLOW_STEPS.map((step, idx) => {
+                const Icon = step.icon;
+                return (
+                  <div key={step.role} className="flex items-center gap-2">
+                    <div className="flex items-center gap-2.5 bg-white/10 border border-white/10 rounded-xl px-3 py-2.5 min-w-0">
+                      <div className={`w-7 h-7 rounded-lg ${step.bg} flex items-center justify-center flex-shrink-0`}>
+                        <Icon className={`w-3.5 h-3.5 ${step.color}`} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-white">{step.label}</p>
+                        <p className="text-xs text-slate-400 truncate">{step.action}</p>
+                      </div>
+                    </div>
+                    {idx < WORKFLOW_STEPS.length - 1 && (
+                      <ChevronRight className="w-4 h-4 text-slate-500 flex-shrink-0 hidden sm:block" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={() => navigate('/demo/nouvelle-consultation')}
+              className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold rounded-xl transition-colors shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              Commencer : créer une consultation
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
