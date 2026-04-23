@@ -202,7 +202,7 @@ export function News({ onNavigate }: NewsProps) {
               {getTranslation('featured')}
             </div>
             <div className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
-                 onClick={() => onNavigate('news-detail', featuredPost.slug || featuredPost.id)}>
+                 onClick={() => onNavigate('news-detail', featuredPost.id)}>
               <div className="grid md:grid-cols-2 gap-6">
                 {featuredPost.featured_image_url && (
                   <div className="h-80 md:h-full">
@@ -261,7 +261,7 @@ export function News({ onNavigate }: NewsProps) {
               <article
                 key={post.id}
                 className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-shadow cursor-pointer"
-                onClick={() => onNavigate('news-detail', post.slug || post.id)}
+                onClick={() => onNavigate('news-detail', post.id)}
               >
                 {post.featured_image_url && (
                   <div className="h-48 overflow-hidden">

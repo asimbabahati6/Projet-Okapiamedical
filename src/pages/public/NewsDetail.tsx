@@ -23,20 +23,43 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
 
   async function fetchPostDetail() {
     try {
-      const { data: postData, error: postError } = await supabase
+      const SELECT_FIELDS = `
+        *,
+        author:user_profiles(id, full_name, avatar_url),
+        category:post_categories(*)
+      `;
+
+      // Try slug first, then fall back to id (UUID)
+      let postData: any = null;
+
+      const slugResult = await supabase
         .from('posts')
-        .select(`
-          *,
-          author:user_profiles(id, full_name, avatar_url),
-          category:post_categories(*)
-        `)
-        .or(`slug.eq.${slug},id.eq.${slug}`)
+        .select(SELECT_FIELDS)
+        .eq('slug', slug)
         .eq('status', 'publié')
         .maybeSingle();
 
-      if (postError) throw postError;
+      if (slugResult.error) throw slugResult.error;
+      postData = slugResult.data;
+
+      // If not found by slug, try treating the param as a UUID
       if (!postData) {
-        console.error('Post not found');
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        if (uuidPattern.test(slug)) {
+          const idResult = await supabase
+            .from('posts')
+            .select(SELECT_FIELDS)
+            .eq('id', slug)
+            .eq('status', 'publié')
+            .maybeSingle();
+
+          if (idResult.error) throw idResult.error;
+          postData = idResult.data;
+        }
+      }
+
+      if (!postData) {
+        console.error('Post not found for slug/id:', slug);
         setLoading(false);
         return;
       }
@@ -369,7 +392,7 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
                 <div
                   key={relatedPost.id}
                   className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => onNavigate('news-detail', relatedPost.slug || relatedPost.id)}
+                  onClick={() => onNavigate('news-detail', relatedPost.id)}
                 >
                   {relatedPost.featured_image_url && (
                     <div className="h-40 overflow-hidden">
