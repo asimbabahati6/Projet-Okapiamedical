@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package } from 'lucide-react';
+import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package, Play } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';
@@ -246,7 +246,7 @@ export function DRCDashboard() {
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <button
             onClick={() => navigate('/tableau-de-bord/employees')}
             className="p-4 bg-blue-50 rounded-lg text-left hover:bg-blue-100 transition-colors group"
@@ -263,9 +263,9 @@ export function DRCDashboard() {
           </button>
           <button
             onClick={() => navigate('/tableau-de-bord/shifts')}
-            className="p-4 bg-purple-50 rounded-lg text-left hover:bg-purple-100 transition-colors group"
+            className="p-4 bg-teal-50 rounded-lg text-left hover:bg-teal-100 transition-colors group"
           >
-            <Calendar className="w-6 h-6 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
+            <Calendar className="w-6 h-6 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-sm font-medium text-gray-900">Horaires</p>
           </button>
           <button
@@ -274,6 +274,14 @@ export function DRCDashboard() {
           >
             <FileText className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-sm font-medium text-gray-900">Assurances</p>
+          </button>
+          <button
+            onClick={() => navigate('/demo')}
+            className="p-4 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg text-left hover:from-blue-700 hover:to-cyan-700 transition-all group shadow-sm"
+          >
+            <Play className="w-6 h-6 text-white mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-medium text-white">Démo Workflow</p>
+            <p className="text-xs text-blue-100 mt-0.5">Médecin → Labo → Pharmacie</p>
           </button>
         </div>
       </div>
