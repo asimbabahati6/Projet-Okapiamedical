@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Menu, X, Activity, LogOut, User, LayoutDashboard, Users, Calendar, FileText, Package, TestTube, DollarSign, Settings, MessageSquare, ChevronDown, Play } from 'lucide-react';
+import { Menu, X, LogOut, User, LayoutDashboard, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -17,7 +16,6 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
   const { t } = useLanguage();
   const { user, profile, signOut } = useAuth();
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -80,15 +78,6 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
           </nav>
 
           <div className="flex items-center gap-4">
-            {/* Demo CTA — desktop */}
-            <button
-              onClick={() => navigate('/demo')}
-              className="hidden md:flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-sm font-semibold hover:bg-emerald-100 transition-colors"
-            >
-              <Play className="w-3.5 h-3.5" />
-              Démo RBAC
-            </button>
-
             <div className="hidden md:flex items-center gap-2">
               {user ? (
                 <div className="relative" ref={userMenuRef}>
@@ -160,13 +149,6 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
 
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
-            <button
-              onClick={() => { navigate('/demo'); setMobileMenuOpen(false); }}
-              className="flex items-center gap-2 w-full px-4 py-3 text-sm font-semibold text-emerald-700 bg-emerald-50 border-b border-emerald-100"
-            >
-              <Play className="w-4 h-4" />
-              Démo RBAC — Workflow médical interactif
-            </button>
             {navItems.map((item) => (
               <button
                 key={item.id}

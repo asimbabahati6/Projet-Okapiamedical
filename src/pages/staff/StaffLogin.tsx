@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, AlertCircle, Home, X, CheckCircle, Play, Stethoscope, FlaskConical, Pill } from 'lucide-react';
+import { Mail, Lock, AlertCircle, Home, X, CheckCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { AccessDenied } from '../../components/AccessDenied';
@@ -204,33 +204,7 @@ export function StaffLogin() {
           </div>
         </div>
 
-        {/* Demo RBAC CTA */}
-        <div className="mt-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <Play className="w-4 h-4 text-white" />
-            <span className="text-sm font-semibold text-white">Découvrir sans compte</span>
-          </div>
-          <p className="text-xs text-blue-100 mb-3">
-            Explorez le workflow médecin → labo → pharmacie en mode démonstration interactif.
-          </p>
-          <div className="flex items-center gap-2 mb-3 text-xs text-blue-200">
-            <span className="flex items-center gap-1"><Stethoscope className="w-3 h-3" /> Médecin</span>
-            <span className="text-blue-300">→</span>
-            <span className="flex items-center gap-1"><FlaskConical className="w-3 h-3" /> Laborantin</span>
-            <span className="text-blue-300">→</span>
-            <span className="flex items-center gap-1"><Pill className="w-3 h-3" /> Pharmacien</span>
-          </div>
-          <button
-            type="button"
-            onClick={() => navigate('/demo')}
-            className="w-full bg-white text-blue-700 py-2.5 rounded-lg hover:bg-blue-50 transition-colors font-semibold text-sm flex items-center justify-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            Accéder à la démo RBAC
-          </button>
-        </div>
-
-        <div className="mt-4 text-center text-white text-sm">
+        <div className="mt-6 text-center text-white text-sm">
           <p>&copy; {new Date().getFullYear()} OKAPIA Médical. Tous droits réservés.</p>
         </div>
       </div>
