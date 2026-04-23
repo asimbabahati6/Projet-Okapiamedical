@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, TriangleAlert as AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package, Play, Stethoscope, FlaskConical, Pill, Lock } from 'lucide-react';
+import {
+  Users, Briefcase, AlertTriangle, DollarSign, FileText,
+  Calendar, TrendingUp, Package, Play,
+  Stethoscope, FlaskConical, Pill, Lock,
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';

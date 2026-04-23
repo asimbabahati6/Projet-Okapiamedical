@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Shield, Wallet, LayoutDashboard, Newspaper, Hop as Home, Store, FileCheck, Receipt, MessageSquare, FingerprintPattern as Fingerprint, ChartBar as BarChart3 } from 'lucide-react';
+import {
+  ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings,
+  Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill,
+  Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck,
+  Building, TrendingUp, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store,
+  FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3,
+} from 'lucide-react';
 import { MENU_STRUCTURE, type MenuItem, filterMenuByRole, ROLE_LABELS, DASHBOARD_ALLOWED_ROLES, hasAccess } from '../../config/rbac';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles } from '../../utils/roleMapping';
