@@ -1,44 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ChevronDown,
-  ChevronRight,
-  Lock,
-  Activity,
-  Building2,
-  DollarSign,
-  Settings,
-  Users,
-  Calendar,
-  Stethoscope,
-  UserCog,
-  FileText,
-  Briefcase,
-  FlaskConical,
-  Pill,
-  Package,
-  DoorOpen,
-  UserCheck,
-  BookUser,
-  CalendarClock,
-  Coffee,
-  Warehouse,
-  Truck,
-  Building,
-  TrendingUp,
-  FileSignature,
-  Shield,
-  Wallet,
-  LayoutDashboard,
-  Newspaper,
-  Home,
-  Store,
-  FileCheck,
-  Receipt,
-  MessageSquare,
-  Fingerprint,
-  BarChart3
-} from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Ligature as FileSignature, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store, FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3, Play } from 'lucide-react';
 import { MENU_STRUCTURE, MenuItem, hasAccess, filterMenuByRole, ROLE_LABELS, UserRole } from '../../config/rbac';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles, getRoleDisplayName, isAdminRole } from '../../utils/roleMapping';
@@ -351,6 +313,20 @@ export default function RBACNavigation() {
           </button>
         </div>
       )}
+
+      {/* Demo RBAC Link */}
+      <div className="px-4 pb-3 pt-1 border-t border-gray-200">
+        <Link
+          to="/demo"
+          className="flex items-center gap-2 w-full px-3 py-2.5 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg text-sm font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all shadow-sm"
+        >
+          <Play className="w-4 h-4 flex-shrink-0" />
+          <span>Démo RBAC Workflow</span>
+        </Link>
+        <p className="text-xs text-gray-400 mt-1.5 text-center">
+          Médecin → Labo → Pharmacie
+        </p>
+      </div>
 
       {/* Footer Info */}
       <div className="p-4 bg-gray-100 border-t text-xs text-gray-600 text-center">
