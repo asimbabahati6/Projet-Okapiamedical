@@ -354,6 +354,7 @@ export interface ConsultationTemplate {
   description: string | null;
   is_system_template: boolean;
   created_by: string | null;
+  department_id: string | null;
   chief_complaint_template: string | null;
   history_template: string | null;
   examination_template: string | null;
@@ -372,6 +373,7 @@ export interface ConsultationTemplate {
   parent_template_id: string | null;
   created_at: string;
   updated_at: string;
+  department?: Department;
 }
 
 export interface ConsultationAuditLog {

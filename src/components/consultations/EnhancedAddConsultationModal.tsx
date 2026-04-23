@@ -238,6 +238,7 @@ export function EnhancedAddConsultationModal({
                 <TemplateSelector
                   onSelect={(template) => setSelectedTemplate(template)}
                   selectedTemplateId={selectedTemplate?.id}
+                  departmentId={profile?.department_id}
                 />
               </div>
             )}
