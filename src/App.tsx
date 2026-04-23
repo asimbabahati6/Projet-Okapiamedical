@@ -65,6 +65,15 @@ import AdminSetupPage from './pages/AdminSetupPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import { PostsManagementPage } from './pages/staff/PostsManagementPage';
 
+// Demo RBAC module
+import { DemoLayout } from './pages/demo/DemoLayout';
+import { DoctorDashboard as DemoDoctorDashboard } from './pages/demo/DoctorDashboard';
+import { NewConsultationPage } from './pages/demo/NewConsultationPage';
+import { ConsultationsListPage } from './pages/demo/ConsultationsListPage';
+import { PatientsPage as DemoPatientsPage } from './pages/demo/PatientsPage';
+import { LabPage, LaborantinDashboard } from './pages/demo/LabPage';
+import { PharmacyDemoPage, PharmacistDashboard } from './pages/demo/PharmacyDemoPage';
+
 function App() {
   return (
     <BrowserRouter>
@@ -179,6 +188,18 @@ function App() {
                 </Route>
 
                 <Route path="/access-denied" element={<AccessDenied />} />
+
+                {/* Demo RBAC — autonomous workflow module */}
+                <Route path="/demo" element={<DemoLayout />}>
+                  <Route index element={<DemoDoctorDashboard />} />
+                  <Route path="patients" element={<DemoPatientsPage />} />
+                  <Route path="consultations" element={<ConsultationsListPage />} />
+                  <Route path="nouvelle-consultation" element={<NewConsultationPage />} />
+                  <Route path="laboratoire" element={<LabPage />} />
+                  <Route path="laborantin-dashboard" element={<LaborantinDashboard />} />
+                  <Route path="pharmacie" element={<PharmacyDemoPage />} />
+                  <Route path="pharmacien-dashboard" element={<PharmacistDashboard />} />
+                </Route>
 
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
