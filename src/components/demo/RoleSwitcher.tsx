@@ -1,45 +1,21 @@
 import { Stethoscope, FlaskConical, Pill } from 'lucide-react';
 import { useWorkflow, type DemoRole } from '../../contexts/WorkflowContext';
 
-const ROLES: { key: DemoRole; label: string; sublabel: string; icon: React.ComponentType<{ className?: string }>; color: string; bg: string; activeBg: string; activeText: string; activeBorder: string }[] = [
-  {
-    key: 'medecin',
-    label: 'Médecin',
-    sublabel: 'Dr. Amani Katebe',
-    icon: Stethoscope,
-    color: 'text-blue-600',
-    bg: 'bg-white',
-    activeBg: 'bg-blue-600',
-    activeText: 'text-white',
-    activeBorder: 'border-blue-600',
-  },
-  {
-    key: 'laborantin',
-    label: 'Laborantin',
-    sublabel: 'Serge Ndombe',
-    icon: FlaskConical,
-    color: 'text-emerald-600',
-    bg: 'bg-white',
-    activeBg: 'bg-emerald-600',
-    activeText: 'text-white',
-    activeBorder: 'border-emerald-600',
-  },
-  {
-    key: 'pharmacien',
-    label: 'Pharmacien',
-    sublabel: 'Grâce Mutombo',
-    icon: Pill,
-    color: 'text-orange-500',
-    bg: 'bg-white',
-    activeBg: 'bg-orange-500',
-    activeText: 'text-white',
-    activeBorder: 'border-orange-500',
-  },
+const ROLES: {
+  key: DemoRole;
+  label: string;
+  sublabel: string;
+  icon: React.ComponentType<{ className?: string }>;
+  activeBg: string;
+  activeText: string;
+}[] = [
+  { key: 'medecin', label: 'Médecin', sublabel: 'Dr. Amani Katebe', icon: Stethoscope, activeBg: 'bg-blue-600', activeText: 'text-white' },
+  { key: 'laborantin', label: 'Laborantin', sublabel: 'Serge Ndombe', icon: FlaskConical, activeBg: 'bg-emerald-600', activeText: 'text-white' },
+  { key: 'pharmacien', label: 'Pharmacien', sublabel: 'Grâce Mutombo', icon: Pill, activeBg: 'bg-orange-500', activeText: 'text-white' },
 ];
 
 export function RoleSwitcher() {
   const { role, setRole } = useWorkflow();
-
   return (
     <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-xl">
       {ROLES.map(r => {
@@ -50,9 +26,7 @@ export function RoleSwitcher() {
             key={r.key}
             onClick={() => setRole(r.key)}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 ${
-              isActive
-                ? `${r.activeBg} ${r.activeText} shadow-sm`
-                : 'text-gray-600 hover:text-gray-900 hover:bg-white'
+              isActive ? `${r.activeBg} ${r.activeText} shadow-sm` : 'text-gray-600 hover:text-gray-900 hover:bg-white'
             }`}
           >
             <Icon className="w-4 h-4 flex-shrink-0" />

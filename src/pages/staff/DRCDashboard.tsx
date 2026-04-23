@@ -1,12 +1,53 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package, Play } from 'lucide-react';
+import {
+  Users, Briefcase, AlertTriangle, DollarSign, FileText,
+  Calendar, TrendingUp, Package, Play,
+  Stethoscope, FlaskConical, Pill, Lock,
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { DashboardKPIs } from '../../types/drcClinic';
+import type { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';
+import { useRBAC } from '../../contexts/RBACContext';
+
+// ---------------------------------------------------------------------------
+// Access-denied screen shown to roles not in DASHBOARD_ALLOWED_ROLES
+// ---------------------------------------------------------------------------
+
+function DashboardAccessDenied() {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-5 px-4">
+      <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center">
+        <Lock className="w-10 h-10 text-red-500" />
+      </div>
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 mb-2">Accès restreint</h2>
+        <p className="text-gray-500 max-w-md">
+          Ce tableau de bord est réservé aux rôles{' '}
+          <strong>Administrateur</strong> et{' '}
+          <strong>Médecin Directeur</strong>.
+          Votre profil actuel ne dispose pas des autorisations nécessaires.
+        </p>
+      </div>
+      <button
+        onClick={() => navigate(-1)}
+        className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+      >
+        Retour
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main dashboard
+// ---------------------------------------------------------------------------
 
 export function DRCDashboard() {
   const navigate = useNavigate();
+  const { canAccessDashboard } = useRBAC();
+
   const [kpis, setKpis] = useState<DashboardKPIs>({
     daily_patients: 0,
     staff_on_duty: 0,
@@ -14,10 +55,15 @@ export function DRCDashboard() {
     monthly_revenue_cdf: 0,
     monthly_revenue_usd: 0,
     contracts_expiring_30_days: 0,
-    medications_expiring_soon: 0
+    medications_expiring_soon: 0,
   });
   const [exchangeRate, setExchangeRate] = useState<{ usd_to_cdf: number; cdf_to_usd: number } | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Enforce access control: only admin & medical_director
+  if (!canAccessDashboard) {
+    return <DashboardAccessDenied />;
+  }
 
   useEffect(() => {
     loadDashboardData();
@@ -25,7 +71,6 @@ export function DRCDashboard() {
 
   async function loadDashboardData() {
     try {
-      // Get current exchange rate
       const { data: rateData } = await supabase
         .from('exchange_rates')
         .select('*')
@@ -35,37 +80,32 @@ export function DRCDashboard() {
         .maybeSingle();
 
       if (rateData) {
-        setExchangeRate({
-          usd_to_cdf: rateData.usd_to_cdf,
-          cdf_to_usd: rateData.cdf_to_usd
-        });
+        setExchangeRate({ usd_to_cdf: rateData.usd_to_cdf, cdf_to_usd: rateData.cdf_to_usd });
       }
 
-      // Get today's patient count
       const today = new Date().toISOString().split('T')[0];
+
       const { count: patientCount } = await supabase
         .from('appointments')
         .select('*', { count: 'exact', head: true })
         .gte('appointment_date', today)
         .lte('appointment_date', today);
 
-      // Get staff on duty today
       const { count: staffCount } = await supabase
         .from('shift_schedules')
         .select('*', { count: 'exact', head: true })
         .eq('shift_date', today)
         .eq('status', 'confirmed');
 
-      // Get critical stock alerts
       const { count: alertsCount } = await supabase
         .from('medication_stock_alerts')
         .select('*', { count: 'exact', head: true })
         .eq('is_resolved', false)
         .in('severity', ['high', 'critical']);
 
-      // Get contracts expiring in 30 days
       const thirtyDaysFromNow = new Date();
       thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+
       const { count: contractsCount } = await supabase
         .from('employee_contracts')
         .select('*', { count: 'exact', head: true })
@@ -74,14 +114,12 @@ export function DRCDashboard() {
         .lte('end_date', thirtyDaysFromNow.toISOString().split('T')[0])
         .gte('end_date', today);
 
-      // Get medications expiring soon
       const { count: medicationsCount } = await supabase
         .from('medication_batches')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'active')
         .lte('expiry_date', thirtyDaysFromNow.toISOString().split('T')[0]);
 
-      // Get current month revenue
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       const { data: invoices } = await supabase
@@ -100,7 +138,7 @@ export function DRCDashboard() {
         monthly_revenue_cdf: monthlyRevenueCDF,
         monthly_revenue_usd: monthlyRevenueUSD,
         contracts_expiring_30_days: contractsCount || 0,
-        medications_expiring_soon: medicationsCount || 0
+        medications_expiring_soon: medicationsCount || 0,
       });
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -112,7 +150,7 @@ export function DRCDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -148,7 +186,6 @@ export function DRCDashboard() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Daily Patients */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center">
@@ -159,7 +196,6 @@ export function DRCDashboard() {
           <p className="text-sm font-medium text-gray-600">Patients Aujourd'hui</p>
         </div>
 
-        {/* Staff on Duty */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center">
@@ -170,7 +206,6 @@ export function DRCDashboard() {
           <p className="text-sm font-medium text-gray-600">Personnel de Garde</p>
         </div>
 
-        {/* Monthly Revenue CDF */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center">
@@ -184,7 +219,6 @@ export function DRCDashboard() {
           <p className="text-sm font-medium text-gray-600">Revenu Mensuel</p>
         </div>
 
-        {/* Critical Alerts */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-red-100 w-12 h-12 rounded-lg flex items-center justify-center">
@@ -196,9 +230,8 @@ export function DRCDashboard() {
         </div>
       </div>
 
-      {/* HR Alerts Section */}
+      {/* HR Alerts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Contracts Expiring */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
             <div className="bg-orange-100 w-10 h-10 rounded-lg flex items-center justify-center">
@@ -220,11 +253,10 @@ export function DRCDashboard() {
           </div>
         </div>
 
-        {/* Medications Expiring */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <div className="flex items-center gap-3 mb-4">
-            <div className="bg-purple-100 w-10 h-10 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-purple-600" />
+            <div className="bg-blue-100 w-10 h-10 rounded-lg flex items-center justify-center">
+              <Package className="w-5 h-5 text-blue-600" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">Médicaments à Péremption</h3>
@@ -232,10 +264,10 @@ export function DRCDashboard() {
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-4xl font-bold text-purple-600">{kpis.medications_expiring_soon}</span>
+            <span className="text-4xl font-bold text-blue-600">{kpis.medications_expiring_soon}</span>
             <button
               onClick={() => navigate('/tableau-de-bord/pharmacy-inventory')}
-              className="bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
             >
               Voir l'Inventaire
             </button>
@@ -243,7 +275,51 @@ export function DRCDashboard() {
         </div>
       </div>
 
-      {/* Quick Actions */}
+      {/* ------------------------------------------------------------------ */}
+      {/* Pôle Médical — quick-access section                                 */}
+      {/* ------------------------------------------------------------------ */}
+      <div className="bg-white rounded-xl shadow-sm p-6">
+        <div className="flex items-center gap-2 mb-5">
+          <div className="bg-blue-100 w-8 h-8 rounded-lg flex items-center justify-center">
+            <Stethoscope className="w-4 h-4 text-blue-600" />
+          </div>
+          <h2 className="text-lg font-semibold text-gray-900">Pôle Médical</h2>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          {/* Médecin */}
+          <button
+            onClick={() => navigate('/staff/consultations')}
+            className="p-4 bg-blue-50 rounded-lg text-left hover:bg-blue-100 transition-colors group"
+          >
+            <Stethoscope className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-semibold text-gray-900">Médecin</p>
+            <p className="text-xs text-gray-500 mt-0.5">Consultations</p>
+          </button>
+
+          {/* Labo */}
+          <button
+            onClick={() => navigate('/staff/laboratory')}
+            className="p-4 bg-emerald-50 rounded-lg text-left hover:bg-emerald-100 transition-colors group"
+          >
+            <FlaskConical className="w-6 h-6 text-emerald-600 mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-semibold text-gray-900">Labo</p>
+            <p className="text-xs text-gray-500 mt-0.5">Analyses & Examens</p>
+          </button>
+
+          {/* Pharmacie */}
+          <button
+            onClick={() => navigate('/staff/pharmacy')}
+            className="p-4 bg-orange-50 rounded-lg text-left hover:bg-orange-100 transition-colors group"
+          >
+            <Pill className="w-6 h-6 text-orange-500 mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-semibold text-gray-900">Pharmacie</p>
+            <p className="text-xs text-gray-500 mt-0.5">Ordonnances & Stock</p>
+          </button>
+        </div>
+      </div>
+
+      {/* Actions Rapides (administrative) */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -286,18 +362,16 @@ export function DRCDashboard() {
         </div>
       </div>
 
-      {/* Recent Activity */}
+      {/* System status */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Système Opérationnel</h2>
-        <div className="space-y-3">
-          <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
-            <div className="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">Tous les systèmes fonctionnent normalement</p>
-              <p className="text-xs text-gray-600">Dernière vérification: Aujourd'hui</p>
-            </div>
+        <div className="flex items-center gap-3 p-3 bg-green-50 rounded-lg">
+          <div className="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center">
+            <TrendingUp className="w-5 h-5 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-900">Tous les systèmes fonctionnent normalement</p>
+            <p className="text-xs text-gray-600">Dernière vérification: Aujourd'hui</p>
           </div>
         </div>
       </div>

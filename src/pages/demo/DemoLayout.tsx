@@ -1,26 +1,11 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard,
-  Users,
-  FileText,
-  FlaskConical,
-  Pill,
-  ChevronLeft,
-  ChevronRight,
-  Menu,
-  X,
-  Plus,
-  Stethoscope,
-  Activity,
-  LogOut,
+  LayoutDashboard, Users, FileText, FlaskConical, Pill,
+  ChevronLeft, ChevronRight, Menu, X, Plus, Stethoscope, Activity, LogOut,
 } from 'lucide-react';
 import { DemoWorkflowProvider, useWorkflow } from '../../contexts/WorkflowContext';
 import { RoleSwitcher, RoleBadge } from '../../components/demo/RoleSwitcher';
-
-// ---------------------------------------------------------------------------
-// Nav items per role
-// ---------------------------------------------------------------------------
 
 const NAV_ITEMS = {
   medecin: [
@@ -30,7 +15,7 @@ const NAV_ITEMS = {
     { to: '/demo/nouvelle-consultation', label: 'Nouvelle consultation', icon: Plus, highlight: true },
   ],
   laborantin: [
-    { to: '/demo/laboratoire', label: 'Demandes d\'examens', icon: FlaskConical, end: true },
+    { to: '/demo/laboratoire', label: "Demandes d'examens", icon: FlaskConical, end: true },
     { to: '/demo/laborantin-dashboard', label: 'Tableau de bord', icon: Activity },
   ],
   pharmacien: [
@@ -39,10 +24,6 @@ const NAV_ITEMS = {
   ],
 } as const;
 
-// ---------------------------------------------------------------------------
-// Inner layout (needs WorkflowContext to read role)
-// ---------------------------------------------------------------------------
-
 function DemoInner() {
   const { role } = useWorkflow();
   const navigate = useNavigate();
@@ -50,43 +31,15 @@ function DemoInner() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const navItems = NAV_ITEMS[role];
-
-  const sidebarBorder = role === 'medecin'
-    ? 'border-blue-100'
-    : role === 'laborantin'
-    ? 'border-emerald-100'
-    : 'border-orange-100';
-
-  const activeClass = role === 'medecin'
-    ? 'bg-blue-50 text-blue-700 font-semibold'
-    : role === 'laborantin'
-    ? 'bg-emerald-50 text-emerald-700 font-semibold'
-    : 'bg-orange-50 text-orange-700 font-semibold';
-
-  const logoAccent = role === 'medecin'
-    ? 'text-blue-600'
-    : role === 'laborantin'
-    ? 'text-emerald-600'
-    : 'text-orange-500';
+  const sidebarBorder = role === 'medecin' ? 'border-blue-100' : role === 'laborantin' ? 'border-emerald-100' : 'border-orange-100';
+  const activeClass = role === 'medecin' ? 'bg-blue-50 text-blue-700 font-semibold' : role === 'laborantin' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'bg-orange-50 text-orange-700 font-semibold';
+  const logoAccent = role === 'medecin' ? 'text-blue-600' : role === 'laborantin' ? 'text-emerald-600' : 'text-orange-500';
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      {/* Mobile overlay */}
-      {mobileOpen && (
-        <div
-          className="fixed inset-0 bg-black/40 z-20 lg:hidden"
-          onClick={() => setMobileOpen(false)}
-        />
-      )}
+      {mobileOpen && <div className="fixed inset-0 bg-black/40 z-20 lg:hidden" onClick={() => setMobileOpen(false)} />}
 
-      {/* Sidebar */}
-      <aside
-        className={`fixed top-0 left-0 h-full bg-white border-r ${sidebarBorder} z-30 flex flex-col transition-all duration-300
-          ${collapsed ? 'w-16' : 'w-60'}
-          ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
-        {/* Logo */}
+      <aside className={`fixed top-0 left-0 h-full bg-white border-r ${sidebarBorder} z-30 flex flex-col transition-all duration-300 ${collapsed ? 'w-16' : 'w-60'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
         <div className={`flex items-center gap-3 px-4 py-4 border-b ${sidebarBorder} min-h-[64px]`}>
           <div className={`flex-shrink-0 w-8 h-8 rounded-lg bg-current flex items-center justify-center ${logoAccent}`}>
             <Stethoscope className="w-4 h-4 text-white" />
@@ -97,22 +50,13 @@ function DemoInner() {
               <div className={`text-xs font-medium ${logoAccent}`}>Démo RBAC</div>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(c => !c)}
-            className="hidden lg:flex p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors ml-auto flex-shrink-0"
-          >
+          <button onClick={() => setCollapsed(c => !c)} className="hidden lg:flex p-1 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors ml-auto flex-shrink-0">
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
         </div>
 
-        {/* Role badge */}
-        {!collapsed && (
-          <div className="px-3 py-3 border-b border-gray-100">
-            <RoleBadge />
-          </div>
-        )}
+        {!collapsed && <div className="px-3 py-3 border-b border-gray-100"><RoleBadge /></div>}
 
-        {/* Nav */}
         <nav className="flex-1 px-2 py-4 space-y-0.5 overflow-y-auto">
           {navItems.map(item => {
             const Icon = item.icon;
@@ -140,7 +84,6 @@ function DemoInner() {
           })}
         </nav>
 
-        {/* Back to app */}
         <div className={`px-2 py-3 border-t ${sidebarBorder}`}>
           <button
             onClick={() => navigate('/staff/dashboard')}
@@ -152,36 +95,19 @@ function DemoInner() {
         </div>
       </aside>
 
-      {/* Main content */}
       <div className={`flex-1 flex flex-col transition-all duration-300 ${collapsed ? 'lg:ml-16' : 'lg:ml-60'}`}>
-        {/* Header */}
         <header className="sticky top-0 z-10 bg-white border-b border-gray-200 h-16 flex items-center px-4 gap-4">
-          {/* Mobile menu toggle */}
-          <button
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500"
-            onClick={() => setMobileOpen(o => !o)}
-          >
+          <button className="lg:hidden p-2 rounded-lg hover:bg-gray-100 text-gray-500" onClick={() => setMobileOpen(o => !o)}>
             {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
-
           <div className="flex-1" />
-
-          {/* Role switcher */}
           <RoleSwitcher />
         </header>
-
-        {/* Page content */}
-        <main className="flex-1 p-6">
-          <Outlet />
-        </main>
+        <main className="flex-1 p-6"><Outlet /></main>
       </div>
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Public export — wraps in WorkflowProvider
-// ---------------------------------------------------------------------------
 
 export function DemoLayout() {
   return (
