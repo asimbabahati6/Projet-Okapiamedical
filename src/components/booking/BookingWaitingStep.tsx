@@ -96,7 +96,7 @@ export function BookingWaitingStep({
               <div className="flex items-center justify-center gap-2 text-medical-600">
                 <Clock className="w-4 h-4" />
                 <span className="text-sm font-semibold">
-                  ~{estimatedWait} min d'attente estimee
+                  ~{estimatedWait} min d'attente estimée
                 </span>
               </div>
             </>
@@ -122,7 +122,7 @@ export function BookingWaitingStep({
                 <MapPin className="w-6 h-6" />
               </div>
               <div>
-                <p className="text-sm text-gray-600">Rendez-vous a</p>
+                <p className="text-sm text-gray-600">Rendez-vous à</p>
                 <p className="font-bold text-navy-800 text-lg">
                   Bureau {roomNumber || 'A-101'}
                 </p>
@@ -137,7 +137,7 @@ export function BookingWaitingStep({
                 <Video className="w-6 h-6" />
               </div>
               <div className="flex-1">
-                <p className="text-sm text-gray-600">Consultation video</p>
+                <p className="text-sm text-gray-600">Consultation vidéo</p>
                 <p className="font-bold text-navy-800 text-lg">
                   Dr. {doctorName}
                 </p>
@@ -148,7 +148,7 @@ export function BookingWaitingStep({
                     rel="noopener noreferrer"
                     className="text-sm text-teal-600 hover:text-teal-700 underline font-medium"
                   >
-                    Rejoindre la video
+                    Rejoindre la vidéo
                   </a>
                 )}
               </div>

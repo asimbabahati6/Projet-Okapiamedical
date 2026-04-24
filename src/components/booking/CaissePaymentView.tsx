@@ -85,7 +85,7 @@ export function CaissePaymentView() {
           paid_amount: entry.consultation_fee,
           balance: 0,
           status: 'paid',
-          payment_method: 'Especes',
+          payment_method: 'Espèces',
           payment_date: new Date().toISOString(),
           notes: `Paiement consultation - ${entry.ticket_number}`,
         })
@@ -179,7 +179,7 @@ export function CaissePaymentView() {
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Valides</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Validés</p>
               <p className="text-3xl font-bold text-green-600 mt-1">{paidCount}</p>
             </div>
             <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center">
@@ -225,7 +225,7 @@ export function CaissePaymentView() {
             >
               <div className="flex items-center gap-1.5">
                 <Filter className="w-3.5 h-3.5" />
-                {f === 'all' ? 'Tous' : f === 'pending' ? 'En attente' : 'Payes'}
+                {f === 'all' ? 'Tous' : f === 'pending' ? 'En attente' : 'Payés'}
               </div>
             </button>
           ))}
@@ -242,7 +242,7 @@ export function CaissePaymentView() {
           <div className="text-center py-16 text-gray-400">
             <CreditCard className="w-12 h-12 mx-auto mb-3 opacity-50" />
             <p className="font-medium">Aucun enregistrement</p>
-            <p className="text-sm">Les patients enregistres apparaitront ici</p>
+            <p className="text-sm">Les patients enregistrés apparaîtront ici</p>
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
@@ -327,7 +327,7 @@ export function CaissePaymentView() {
                       ) : (
                         <div className="px-4 py-2.5 rounded-xl bg-green-100 text-green-700 font-semibold text-sm flex items-center gap-2">
                           <CheckCircle className="w-4 h-4" />
-                          Paye
+                          Payé
                         </div>
                       )}
                     </div>

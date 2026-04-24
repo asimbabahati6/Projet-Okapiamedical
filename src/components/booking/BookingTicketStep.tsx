@@ -90,7 +90,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
             >
               {ticket.ticketNumber}
             </motion.div>
-            <p className="text-sm text-blue-200 font-medium">Votre ticket numerique</p>
+            <p className="text-sm text-blue-200 font-medium">Votre ticket numérique</p>
           </div>
         </div>
 
@@ -114,7 +114,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium uppercase tracking-wide">
                 <Stethoscope className="w-3 h-3" />
-                Specialite
+                Spécialité
               </div>
               <p className="font-bold text-navy-800 text-sm">{ticket.specialty}</p>
             </div>
@@ -128,13 +128,13 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
                 Type
               </div>
               <p className="font-bold text-navy-800 text-sm capitalize">
-                {ticket.consultationType === 'presentiel' ? 'En personne' : 'Video'}
+                {ticket.consultationType === 'presentiel' ? 'En personne' : 'Vidéo'}
               </p>
             </div>
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium uppercase tracking-wide">
                 <User className="w-3 h-3" />
-                Medecin
+                Médecin
               </div>
               <p className="font-bold text-navy-800 text-sm">Dr. {ticket.doctorName}</p>
             </div>
@@ -172,7 +172,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
           </div>
 
           <p className="text-xs text-center text-gray-400">
-            Presentez ce QR code a l'accueil
+            Présentez ce QR code à l'accueil
           </p>
         </div>
 
@@ -200,7 +200,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="font-bold text-green-800">Paiement valide</span>
+                <span className="font-bold text-green-800">Paiement validé</span>
               </motion.div>
             ) : (
               <div>
@@ -213,7 +213,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
                   <span className="font-bold text-orange-800">En attente de paiement</span>
                 </div>
                 <p className="text-xs text-orange-700">
-                  Veuillez vous rendre a la Caisse pour valider votre paiement
+                  Veuillez vous rendre à la Caisse pour valider votre paiement
                 </p>
               </div>
             )}

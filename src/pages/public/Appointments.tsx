@@ -25,7 +25,7 @@ export function Appointments({ preselectedDoctorId }: AppointmentsProps = {}) {
             className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
           >
             <List className="w-4 h-4" />
-            <span className="hidden sm:inline">Gerer un rendez-vous</span>
+            <span className="hidden sm:inline">Gérer un rendez-vous</span>
             <span className="sm:hidden">Existant</span>
           </button>
           <button

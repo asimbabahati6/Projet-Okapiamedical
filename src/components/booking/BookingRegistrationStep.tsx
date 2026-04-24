@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin,
@@ -10,6 +10,8 @@ import {
   ArrowRight,
   Building2,
   Loader2,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -30,9 +32,11 @@ interface BookingRegistrationStepProps {
   loading: boolean;
 }
 
-interface DepartmentOption {
+interface ServiceOption {
   id: string;
   name: string;
+  categoryId: string;
+  categoryName: string;
 }
 
 interface DoctorOption {
@@ -47,46 +51,78 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [reason, setReason] = useState('');
-  const [departmentId, setDepartmentId] = useState('');
+  const [serviceId, setServiceId] = useState('');
   const [doctorId, setDoctorId] = useState('');
-  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
+  const [services, setServices] = useState<ServiceOption[]>([]);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
-  const [loadingDepts, setLoadingDepts] = useState(true);
+  const [loadingServices, setLoadingServices] = useState(true);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [phoneTouched, setPhoneTouched] = useState(false);
+
+  const isPhoneValid = patientPhone.length === 9 && /^\d{9}$/.test(patientPhone);
+  const fullPhone = `+243${patientPhone}`;
+
+  const isFormValid = useMemo(
+    () => patientName.trim().length > 0 && isPhoneValid && serviceId !== '' && doctorId !== '',
+    [patientName, isPhoneValid, serviceId, doctorId]
+  );
+
+  const groupedServices = useMemo(() => {
+    const groups: Record<string, { categoryName: string; items: ServiceOption[] }> = {};
+    for (const svc of services) {
+      if (!groups[svc.categoryId]) {
+        groups[svc.categoryId] = { categoryName: svc.categoryName, items: [] };
+      }
+      groups[svc.categoryId].items.push(svc);
+    }
+    return Object.values(groups).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
+  }, [services]);
 
   useEffect(() => {
-    fetchDepartments();
+    fetchServices();
   }, []);
 
   useEffect(() => {
-    if (departmentId) {
+    if (serviceId) {
       setDoctorId('');
-      fetchDoctors(departmentId);
+      fetchDoctors();
     } else {
       setDoctors([]);
     }
-  }, [departmentId]);
+  }, [serviceId, consultationType]);
 
-  async function fetchDepartments() {
+  async function fetchServices() {
     try {
       const { data } = await supabase
-        .from('departments')
-        .select('id, name')
+        .from('services')
+        .select('id, name, category_id, service_categories(name)')
         .eq('is_active', true)
         .order('name');
-      if (data) setDepartments(data);
+
+      if (data) {
+        const mapped: ServiceOption[] = data.map((s: Record<string, unknown>) => {
+          const cat = s.service_categories as { name: string } | null;
+          return {
+            id: s.id as string,
+            name: s.name as string,
+            categoryId: s.category_id as string,
+            categoryName: cat?.name || 'Autre',
+          };
+        });
+        setServices(mapped);
+      }
     } finally {
-      setLoadingDepts(false);
+      setLoadingServices(false);
     }
   }
 
-  async function fetchDoctors(deptId: string) {
+  async function fetchDoctors() {
     setLoadingDoctors(true);
     try {
       const { data: profiles } = await supabase
         .from('user_profiles')
         .select('id, full_name, department_id')
-        .eq('department_id', deptId);
+        .not('department_id', 'is', null);
 
       if (!profiles || profiles.length === 0) {
         setDoctors([]);
@@ -106,7 +142,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
 
       const { data: staff } = await query;
 
-      if (staff) {
+      if (staff && staff.length > 0) {
         const mapped = staff.map((s) => {
           const profile = profiles.find((p) => p.id === s.id);
           return {
@@ -117,23 +153,33 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           };
         });
         setDoctors(mapped);
+      } else {
+        setDoctors([]);
       }
     } finally {
       setLoadingDoctors(false);
     }
   }
 
+  function handlePhoneChange(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 9);
+    setPatientPhone(digits);
+    if (!phoneTouched) setPhoneTouched(true);
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!isFormValid || loading) return;
+
     const selectedDoctor = doctors.find((d) => d.id === doctorId);
-    const selectedDept = departments.find((d) => d.id === departmentId);
+    const selectedService = services.find((s) => s.id === serviceId);
 
     onSubmit({
-      patientName,
-      patientPhone,
+      patientName: patientName.trim(),
+      patientPhone: fullPhone,
       consultationType,
-      specialty: selectedDept?.name || '',
-      departmentId,
+      specialty: selectedService?.name || '',
+      departmentId: selectedService?.categoryId || '',
       doctorId,
       doctorName: selectedDoctor?.name || '',
       reason,
@@ -173,16 +219,16 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           {[
             {
               type: 'presentiel' as const,
-              label: 'Presentiel',
-              desc: 'Consultation en personne a la clinique',
+              label: 'Présentiel',
+              desc: 'Consultation en personne à la clinique',
               icon: MapPin,
               gradient: 'from-medical-500 to-medical-600',
               light: 'bg-medical-50 border-medical-200',
             },
             {
               type: 'visioconference' as const,
-              label: 'Visioconference',
-              desc: 'Consultation video a distance',
+              label: 'Visioconférence',
+              desc: 'Consultation vidéo à distance',
               icon: Video,
               gradient: 'from-teal-500 to-teal-600',
               light: 'bg-teal-50 border-teal-200',
@@ -247,21 +293,41 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
             <Phone className="w-4 h-4 text-medical-500" />
-            Telephone *
+            Téléphone *
           </label>
           <div className="flex">
-            <span className="flex items-center px-3 rounded-l-xl border-2 border-r-0 border-gray-200 bg-gray-50 text-sm text-gray-500 font-medium">
+            <span className="flex items-center px-3 rounded-l-xl border-2 border-r-0 border-gray-200 bg-gray-50 text-sm text-gray-500 font-medium select-none">
               +243
             </span>
             <input
               type="tel"
               required
               value={patientPhone}
-              onChange={(e) => setPatientPhone(e.target.value)}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              onBlur={() => setPhoneTouched(true)}
               placeholder="812 345 678"
-              className="flex-1 px-4 py-3 rounded-r-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80"
+              maxLength={11}
+              className={`flex-1 px-4 py-3 rounded-r-xl border-2 outline-none transition-all bg-white/80 ${
+                !phoneTouched
+                  ? 'border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20'
+                  : isPhoneValid
+                  ? 'border-green-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
+                  : 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
+              }`}
             />
+            {phoneTouched && (
+              <div className="flex items-center pl-2">
+                {isPhoneValid ? (
+                  <CheckCircle className="w-4 h-4 text-green-500" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-red-400" />
+                )}
+              </div>
+            )}
           </div>
+          <p className={`text-xs mt-1.5 ${phoneTouched && !isPhoneValid ? 'text-red-500' : 'text-gray-400'}`}>
+            Format : +243 XXX XXX XXX (9 chiffres)
+          </p>
         </div>
       </motion.div>
 
@@ -270,9 +336,9 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
             <Stethoscope className="w-4 h-4 text-medical-500" />
-            Specialite *
+            Spécialité *
           </label>
-          {loadingDepts ? (
+          {loadingServices ? (
             <div className="flex items-center gap-2 py-3 text-gray-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               Chargement...
@@ -280,15 +346,19 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           ) : (
             <select
               required
-              value={departmentId}
-              onChange={(e) => setDepartmentId(e.target.value)}
+              value={serviceId}
+              onChange={(e) => setServiceId(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 appearance-none"
             >
-              <option value="">Selectionnez une specialite</option>
-              {departments.map((dept) => (
-                <option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </option>
+              <option value="">Sélectionnez une spécialité</option>
+              {groupedServices.map((group) => (
+                <optgroup key={group.categoryName} label={group.categoryName}>
+                  {group.items.map((svc) => (
+                    <option key={svc.id} value={svc.id}>
+                      {svc.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           )}
@@ -297,7 +367,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
             <User className="w-4 h-4 text-medical-500" />
-            Medecin *
+            Médecin *
           </label>
           <AnimatePresence mode="wait">
             {loadingDoctors ? (
@@ -309,7 +379,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 className="flex items-center gap-2 py-3 text-gray-400 text-sm"
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Chargement des medecins...
+                Chargement des médecins...
               </motion.div>
             ) : (
               <motion.select
@@ -323,15 +393,15 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 appearance-none"
               >
                 <option value="">
-                  {departmentId
+                  {serviceId
                     ? doctors.length === 0
-                      ? 'Aucun medecin disponible'
-                      : 'Selectionnez un medecin'
-                    : 'Choisissez la specialite d\'abord'}
+                      ? 'Aucun médecin disponible'
+                      : 'Sélectionnez un médecin'
+                    : 'Choisissez la spécialité d\'abord'}
                 </option>
                 {doctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} - {doc.specialization || 'Generaliste'} ({doc.consultationFee} USD)
+                    Dr. {doc.name} - {doc.specialization || 'Généraliste'} ({doc.consultationFee} USD)
                   </option>
                 ))}
               </motion.select>
@@ -350,7 +420,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder="Decrivez brievement le motif de votre visite..."
+          placeholder="Décrivez brièvement le motif de votre visite..."
           className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 resize-none"
         />
       </motion.div>
@@ -359,13 +429,20 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       <motion.div variants={itemVariants}>
         <motion.button
           type="submit"
-          disabled={loading || !patientName || !patientPhone || !departmentId || !doctorId}
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.99 }}
-          className="w-full py-4 rounded-2xl bg-gradient-to-r from-navy-800 to-navy-700 text-white font-bold text-lg shadow-lg hover:shadow-xl transition-shadow disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          disabled={!isFormValid || loading}
+          whileHover={isFormValid && !loading ? { scale: 1.01 } : {}}
+          whileTap={isFormValid && !loading ? { scale: 0.99 } : {}}
+          className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-3 ${
+            isFormValid && !loading
+              ? 'bg-gradient-to-r from-navy-800 to-navy-700 text-white hover:shadow-xl cursor-pointer'
+              : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
+          }`}
         >
           {loading ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span>Enregistrement en cours...</span>
+            </>
           ) : (
             <>
               Confirmer l'inscription

@@ -45,7 +45,6 @@ export function MedicalBookingSystem() {
     setSmsToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
-  // Realtime subscription for booking updates
   useEffect(() => {
     if (!booking?.id) return;
 
@@ -71,18 +70,16 @@ export function MedicalBookingSystem() {
             const newRoom = (updated.room_number as string) || prev.roomNumber;
             const newVideoLink = (updated.video_link as string) || prev.videoLink;
 
-            // Payment confirmed -> fire SMS + move to waiting
             if (newPaymentStatus === 'paid' && prev.paymentStatus === 'pending') {
               addSmsToast(
                 'payment',
-                'Paiement confirme !',
-                `Merci de patienter en salle d'attente. Position: ${newQueuePosition}`
+                'Paiement confirmé !',
+                `Merci de patienter en salle d'attente. Position : ${newQueuePosition}`
               );
 
-              // Log SMS to database
               logSMS(
                 prev.patientPhone,
-                `Votre paiement a ete valide. Position en file d'attente: ${newQueuePosition}. Merci de patienter.`,
+                `Votre paiement a été validé. Position en file d'attente : ${newQueuePosition}. Merci de patienter.`,
                 'payment_confirmation',
                 prev.id
               );
@@ -90,22 +87,21 @@ export function MedicalBookingSystem() {
               setTimeout(() => setCurrentStep(3), 1500);
             }
 
-            // Doctor called -> fire SMS + move to consultation
             if (newPatientStatus === 'called' && prev.patientStatus !== 'called') {
               const locationMsg =
                 prev.consultationType === 'presentiel'
                   ? `Bureau ${newRoom || 'A-101'}`
-                  : `Lien video: ${newVideoLink || 'consultation.okapia.com'}`;
+                  : `Lien vidéo : ${newVideoLink || 'consultation.okapia.com'}`;
 
               addSmsToast(
                 'doctor_call',
-                `Le Dr. ${prev.doctorName} est pret a vous recevoir`,
+                `Le Dr. ${prev.doctorName} est prêt à vous recevoir`,
                 locationMsg
               );
 
               logSMS(
                 prev.patientPhone,
-                `Le Dr. ${prev.doctorName} est pret a vous recevoir en ${locationMsg}.`,
+                `Le Dr. ${prev.doctorName} est prêt à vous recevoir en ${locationMsg}.`,
                 'doctor_call',
                 prev.id
               );
@@ -131,7 +127,6 @@ export function MedicalBookingSystem() {
     };
   }, [booking?.id, addSmsToast]);
 
-  // Fetch total queue count
   useEffect(() => {
     if (currentStep >= 3 && booking) {
       fetchQueueCount();
@@ -179,11 +174,9 @@ export function MedicalBookingSystem() {
     setRegistrationLoading(true);
 
     try {
-      // Generate ticket number
       const { data: ticketData } = await supabase.rpc('generate_daily_ticket_number');
       const ticketNumber = ticketData || `T-${String(Date.now()).slice(-3)}`;
 
-      // Create appointment record
       const { data: appointment, error: aptErr } = await supabase
         .from('appointments')
         .insert({
@@ -202,7 +195,6 @@ export function MedicalBookingSystem() {
 
       if (aptErr) throw aptErr;
 
-      // Count existing queue entries for position
       const today = new Date().toISOString().split('T')[0];
       const { count } = await supabase
         .from('booking_queue')
@@ -211,7 +203,6 @@ export function MedicalBookingSystem() {
 
       const queuePosition = (count || 0) + 1;
 
-      // Insert booking queue entry
       const { data: queueEntry, error: qErr } = await supabase
         .from('booking_queue')
         .insert({
@@ -235,6 +226,13 @@ export function MedicalBookingSystem() {
 
       if (qErr) throw qErr;
 
+      logSMS(
+        data.patientPhone,
+        `Votre inscription est enregistrée (ticket ${ticketNumber}). Veuillez vous présenter à la caisse pour le paiement.`,
+        'registration_confirmation',
+        queueEntry.id
+      );
+
       setBooking({
         id: queueEntry.id,
         appointmentId: appointment.id,
@@ -254,6 +252,14 @@ export function MedicalBookingSystem() {
         roomNumber: '',
         videoLink: '',
       });
+
+      addSmsToast(
+        'registration',
+        'Inscription enregistrée',
+        'Votre inscription est enregistrée. Veuillez vous présenter à la caisse pour le paiement.'
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
       setCurrentStep(2);
     } catch (error) {
@@ -278,17 +284,14 @@ export function MedicalBookingSystem() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-gray-100 relative overflow-hidden">
-      {/* Background decoration */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-medical-500/[0.04] -translate-y-1/3 translate-x-1/3" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-navy-800/[0.03] translate-y-1/3 -translate-x-1/3" />
       </div>
 
-      {/* SMS Toasts */}
       <SMSNotificationToast toasts={smsToasts} onDismiss={dismissSmsToast} />
 
       <div className="relative z-10 max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
-        {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -303,11 +306,10 @@ export function MedicalBookingSystem() {
             </h1>
           </div>
           <p className="text-gray-500 text-sm sm:text-base max-w-md mx-auto">
-            Systeme moderne de gestion des consultations medicales
+            Système moderne de gestion des consultations médicales
           </p>
         </motion.div>
 
-        {/* Stepper */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -317,7 +319,6 @@ export function MedicalBookingSystem() {
           <BookingStepper currentStep={currentStep} />
         </motion.div>
 
-        {/* Step Content */}
         <div className="glass-card rounded-3xl p-6 sm:p-8">
           <AnimatePresence mode="wait">
             {currentStep === 1 && (
@@ -390,7 +391,7 @@ export function MedicalBookingSystem() {
                 <p className="text-gray-600 mb-1">
                   {booking.consultationType === 'presentiel'
                     ? `Rendez-vous au Bureau ${booking.roomNumber || 'A-101'}`
-                    : 'Votre consultation video est en cours'}
+                    : 'Votre consultation vidéo est en cours'}
                 </p>
                 <p className="text-sm text-gray-500 mb-8">
                   Dr. {booking.doctorName} - {booking.specialty}

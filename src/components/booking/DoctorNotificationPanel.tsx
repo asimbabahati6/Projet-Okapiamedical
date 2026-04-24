@@ -111,7 +111,7 @@ export function DoctorNotificationPanel() {
   function getWaitTime(createdAt: string) {
     const diff = Date.now() - new Date(createdAt).getTime();
     const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'A l\'instant';
+    if (mins < 1) return 'À l\'instant';
     if (mins < 60) return `${mins} min`;
     return `${Math.floor(mins / 60)}h ${mins % 60}min`;
   }
@@ -128,7 +128,7 @@ export function DoctorNotificationPanel() {
             Patients en attente
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            Patients ayant paye, prets pour consultation
+            Patients ayant payé, prêts pour consultation
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -156,7 +156,7 @@ export function DoctorNotificationPanel() {
           <Stethoscope className="w-14 h-14 text-gray-200 mx-auto mb-4" />
           <p className="font-medium text-gray-400 mb-1">Aucun patient en attente</p>
           <p className="text-sm text-gray-300">
-            Les patients apparaitront ici apres paiement
+            Les patients apparaîtront ici après paiement
           </p>
         </div>
       ) : (
@@ -189,12 +189,12 @@ export function DoctorNotificationPanel() {
                             {patient.consultation_type === 'presentiel' ? (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-medical-50 text-medical-600 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
-                                Presentiel
+                                Présentiel
                               </span>
                             ) : (
                               <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-teal-50 text-teal-600 flex items-center gap-1">
                                 <Video className="w-3 h-3" />
-                                Video
+                                Vidéo
                               </span>
                             )}
                           </div>
@@ -247,7 +247,7 @@ export function DoctorNotificationPanel() {
             <div>
               <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-500" />
-                Appeles ({calledPatients.length})
+                Appelés ({calledPatients.length})
               </h3>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                 {calledPatients.map((patient) => (
