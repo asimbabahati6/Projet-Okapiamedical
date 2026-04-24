@@ -44,15 +44,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchUserProfile(session.user.id);
-      } else {
+    // Safety timeout: if Supabase never responds, unblock the UI after 6s
+    const safetyTimer = setTimeout(() => {
+      console.warn('Auth init timed out — rendering without session');
+      setLoading(false);
+    }, 6000);
+
+    supabase.auth.getSession()
+      .then(({ data: { session } }) => {
+        clearTimeout(safetyTimer);
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchUserProfile(session.user.id);
+        } else {
+          setLoading(false);
+        }
+      })
+      .catch((err) => {
+        clearTimeout(safetyTimer);
+        console.error('Supabase getSession failed:', err);
         setLoading(false);
-      }
-    });
+      });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       (async () => {
@@ -67,7 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(safetyTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   async function fetchUserProfile(userId: string) {
@@ -144,11 +160,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   function isRole(roleName: string | string[]): boolean {
     if (!profile?.role) return false;
-
     if (Array.isArray(roleName)) {
       return roleName.includes(profile.role.name);
     }
-
     return profile.role.name === roleName;
   }
 
@@ -160,23 +174,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function canAccessBackend(): boolean {
     if (!profile?.role) return false;
     const allowedRoles = [
-      'doctor',
-      'nurse',
-      'receptionist',
-      'hospital_admin',
-      'super_admin',
-      'administrative_staff',
-      'pharmacist',
-      'logistician',
-      'directeur_general',
-      'medecin_chef_staff',
-      'gestionnaire',
-      'radio_chef',
-      'radio_tech',
-      'caissiere',
-      'technique',
-      'hygiene',
-      'lab_technician'
+      'doctor', 'nurse', 'receptionist', 'hospital_admin', 'super_admin',
+      'administrative_staff', 'pharmacist', 'logistician', 'directeur_general',
+      'medecin_chef_staff', 'gestionnaire', 'radio_chef', 'radio_tech',
+      'caissiere', 'technique', 'hygiene', 'lab_technician',
     ];
     return allowedRoles.includes(profile.role.name);
   }
