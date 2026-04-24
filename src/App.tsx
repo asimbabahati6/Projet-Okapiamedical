@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
 import { RBACProvider } from './contexts/RBACContext';
 import { WorkflowProvider } from './contexts/WorkflowContext';
 import { StaffLayout } from './components/layout/StaffLayout';
@@ -16,6 +17,7 @@ import {
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <RBACProvider>
         <WorkflowProvider>
           <Routes>
@@ -53,6 +55,7 @@ export default function App() {
           </Routes>
         </WorkflowProvider>
       </RBACProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }
