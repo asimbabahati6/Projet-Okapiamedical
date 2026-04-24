@@ -94,7 +94,11 @@ export function PublicLayout() {
       case 'news':
         return <News onNavigate={handleNavigate} />;
       case 'news-detail':
-        return newsSlug ? <NewsDetail slug={newsSlug} onNavigate={handleNavigate} /> : <News onNavigate={handleNavigate} />;
+        if (!newsSlug) {
+          handleNavigate('news');
+          return <News onNavigate={handleNavigate} />;
+        }
+        return <NewsDetail slug={newsSlug} onNavigate={handleNavigate} />;
       case 'about':
         return <About />;
       case 'contact':
