@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Package, Plus, Download, Search, Filter, AlertTriangle,
-  TrendingUp, DollarSign, FileText, ShoppingCart, Eye,
-  CheckCircle, Clock, XCircle
-} from 'lucide-react';
+import { Package, Plus, Download, Search, ListFilter as Filter, TriangleAlert as AlertTriangle, TrendingUp, DollarSign, FileText, ShoppingCart, Eye, CircleCheck as CheckCircle, Clock, Circle as XCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';
@@ -241,7 +237,7 @@ export function EnhancedPharmacyPage() {
       </div>
 
       {permissions.isReadOnly && (
-        <ReadOnlyBadge message="Mode Consultation - Vous pouvez consulter les stocks et ordonnances mais pas les modifier" />
+        <ReadOnlyBadge />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

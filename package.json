@@ -12,11 +12,21 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.104.0",
+    "@types/d3": "^7.4.3",
+    "@types/qrcode": "^1.5.6",
+    "@types/recharts": "^1.8.29",
+    "d3": "^7.9.0",
+    "docx": "^9.6.1",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.7",
     "lucide-react": "^1.8.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-hook-form": "^7.73.1",
     "react-router-dom": "^7.14.2",
+    "recharts": "^3.8.1",
+    "xlsx": "^0.18.5",
     "zod": "^4.3.6"
   },
   "devDependencies": {

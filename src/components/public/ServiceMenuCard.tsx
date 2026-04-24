@@ -33,7 +33,7 @@ export function ServiceMenuCard({ category, services, onNavigate, showSubmenu = 
   const { language } = useLanguage();
   const [isHovered, setIsHovered] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
 
   const IconComponent = category.icon ? iconMap[category.icon] : Icons.Stethoscope;

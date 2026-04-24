@@ -35,7 +35,7 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
   }
 
 
-  const navItems = [
+  const navItems: Array<{ id: string; label: string; special?: boolean }> = [
     { id: 'home', label: t.common.home },
     { id: 'services', label: t.common.services },
     { id: 'appointments', label: t.common.appointments },

@@ -6,6 +6,8 @@ interface UserProfile {
   id: string;
   role_id: string;
   full_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   phone: string | null;
   avatar_url: string | null;
   department_id: string | null;

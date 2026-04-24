@@ -4,8 +4,9 @@ import { Document, Packer, Paragraph, TextRun, AlignmentType, HeadingLevel, Tabl
 
 export interface DocumentSection {
   title: string;
-  content: string | string[];
+  content?: string | string[];
   type?: 'text' | 'table' | 'list';
+  placeholder?: string;
   tableData?: {
     headers: string[];
     rows: string[][];

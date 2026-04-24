@@ -147,7 +147,7 @@ export function wrapText(
     let lineNumber = 0;
     const lineHeight = 1.1;
     const y = text.attr('y');
-    const dy = parseFloat(text.attr('dy') || 0);
+    const dy = parseFloat(text.attr('dy') || '0');
     let tspan = text.text(null).append('tspan').attr('x', 0).attr('y', y).attr('dy', dy + 'em');
 
     while ((word = words.pop())) {

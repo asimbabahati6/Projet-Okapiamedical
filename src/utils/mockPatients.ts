@@ -324,12 +324,18 @@ export function getAllMockPatients(): PatientWithDocuments[] {
     ...patient,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    emergency_contact: patient.phone,
+    emergency_contact_name: patient.phone,
+    emergency_contact_phone: null,
+    emergency_contact_relationship: null,
+    insurance_provider: null,
     insurance_number: `INS-${patient.patient_number.split('-')[1]}`,
+    chronic_conditions: null,
+    primary_care_physician_id: null,
+    profile_photo_url: null,
     document_count: 0,
     document_types: [],
     assigned_documents: [],
-  }));
+  })) as PatientWithDocuments[];
 }
 
 export function getRandomMockPatient(): PatientWithDocuments {
@@ -338,10 +344,17 @@ export function getRandomMockPatient(): PatientWithDocuments {
 
   return {
     ...patient,
+    allergies: patient.allergies ?? [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    emergency_contact: patient.phone,
+    emergency_contact_name: patient.phone,
+    emergency_contact_phone: null,
+    emergency_contact_relationship: null,
+    insurance_provider: null,
     insurance_number: `INS-${patient.patient_number.split('-')[1]}`,
+    chronic_conditions: null,
+    primary_care_physician_id: null,
+    profile_photo_url: null,
     document_count: 0,
     document_types: [],
     assigned_documents: [],
@@ -355,10 +368,17 @@ export function getMockPatientById(id: string): PatientWithDocuments | undefined
 
   return {
     ...patient,
+    allergies: patient.allergies ?? [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    emergency_contact: patient.phone,
+    emergency_contact_name: patient.phone,
+    emergency_contact_phone: null,
+    emergency_contact_relationship: null,
+    insurance_provider: null,
     insurance_number: `INS-${patient.patient_number.split('-')[1]}`,
+    chronic_conditions: null,
+    primary_care_physician_id: null,
+    profile_photo_url: null,
     document_count: 0,
     document_types: [],
     assigned_documents: [],
@@ -370,10 +390,17 @@ export function getMockPatientByIndex(index: number): PatientWithDocuments {
 
   return {
     ...patient,
+    allergies: patient.allergies ?? [],
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    emergency_contact: patient.phone,
+    emergency_contact_name: patient.phone,
+    emergency_contact_phone: null,
+    emergency_contact_relationship: null,
+    insurance_provider: null,
     insurance_number: `INS-${patient.patient_number.split('-')[1]}`,
+    chronic_conditions: null,
+    primary_care_physician_id: null,
+    profile_photo_url: null,
     document_count: 0,
     document_types: [],
     assigned_documents: [],

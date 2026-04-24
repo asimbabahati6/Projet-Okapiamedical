@@ -180,7 +180,7 @@ class SimulationAuditService {
         return null;
       }
 
-      return data;
+      return data as ActiveSessionInfo | null;
     } catch (error) {
       console.error('Error fetching active simulation session:', error);
       return null;
@@ -224,7 +224,7 @@ class SimulationAuditService {
 
       if (error) throw error;
 
-      return data || {
+      return (data as SimulationStatistics) || {
         total_sessions: 0,
         active_sessions: 0,
         unique_users: 0,

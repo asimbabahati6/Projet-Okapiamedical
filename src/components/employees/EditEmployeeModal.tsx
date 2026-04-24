@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, AlertTriangle } from 'lucide-react';
+import { X, Save, TriangleAlert as AlertTriangle } from 'lucide-react';
 import { Employee } from '../../types/drcClinic';
 import { EmployeeFormData, StepNumber, ValidationError } from '../../types/employeeForm';
 import { getEmployeeById, updateEmployee } from '../../services/employeeService';
@@ -253,7 +253,7 @@ export function EditEmployeeModal({ employee, onClose, onUpdate }: EditEmployeeM
           )}
 
           {currentTab === 7 && (
-            <ReviewStep formData={formData} />
+            <ReviewStep data={formData} onEditStep={(step) => setCurrentTab(step)} />
           )}
         </div>
 

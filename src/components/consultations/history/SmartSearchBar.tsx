@@ -15,7 +15,7 @@ export function SmartSearchBar({
   debounceMs = 300
 }: SmartSearchBarProps) {
   const [localValue, setLocalValue] = useState(value);
-  const timeoutRef = useRef<NodeJS.Timeout>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     setLocalValue(value);

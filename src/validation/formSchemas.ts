@@ -4,10 +4,6 @@ import { useForm, type DefaultValues, type FieldValues } from 'react-hook-form';
 
 const phoneRegex = /^[\+]?[(]?[0-9]{1,4}[)]?[-\s\.]?[(]?[0-9]{1,4}[)]?[-\s\.]?[0-9]{1,9}$/;
 
-// ---------------------------------------------------------------------------
-// Schémas Zod réutilisables
-// ---------------------------------------------------------------------------
-
 export const loginSchema = z.object({
   email: z.string().email('Adresse email invalide'),
   password: z.string().min(6, 'Le mot de passe doit contenir au moins 6 caractères'),
@@ -37,10 +33,8 @@ export const appointmentSchema = z.object({
   doctor_id: z.string().uuid('Médecin invalide').optional().nullable(),
   department_id: z.string().uuid('Département invalide').optional().nullable(),
   appointment_date: z.string().min(1, 'La date est requise'),
-  appointment_time: z.string().min(1, 'L\'heure est requise'),
-  type: z.enum(['consultation', 'follow_up', 'emergency', 'telemedicine'], {
-    errorMap: () => ({ message: 'Type de rendez-vous invalide' }),
-  }),
+  appointment_time: z.string().min(1, "L'heure est requise"),
+  type: z.enum(['consultation', 'follow_up', 'emergency', 'telemedicine']).catch('consultation'),
   reason: z
     .string()
     .min(5, 'Le motif doit contenir au moins 5 caractères')
@@ -84,10 +78,8 @@ export const postSchema = z.object({
   content: z.string().min(20, 'Le contenu doit contenir au moins 20 caractères'),
   excerpt: z.string().max(500, 'Le résumé ne peut pas dépasser 500 caractères').optional().nullable(),
   category_id: z.string().uuid('Catégorie invalide').optional().nullable(),
-  status: z.enum(['brouillon', 'publié', 'archivé'], {
-    errorMap: () => ({ message: 'Statut invalide' }),
-  }),
-  featured_image_url: z.string().url('URL d\'image invalide').optional().nullable(),
+  status: z.enum(['brouillon', 'publié', 'archivé']).catch('brouillon'),
+  featured_image_url: z.string().url("URL d'image invalide").optional().nullable(),
   tags: z.array(z.string()).optional().default([]),
   is_featured: z.boolean().default(false),
 });
@@ -115,22 +107,16 @@ export const labOrderSchema = z.object({
   tests: z
     .array(
       z.object({
-        test_name: z.string().min(2, 'Le nom de l\'examen est requis'),
+        test_name: z.string().min(2, "Le nom de l'examen est requis"),
         test_code: z.string().optional(),
         notes: z.string().optional(),
       })
     )
     .min(1, 'Au moins un examen est requis'),
-  priority: z.enum(['normal', 'urgent', 'stat'], {
-    errorMap: () => ({ message: 'Priorité invalide' }),
-  }),
+  priority: z.enum(['normal', 'urgent', 'stat']).catch('normal'),
   clinical_notes: z.string().max(1000, 'Les notes ne peuvent pas dépasser 1000 caractères').optional().nullable(),
   sample_type: z.string().optional().nullable(),
 });
-
-// ---------------------------------------------------------------------------
-// Types inférés
-// ---------------------------------------------------------------------------
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type ChangePasswordFormData = z.infer<typeof changePasswordSchema>;
@@ -141,40 +127,20 @@ export type PostFormData = z.infer<typeof postSchema>;
 export type ContactMessageFormData = z.infer<typeof contactMessageSchema>;
 export type LabOrderFormData = z.infer<typeof labOrderSchema>;
 
-// ---------------------------------------------------------------------------
-// Helper : créer un resolver Zod pour React Hook Form
-// ---------------------------------------------------------------------------
-
-/**
- * Crée un resolver compatible React Hook Form à partir d'un schema Zod.
- *
- * @example
- * const { register, handleSubmit } = useForm({ resolver: createFormResolver(loginSchema) });
- */
 export function createFormResolver<T extends z.ZodTypeAny>(schema: T) {
   return zodResolver(schema);
 }
-
-// ---------------------------------------------------------------------------
-// Hook utilitaire : useFormWithValidation
-// ---------------------------------------------------------------------------
 
 interface UseFormWithValidationOptions<T extends FieldValues> {
   defaultValues?: DefaultValues<T>;
 }
 
-/**
- * Hook qui encapsule useForm avec validation Zod intégrée et gestion d'erreur centralisée.
- *
- * @example
- * const { form, isSubmitting } = useFormWithValidation(loginSchema, { defaultValues: { email: '' } });
- */
 export function useFormWithValidation<T extends FieldValues>(
-  schema: z.ZodSchema<T>,
+  schema: z.ZodType<T>,
   options: UseFormWithValidationOptions<T> = {}
 ) {
   const form = useForm<T>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any,
     defaultValues: options.defaultValues,
     mode: 'onBlur',
   });
@@ -184,7 +150,6 @@ export function useFormWithValidation<T extends FieldValues>(
   const isDirty = form.formState.isDirty;
   const isValid = form.formState.isValid;
 
-  /** Retourne le message d'erreur d'un champ, ou undefined. */
   function getFieldError(field: keyof T): string | undefined {
     const err = errors[field as string];
     return err?.message as string | undefined;

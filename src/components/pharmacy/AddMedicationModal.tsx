@@ -68,7 +68,7 @@ export function AddMedicationModal({ onClose, onSuccess }: AddMedicationModalPro
     if (target.type === 'number') {
       setFormData({
         ...formData,
-        [name]: parseFloat(value) || 0,
+        [name]: parseFloat(value as string) || 0,
       });
     } else {
       setFormData({

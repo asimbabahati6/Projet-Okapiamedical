@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, MapPin, Calendar, Droplet, Heart, AlertCircle, FileText, ExternalLink, Stethoscope, Award, Shield, Activity } from 'lucide-react';
+import { X, User, Phone, Mail, MapPin, Calendar, Droplet, Heart, CircleAlert as AlertCircle, FileText, ExternalLink, Stethoscope, Award, Shield, Activity } from 'lucide-react';
 import { Patient, Consultation, PatientINSIdentity, PatientMedicalHistory, PatientAllergyDetailed } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -20,7 +20,7 @@ interface PatientDetailsModalProps {
   onEdit: () => void;
 }
 
-interface PatientWithPhysician extends Patient {
+type PatientWithPhysician = Omit<Patient, 'primary_care_physician'> & {
   primary_care_physician?: {
     id: string;
     license_number: string | null;
@@ -32,7 +32,7 @@ interface PatientWithPhysician extends Patient {
       department_id: string | null;
     };
   };
-}
+};
 
 export function PatientDetailsModal({ patient: initialPatient, onClose, onEdit }: PatientDetailsModalProps) {
   const navigate = useNavigate();

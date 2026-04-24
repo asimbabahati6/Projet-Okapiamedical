@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Loader2, UserPlus } from 'lucide-react';
+import { X, Loader as Loader2, UserPlus } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -15,11 +15,11 @@ const patientSchema = z.object({
   first_name: z.string().min(2, 'Le prénom doit contenir au moins 2 caractères'),
   last_name: z.string().min(2, 'Le nom doit contenir au moins 2 caractères'),
   date_of_birth: z.string().min(1, 'La date de naissance est requise'),
-  gender: z.enum(['male', 'female', 'other'], { required_error: 'Le sexe est requis' }),
+  gender: z.enum(['male', 'female', 'other'] as const, { error: 'Le sexe est requis' }),
   email: z.string().email('Format email invalide'),
   phone: z.string().min(8, 'Le téléphone doit contenir au moins 8 caractères'),
-  blood_group: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'], {
-    required_error: 'Le groupe sanguin est requis',
+  blood_group: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const, {
+    error: 'Le groupe sanguin est requis',
   }),
   address: z.string().min(1, "L'adresse est requise"),
   city: z.string().min(1, 'La ville est requise'),

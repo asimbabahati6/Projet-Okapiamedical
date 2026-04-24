@@ -409,14 +409,18 @@ async function fetchConsultations(patientId: string): Promise<ConsultationData[]
 
   if (error) throw error;
 
-  return data.map(consultation => ({
-    consultation_date: consultation.consultation_date,
-    doctor_name: consultation.doctor?.user_profile?.full_name || 'Non spécifié',
-    reason: consultation.reason,
-    diagnosis: consultation.diagnosis,
-    treatment: consultation.treatment,
-    notes: consultation.notes
-  }));
+  return data.map(consultation => {
+    const doctor = Array.isArray((consultation as any).doctor) ? (consultation as any).doctor[0] : (consultation as any).doctor;
+    const userProfile = Array.isArray(doctor?.user_profile) ? doctor.user_profile[0] : doctor?.user_profile;
+    return {
+      consultation_date: consultation.consultation_date,
+      doctor_name: userProfile?.full_name || 'Non spécifié',
+      reason: consultation.reason,
+      diagnosis: consultation.diagnosis,
+      treatment: consultation.treatment,
+      notes: consultation.notes
+    };
+  });
 }
 
 async function fetchAllergies(patientId: string): Promise<AllergyData[]> {
@@ -455,7 +459,7 @@ async function fetchPhysician(physicianId: string): Promise<{ name: string; spec
   if (error) return null;
 
   return {
-    name: data.user_profile?.full_name || 'Non spécifié',
+    name: (Array.isArray(data.user_profile) ? data.user_profile[0]?.full_name : (data.user_profile as any)?.full_name) || 'Non spécifié',
     specialization: data.specialization,
     rpps_number: data.rpps_number
   };

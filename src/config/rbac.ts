@@ -173,6 +173,44 @@ export const MENU_STRUCTURE: MenuItem[] = [
   },
 ];
 
+export type Permission = string;
+
+export const ROLE_PERMISSIONS: Record<UserRole, string[]> = {
+  admin: ['all'],
+  super_admin: ['all'],
+  hospital_admin: ['all'],
+  medical_director: ['view_patients', 'manage_patients', 'view_consultations', 'manage_consultations', 'view_staff', 'manage_staff', 'view_reports', 'manage_reports'],
+  directeur_general: ['view_patients', 'manage_patients', 'view_financial', 'manage_financial', 'view_reports', 'manage_reports', 'view_staff'],
+  medecin_chef_staff: ['view_patients', 'manage_patients', 'view_consultations', 'manage_consultations', 'view_staff'],
+  doctor: ['view_patients', 'manage_patients', 'view_consultations', 'create_consultations', 'view_prescriptions', 'create_prescriptions'],
+  nurse: ['view_patients', 'view_consultations'],
+  dentist: ['view_patients', 'manage_patients', 'view_consultations', 'create_consultations'],
+  physical_therapist: ['view_patients', 'view_consultations'],
+  receptionist: ['view_patients', 'create_patients', 'view_appointments', 'manage_appointments'],
+  administrative: ['view_staff', 'manage_staff', 'view_reports'],
+  administrative_staff: ['view_staff'],
+  administrative_director: ['view_staff', 'manage_staff', 'view_reports', 'manage_reports'],
+  administrative_officer: ['view_staff'],
+  administrative_assistant: ['view_staff'],
+  hr_admin: ['view_staff', 'manage_staff', 'view_payroll', 'manage_payroll'],
+  hr_manager: ['view_staff', 'manage_staff', 'view_payroll', 'manage_payroll'],
+  accountant: ['view_financial', 'view_invoices', 'manage_invoices'],
+  finance_manager: ['view_financial', 'manage_financial', 'view_invoices', 'manage_invoices'],
+  operations: ['view_logistics', 'manage_logistics'],
+  operations_manager: ['view_logistics', 'manage_logistics'],
+  logistician: ['view_logistics', 'manage_logistics'],
+  pharmacist: ['view_pharmacy', 'manage_pharmacy', 'view_prescriptions'],
+  laboratory: ['view_lab', 'manage_lab'],
+  lab_technician: ['view_lab', 'manage_lab'],
+  radio_chef: ['view_radiology', 'manage_radiology', 'validate_report', 'delete_report'],
+  radio_tech: ['view_radiology', 'upload_images', 'modify_report'],
+  gestionnaire: ['view_financial', 'view_reports'],
+  caissiere: ['view_invoices', 'manage_invoices', 'access_cash_register'],
+  technique: ['view_maintenance'],
+  hygiene: ['view_hygiene', 'manage_hygiene'],
+  information_systems_coordinator: ['view_staff', 'view_reports'],
+};
+
 export function hasAccess(userRole: UserRole, requiredRoles: UserRole[]): boolean {
   return requiredRoles.includes(userRole);
 }

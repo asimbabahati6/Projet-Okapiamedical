@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar, Clock, Check, X, AlertCircle } from 'lucide-react';
+import { useState, useEffect, type JSX } from 'react';
+import { ChevronLeft, ChevronRight, Calendar, Clock, Check, X, CircleAlert as AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface TimeSlot {
@@ -190,7 +190,7 @@ export default function InteractiveAppointmentCalendar({
   function calculateTotalSlots(startTime: string, endTime: string, duration: number): number {
     const start = parseTime(startTime);
     const end = parseTime(endTime);
-    const diffMinutes = (end - start) / (1000 * 60);
+    const diffMinutes = (end.getTime() - start.getTime()) / (1000 * 60);
     return Math.floor(diffMinutes / duration);
   }
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Video, MapPin, CheckCircle, Briefcase, Star, Award, Languages, Phone, Mail, ArrowRight, ArrowLeft, Search, Filter, X, List, UserPlus } from 'lucide-react';
+import { Calendar, Clock, User, Video, MapPin, CircleCheck as CheckCircle, Briefcase, Star, Award, Languages, Phone, Mail, ArrowRight, ArrowLeft, Search, ListFilter as Filter, X, List, UserPlus } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
+import type { Language } from '../../i18n/translations';
 import { supabase } from '../../lib/supabase';
 import { Department, MedicalStaff, Service } from '../../types/database';
 import { AppointmentLookup } from '../../components/appointments/AppointmentLookup';
@@ -987,7 +988,7 @@ export function Appointments({ preselectedDoctorId }: AppointmentsProps = {}) {
                   </label>
                   <select
                     value={formData.preferred_language}
-                    onChange={(e) => setFormData({ ...formData, preferred_language: e.target.value })}
+                    onChange={(e) => setFormData({ ...formData, preferred_language: e.target.value as Language })}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="fr">Français</option>

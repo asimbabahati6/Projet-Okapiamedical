@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
-import { BarChart3, RefreshCw, Calendar, FileText, ArrowLeft } from 'lucide-react';
+import { ChartBar as BarChart3, RefreshCw, Calendar, FileText, ArrowLeft } from 'lucide-react';
 import { useBillingAnalytics } from '../../hooks/billing/useBillingAnalytics';
 import { BillingKPICards } from '../../components/billing/analytics/BillingKPICards';
 import { BillingSummaryTable } from '../../components/billing/analytics/BillingSummaryTable';
@@ -348,8 +348,8 @@ export function BillingAnalyticsPage({ onNavigateToInvoices }: BillingAnalyticsP
 
       {analyticsData.topPayersByAmount.length > 0 && (
         <TopPayersAnalysis
-          topByAmount={analyticsData.topPayersByAmount}
-          topByFrequency={analyticsData.topPayersByFrequency}
+          byAmount={analyticsData.topPayersByAmount}
+          byFrequency={analyticsData.topPayersByFrequency}
         />
       )}
 

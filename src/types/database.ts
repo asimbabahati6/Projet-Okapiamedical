@@ -36,10 +36,13 @@ export interface UserProfile {
   id: string;
   role_id: string;
   full_name: string;
+  first_name?: string | null;
+  last_name?: string | null;
   phone: string | null;
   avatar_url: string | null;
   department_id: string | null;
   is_active: boolean;
+  must_change_password?: boolean;
   created_at: string;
   updated_at: string;
   role?: Role;
@@ -1382,6 +1385,7 @@ export type MaintenanceType = 'vidange' | 'revision' | 'pneus' | 'freins' | 'con
 export interface Vehicle {
   id: string;
   vehicle_number: string;
+  registration_number?: string;
   vehicle_type: VehicleType;
   make: string;
   model: string;
@@ -1935,6 +1939,10 @@ export interface MedicalStaffExtended extends MedicalStaff {
   deletion_type: DeletionType | null;
   final_work_date: string | null;
   archive_retention_years: number;
+}
+
+export interface PrescriptionExportData extends Prescription {
+  items: PrescriptionItem[];
 }
 
 export interface Database {

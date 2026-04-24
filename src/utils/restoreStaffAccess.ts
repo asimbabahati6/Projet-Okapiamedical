@@ -52,7 +52,7 @@ export async function getStaffAccessStatus(): Promise<StaffAccessStatus> {
     const roleMap = new Map<string, { active: number; inactive: number; total: number }>();
 
     profiles?.forEach(profile => {
-      const roleName = profile.role?.name || 'unknown';
+      const roleName = (profile.role as any)?.name || (profile.role as any)?.[0]?.name || 'unknown';
       if (!roleMap.has(roleName)) {
         roleMap.set(roleName, { active: 0, inactive: 0, total: 0 });
       }
@@ -174,7 +174,7 @@ export async function restoreAllStaffAccess(
     result.accountsRestored = updatedProfiles?.map(profile => ({
       id: profile.id,
       name: profile.full_name,
-      role: profile.role?.name || 'unknown'
+      role: (profile.role as any)?.name || (profile.role as any)?.[0]?.name || 'unknown'
     })) || [];
 
     result.success = true;
