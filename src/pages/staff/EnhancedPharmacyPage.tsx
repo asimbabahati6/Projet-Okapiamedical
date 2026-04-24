@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Package, Plus, Download, Search, ListFilter as Filter, TriangleAlert as AlertTriangle, TrendingUp, DollarSign, FileText, ShoppingCart, Eye, CircleCheck as CheckCircle, Clock, Circle as XCircle } from 'lucide-react';
+import {
+  Package, Plus, Download, Search, Filter, AlertTriangle,
+  TrendingUp, DollarSign, FileText, ShoppingCart, Eye,
+  CheckCircle, Clock, XCircle
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 import { useAuth } from '../../contexts/AuthContext';

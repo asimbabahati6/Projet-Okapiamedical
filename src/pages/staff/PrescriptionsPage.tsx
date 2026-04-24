@@ -5,7 +5,7 @@ import { useToast } from '../../hooks/useToast';
 import { useRBAC } from '../../contexts/RBACContext';
 import { Prescription, PrescriptionExportData, PharmacyStock, StockAlert } from '../../types/database';
 import { exportToPDF, exportToExcel, exportSinglePrescriptionToExcel } from '../../utils/prescriptionExport';
-import { FileText, Plus, Search, ListFilter as Filter, Download, Eye, TriangleAlert as AlertTriangle, Package, Activity, Pencil } from 'lucide-react';
+import { FileText, Plus, Search, Filter, Download, Eye, AlertTriangle, Package, Activity, Pencil } from 'lucide-react';
 import AddPrescriptionModal from '../../components/prescriptions/AddPrescriptionModal';
 import EditPrescriptionModal from '../../components/prescriptions/EditPrescriptionModal';
 import ViewPrescriptionModal from '../../components/prescriptions/ViewPrescriptionModal';

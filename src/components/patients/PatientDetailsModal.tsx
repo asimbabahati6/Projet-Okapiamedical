@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, User, Phone, Mail, MapPin, Calendar, Droplet, Heart, CircleAlert as AlertCircle, FileText, ExternalLink, Stethoscope, Award, Shield, Activity } from 'lucide-react';
+import { X, User, Phone, Mail, MapPin, Calendar, Droplet, Heart, AlertCircle, FileText, ExternalLink, Stethoscope, Award, Shield, Activity } from 'lucide-react';
 import { Patient, Consultation, PatientINSIdentity, PatientMedicalHistory, PatientAllergyDetailed } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';

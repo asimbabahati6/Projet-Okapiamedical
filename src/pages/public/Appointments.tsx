@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Clock, User, Video, MapPin, CircleCheck as CheckCircle, Briefcase, Star, Award, Languages, Phone, Mail, ArrowRight, ArrowLeft, Search, ListFilter as Filter, X, List, UserPlus } from 'lucide-react';
+import { Calendar, Clock, User, Video, MapPin, CheckCircle, Briefcase, Star, Award, Languages, Phone, Mail, ArrowRight, ArrowLeft, Search, Filter, X, List, UserPlus } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import type { Language } from '../../i18n/translations';
 import { supabase } from '../../lib/supabase';
