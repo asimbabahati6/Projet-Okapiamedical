@@ -76,6 +76,13 @@ export const MENU_STRUCTURE: MenuItem[] = [
         roles: ['admin', 'medical_director', 'doctor']
       },
       {
+        id: 'doctor_queue',
+        label: 'File d\'attente',
+        icon: 'UserCheck',
+        path: '/staff/doctor-queue',
+        roles: ['admin', 'medical_director', 'doctor', 'directeur_general', 'medecin_chef_staff']
+      },
+      {
         id: 'medical_staff',
         label: 'Personnel Médical',
         icon: 'UserCog',
@@ -235,8 +242,15 @@ export const MENU_STRUCTURE: MenuItem[] = [
     label: 'Pôle Commercial & Finance',
     icon: 'DollarSign',
     category: 'commercial',
-    roles: ['admin', 'accountant'],
+    roles: ['admin', 'accountant', 'caissiere', 'gestionnaire', 'receptionist'],
     children: [
+      {
+        id: 'caisse',
+        label: 'Caisse - Paiements',
+        icon: 'Wallet',
+        path: '/staff/caisse',
+        roles: ['admin', 'accountant', 'operations', 'caissiere', 'directeur_general', 'gestionnaire', 'receptionist']
+      },
       {
         id: 'billing',
         label: 'Facturation',

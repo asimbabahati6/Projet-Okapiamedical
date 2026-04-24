@@ -64,6 +64,8 @@ import { FeedbackPage } from './pages/public/FeedbackPage';
 import AdminSetupPage from './pages/AdminSetupPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import { PostsManagementPage } from './pages/staff/PostsManagementPage';
+import CaissePage from './pages/staff/CaissePage';
+import DoctorQueuePage from './pages/staff/DoctorQueuePage';
 
 function App() {
   return (
@@ -176,6 +178,8 @@ function App() {
                   <Route path="okapia-connect" element={<OkapiaConnectPage />} />
                   <Route path="messaging" element={<MessagingPage />} />
                   <Route path="feedback" element={<FeedbackDashboard />} />
+                  <Route path="caisse" element={<CaissePage />} />
+                  <Route path="doctor-queue" element={<DoctorQueuePage />} />
                 </Route>
 
                 <Route path="/access-denied" element={<AccessDenied />} />
