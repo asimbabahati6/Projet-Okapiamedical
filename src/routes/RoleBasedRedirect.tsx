@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserRole } from '@/core/types/enums';
@@ -21,7 +21,7 @@ export const RoleBasedRedirect: React.FC = () => {
     return <Navigate to="/staff/login" replace />;
   }
 
-  const roleRoutes: Partial<Record<UserRole, string>> = {
+  const roleRoutes: Record<UserRole, string> = {
     [UserRole.SUPER_ADMIN]: '/admin/dashboard',
     [UserRole.HOSPITAL_ADMIN]: '/admin/dashboard',
     [UserRole.DOCTOR]: '/doctor/dashboard',
@@ -29,12 +29,10 @@ export const RoleBasedRedirect: React.FC = () => {
     [UserRole.PHARMACIST]: '/pharmacy/dashboard',
     [UserRole.RECEPTIONIST]: '/staff/dashboard',
     [UserRole.LAB_TECHNICIAN]: '/laboratory/dashboard',
-    [UserRole.PATIENT]: '/patient/dashboard',
+    [UserRole.PATIENT]: '/patient/dashboard'
   };
 
-  // profile.role may be { name, ... } or a string
-  const roleName = typeof profile.role === 'object' ? (profile.role as any)?.name : profile.role;
-  const redirectPath = (roleName && roleRoutes[roleName as UserRole]) || '/staff/dashboard';
+  const redirectPath = roleRoutes[profile.role as UserRole] || '/staff/dashboard';
 
   return <Navigate to={redirectPath} replace />;
 };

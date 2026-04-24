@@ -97,6 +97,7 @@ export class AdvancedDocumentGenerator {
 
     doc.text(text, x, y, {
       angle: 45,
+      opacity: 0.1
     });
 
     doc.restoreGraphicsState();
@@ -238,7 +239,7 @@ export class AdvancedDocumentGenerator {
     doc.text(`Patient: ${invoice.patient_name}`, 15, 68);
     doc.text(`ID Patient: ${invoice.patient_id}`, 15, 74);
 
-    const statusColor: [number, number, number] = invoice.status === 'paid' ? [40, 167, 69] :
+    const statusColor = invoice.status === 'paid' ? [40, 167, 69] :
                         invoice.status === 'pending' ? [255, 193, 7] :
                         [220, 53, 69];
 

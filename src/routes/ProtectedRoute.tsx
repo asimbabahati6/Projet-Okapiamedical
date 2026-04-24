@@ -44,9 +44,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       effectiveRole = mapRbacToEnum(userRole);
     } else {
       // Use the actual profile role from database
-      // profile.role may be { name, description, level } object or a string
-      const roleName = typeof profile?.role === 'object' ? (profile.role as any)?.name : profile?.role;
-      effectiveRole = roleName ? mapDbToEnum(roleName) : undefined;
+      effectiveRole = profile?.role ? mapDbToEnum(profile.role) : undefined;
     }
 
     // Always allow admin roles

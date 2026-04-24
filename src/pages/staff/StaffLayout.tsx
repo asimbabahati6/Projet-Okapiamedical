@@ -4,7 +4,7 @@ import { LogOut, Menu, X, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
 import ChatNotificationBell from '../../components/chat/ChatNotificationBell';
-import { RBACNavigation } from '../../components/layout/RBACNavigation';
+import RBACNavigation from '../../components/layout/RBACNavigation';
 import { SimulationModeBanner } from '../../components/simulation/SimulationModeBanner';
 import { SimulationFloatingBadge } from '../../components/simulation/SimulationFloatingBadge';
 

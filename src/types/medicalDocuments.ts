@@ -35,7 +35,7 @@ export interface MedicalDocument {
 
 export interface DocumentSection {
   title: string;
-  content?: string | string[];
+  content: string | string[];
   type?: 'text' | 'table' | 'list';
   placeholder?: string;
   tableData?: {
@@ -55,7 +55,6 @@ export interface PatientDocumentAssignment {
 }
 
 export interface PatientWithDocuments extends Patient {
-  medical_history?: string[] | null;
   document_count?: number;
   document_types?: string[];
   assigned_documents?: PatientDocumentAssignment[];

@@ -109,7 +109,6 @@ const frenchTranslations = {
     message: 'Message',
     send_message: 'Envoyer le message',
     success_message: 'Message envoyé avec succès!',
-    error_message: "Échec de l'envoi du message. Veuillez réessayer ou nous contacter directement.",
   },
   auth: {
     sign_in: 'Se connecter',
@@ -320,5 +319,5 @@ const frenchTranslations = {
 } as const;
 
 export const translations = frenchTranslations;
-export type Language = 'fr' | 'en' | 'ar';
+export type Language = 'fr';
 export type TranslationKeys = typeof frenchTranslations;

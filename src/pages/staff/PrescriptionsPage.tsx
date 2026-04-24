@@ -13,7 +13,7 @@ import StockAlertsPanel from '../../components/prescriptions/StockAlertsPanel';
 import { formatDoctorName } from '../../utils/formatDoctorName';
 
 export function PrescriptionsPage() {
-  const { user, profile: userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const { showToast } = useToast();
   const { hasPermission } = useRBAC();
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -481,7 +481,7 @@ export function PrescriptionsPage() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">
-                        {formatDoctorName((prescription.doctor as any)?.full_name ?? prescription.doctor?.user_profile?.full_name)}
+                        {formatDoctorName(prescription.doctor?.full_name)}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">

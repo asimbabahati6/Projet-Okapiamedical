@@ -32,13 +32,13 @@ export function DocumentPreviewModal({ document, documents, onClose, onNavigate 
   };
 
   const handleDownload = () => {
-    const link = window.document.createElement('a');
+    const link = document.createElement('a');
     link.href = document.file_url;
     link.download = document.document_name;
     link.target = '_blank';
-    window.document.body.appendChild(link);
+    document.body.appendChild(link);
     link.click();
-    window.document.body.removeChild(link);
+    document.body.removeChild(link);
   };
 
   const handleZoomIn = () => {

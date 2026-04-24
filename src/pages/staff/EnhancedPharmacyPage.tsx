@@ -241,7 +241,7 @@ export function EnhancedPharmacyPage() {
       </div>
 
       {permissions.isReadOnly && (
-        <ReadOnlyBadge />
+        <ReadOnlyBadge message="Mode Consultation - Vous pouvez consulter les stocks et ordonnances mais pas les modifier" />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

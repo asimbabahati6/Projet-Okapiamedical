@@ -1,5 +1,5 @@
 import { Prescription } from '../../types/database';
-import { X, FileText, User, Calendar, Package, CircleAlert as AlertCircle, Download, ExternalLink } from 'lucide-react';
+import { X, FileText, User, Calendar, Package, AlertCircle, Download, ExternalLink } from 'lucide-react';
 import { exportToPDF, exportSinglePrescriptionToExcel } from '../../utils/prescriptionExport';
 import { formatDoctorName } from '../../utils/formatDoctorName';
 
@@ -110,7 +110,7 @@ export default function ViewPrescriptionModal({ prescription, onClose, onDispens
                 </div>
                 <div>
                   <span className="text-green-700 font-medium">Médecin:</span>
-                  <span className="ml-2 text-gray-900">{formatDoctorName((prescription.doctor as any)?.full_name ?? prescription.doctor?.user_profile?.full_name)}</span>
+                  <span className="ml-2 text-gray-900">{formatDoctorName(prescription.doctor?.full_name)}</span>
                 </div>
                 <div>
                   <span className="text-green-700 font-medium">Pharmacie:</span>

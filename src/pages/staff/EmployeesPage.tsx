@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Plus, Search, Eye, Pencil, Files, CircleAlert as AlertCircle, Lock } from 'lucide-react';
+import { Plus, Search, Eye, Pencil, Files, AlertCircle, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Employee } from '../../types/drcClinic';
 import { AddEmployeeWizard } from '../../components/wizard/AddEmployeeWizard';
@@ -56,9 +56,6 @@ export function EmployeesPage() {
         status: record.employment_status || 'active',
         is_medical_staff: record.is_medical_staff || false,
         medical_specialty: record.specialization || '',
-        contract_type: record.contract_type || null,
-        base_salary_cdf: record.base_salary_cdf || null,
-        profile_photo_url: record.avatar_url || null,
         city: '',
         country: '',
         created_at: record.profile_created_at || '',

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Calendar, User, Clock, Eye, Tag, Share2, ExternalLink, MessageSquare, Link2, Mail } from 'lucide-react';
+import { ArrowLeft, Calendar, User, Clock, Eye, Tag, Share2, Facebook, Twitter, Linkedin, Mail } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { Post, PostMedia } from '../../types/database';
@@ -276,21 +276,21 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
                       onClick={() => shareOnSocial('facebook')}
                       className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
                     >
-                      <ExternalLink className="w-5 h-5 text-blue-600" />
+                      <Facebook className="w-5 h-5 text-blue-600" />
                       <span>Facebook</span>
                     </button>
                     <button
                       onClick={() => shareOnSocial('twitter')}
                       className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
                     >
-                      <MessageSquare className="w-5 h-5 text-sky-500" />
+                      <Twitter className="w-5 h-5 text-sky-500" />
                       <span>Twitter</span>
                     </button>
                     <button
                       onClick={() => shareOnSocial('linkedin')}
                       className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 transition-colors"
                     >
-                      <Link2 className="w-5 h-5 text-blue-700" />
+                      <Linkedin className="w-5 h-5 text-blue-700" />
                       <span>LinkedIn</span>
                     </button>
                     <button

@@ -160,10 +160,10 @@ export function useFinancialAnalytics(
         return acc;
       }, {} as Record<string, number>);
 
-      const expensesByCategoryArray = (Object.entries(expensesByCategory) as [string, number][]).map(([category, amount]) => ({
+      const expensesByCategoryArray = Object.entries(expensesByCategory).map(([category, amount]) => ({
         category,
-        amount: amount as number,
-        percentage: totalExpenses > 0 ? ((amount as number) / totalExpenses) * 100 : 0,
+        amount,
+        percentage: totalExpenses > 0 ? (amount / totalExpenses) * 100 : 0,
       }));
 
       const revenueByPeriodMap = new Map<string, number>();
@@ -189,9 +189,9 @@ export function useFinancialAnalytics(
           total: totalRevenue,
           trend: revenueTrend,
           byPeriod: Array.from(revenueByPeriodMap.entries())
-            .map(([date, amount]) => ({ date, amount: amount as number }))
+            .map(([date, amount]) => ({ date, amount }))
             .sort((a, b) => a.date.localeCompare(b.date)),
-          bySource: (Object.entries(revenueBySource) as [string, number][]).map(([source, amount]) => ({ source, amount: amount as number })),
+          bySource: Object.entries(revenueBySource).map(([source, amount]) => ({ source, amount })),
         },
         expenses: {
           total: totalExpenses,

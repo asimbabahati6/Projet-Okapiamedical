@@ -33,7 +33,6 @@ export interface BreakTimingInfo {
   remainingBreakSeconds: number;
   timeUntilBreakEligible: number;
   workHoursAfterBreak: number;
-  minimum_work_hours_after_break: number;
   canCheckout: boolean;
   checkoutEligibleAt: Date | null;
   checkoutWindowClosesAt: Date | null;
@@ -123,7 +122,6 @@ export function getBreakTimingInfo(
     remainingBreakSeconds,
     timeUntilBreakEligible,
     workHoursAfterBreak,
-    minimum_work_hours_after_break: settings.minimum_work_hours_after_break,
     canCheckout,
     checkoutEligibleAt,
     checkoutWindowClosesAt,

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Menu, X, LogOut, User, LayoutDashboard, ChevronDown } from 'lucide-react';
+import { Menu, X, Activity, LogOut, User, LayoutDashboard, Users, Calendar, FileText, Package, TestTube, DollarSign, Settings, MessageSquare, ChevronDown } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -35,7 +35,7 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
   }
 
 
-  const navItems: Array<{ id: string; label: string; special?: boolean }> = [
+  const navItems = [
     { id: 'home', label: t.common.home },
     { id: 'services', label: t.common.services },
     { id: 'appointments', label: t.common.appointments },

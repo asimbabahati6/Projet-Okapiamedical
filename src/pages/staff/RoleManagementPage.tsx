@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Users, Play, X, Search, ListFilter as Filter, Clock, TriangleAlert as AlertTriangle } from 'lucide-react';
+import { Shield, Users, Play, X, Search, Filter, Clock, AlertTriangle } from 'lucide-react';
 import { useRBAC } from '@/contexts/RBACContext';
 import { getAllSimulatorRoles, ROLE_DISPLAY_NAMES, type RBACRole } from '@/utils/roleMapping';
 import { ROLE_PERMISSIONS, type UserRole } from '@/config/rbac';
@@ -209,13 +209,13 @@ export function RoleManagementPage() {
 
                   <div className="mb-4">
                     <p className="text-sm text-gray-600 mb-2">
-                      {(permissions as string[]).includes('*') ? (
+                      {permissions.includes('*') ? (
                         <span className="text-green-600 font-medium">Toutes les permissions</span>
                       ) : (
                         <span>{permissions.length} permissions</span>
                       )}
                     </p>
-                    {!(permissions as string[]).includes('*') && (
+                    {!permissions.includes('*') && (
                       <div className="flex flex-wrap gap-1">
                         {permissions.slice(0, 3).map((perm) => (
                           <span

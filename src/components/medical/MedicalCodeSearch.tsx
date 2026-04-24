@@ -25,7 +25,7 @@ export function MedicalCodeSearch({
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const [selectedResult, setSelectedResult] = useState<MedicalCodeSearchResult | null>(null);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const searchTimeout = useRef<NodeJS.Timeout>();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

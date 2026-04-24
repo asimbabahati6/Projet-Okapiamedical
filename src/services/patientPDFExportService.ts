@@ -130,19 +130,15 @@ async function fetchConsultations(patientId: string): Promise<ConsultationData[]
 
   if (error) throw error;
 
-  return data.map(consultation => {
-    const doc = Array.isArray((consultation as any).doctor) ? (consultation as any).doctor[0] : (consultation as any).doctor;
-    const up = Array.isArray(doc?.user_profile) ? doc.user_profile[0] : doc?.user_profile;
-    return {
-      id: consultation.id,
-      consultation_date: consultation.consultation_date,
-      reason: consultation.reason,
-      diagnosis: consultation.diagnosis,
-      treatment: consultation.treatment,
-      notes: consultation.notes,
-      doctor_name: up?.full_name || 'Non spécifié'
-    };
-  });
+  return data.map(consultation => ({
+    id: consultation.id,
+    consultation_date: consultation.consultation_date,
+    reason: consultation.reason,
+    diagnosis: consultation.diagnosis,
+    treatment: consultation.treatment,
+    notes: consultation.notes,
+    doctor_name: consultation.doctor?.user_profile?.full_name || 'Non spécifié'
+  }));
 }
 
 async function fetchPhysician(physicianId: string): Promise<PhysicianData | null> {
@@ -164,15 +160,13 @@ async function fetchPhysician(physicianId: string): Promise<PhysicianData | null
 
   if (error) return null;
 
-  const userProfile = Array.isArray((data as any).user_profile) ? (data as any).user_profile[0] : (data as any).user_profile;
-  const department = Array.isArray(userProfile?.departments) ? userProfile.departments[0] : userProfile?.departments;
   return {
-    name: userProfile?.full_name || 'Non spécifié',
+    name: data.user_profile?.full_name || 'Non spécifié',
     specialization: data.specialization,
-    rpps_number: (data as any).rpps_number,
-    email: userProfile?.email || null,
-    phone: userProfile?.phone || null,
-    department: department?.name || null
+    rpps_number: data.rpps_number,
+    email: data.user_profile?.email || null,
+    phone: data.user_profile?.phone || null,
+    department: data.user_profile?.departments?.name || null
   };
 }
 

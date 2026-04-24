@@ -19,8 +19,12 @@ export const personalInfoSchema = z.object({
       const age = today.getFullYear() - birthDate.getFullYear();
       return age >= 0 && age <= 150;
     }, 'Date de naissance invalide'),
-  gender: z.enum(['male', 'female', 'other']).catch('other'),
-  blood_group: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', '']).catch('').optional(),
+  gender: z.enum(['male', 'female', 'other'], {
+    errorMap: () => ({ message: 'Veuillez sélectionner un sexe' })
+  }),
+  blood_group: z.enum(['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', ''], {
+    errorMap: () => ({ message: 'Groupe sanguin invalide' })
+  }).optional(),
   profile_photo_url: z.string().url().optional().nullable(),
 });
 
@@ -32,8 +36,8 @@ export const contactInfoSchema = z.object({
     .email('Format email invalide')
     .regex(emailRegex, 'Format email invalide'),
   address: z.string()
-    .min(5, "L'adresse doit contenir au moins 5 caractères")
-    .max(200, "L'adresse ne peut pas dépasser 200 caractères"),
+    .min(5, 'L\'adresse doit contenir au moins 5 caractères')
+    .max(200, 'L\'adresse ne peut pas dépasser 200 caractères'),
   city: z.string()
     .min(2, 'La ville doit contenir au moins 2 caractères')
     .max(100, 'La ville ne peut pas dépasser 100 caractères'),
@@ -43,8 +47,10 @@ export const contactInfoSchema = z.object({
 
 export const medicalHistorySchema = z.object({
   allergies: z.array(z.object({
-    name: z.string().min(2, "Le nom de l'allergie doit contenir au moins 2 caractères"),
-    severity: z.enum(['mild', 'moderate', 'severe', 'critical']).catch('mild'),
+    name: z.string().min(2, 'Le nom de l\'allergie doit contenir au moins 2 caractères'),
+    severity: z.enum(['mild', 'moderate', 'severe', 'critical'], {
+      errorMap: () => ({ message: 'Niveau de criticité invalide' })
+    }),
     reaction: z.string().optional(),
   })).optional().default([]),
   chronic_conditions: z.array(z.object({
@@ -53,7 +59,7 @@ export const medicalHistorySchema = z.object({
     notes: z.string().optional(),
   })).optional().default([]),
   past_surgeries: z.array(z.object({
-    name: z.string().min(2, "Le nom de l'intervention doit contenir au moins 2 caractères"),
+    name: z.string().min(2, 'Le nom de l\'intervention doit contenir au moins 2 caractères'),
     date: z.string().optional(),
     hospital: z.string().optional(),
     notes: z.string().optional(),
@@ -80,29 +86,55 @@ export const insuranceInfoSchema = z.object({
 });
 
 export const vitalSignsSchema = z.object({
-  systolic_bp: z.number().min(60).max(250).optional(),
-  diastolic_bp: z.number().min(40).max(150).optional(),
-  heart_rate: z.number().min(30).max(220).optional(),
-  temperature: z.number().min(35).max(43).optional(),
-  weight: z.number().min(1).max(500).optional(),
-  height: z.number().min(30).max(300).optional(),
-  oxygen_saturation: z.number().min(0).max(100).optional(),
+  systolic_bp: z.number()
+    .min(60, 'Pression systolique trop basse')
+    .max(250, 'Pression systolique trop élevée')
+    .optional(),
+  diastolic_bp: z.number()
+    .min(40, 'Pression diastolique trop basse')
+    .max(150, 'Pression diastolique trop élevée')
+    .optional(),
+  heart_rate: z.number()
+    .min(30, 'Fréquence cardiaque trop basse')
+    .max(220, 'Fréquence cardiaque trop élevée')
+    .optional(),
+  temperature: z.number()
+    .min(35, 'Température trop basse')
+    .max(43, 'Température trop élevée')
+    .optional(),
+  weight: z.number()
+    .min(1, 'Poids invalide')
+    .max(500, 'Poids invalide')
+    .optional(),
+  height: z.number()
+    .min(30, 'Taille invalide')
+    .max(300, 'Taille invalide')
+    .optional(),
+  oxygen_saturation: z.number()
+    .min(0, 'Saturation invalide')
+    .max(100, 'Saturation invalide')
+    .optional(),
   recorded_at: z.string(),
   recorded_by: z.string().uuid().optional(),
   notes: z.string().optional().nullable(),
 });
 
 export const prescriptionItemSchema = z.object({
-  medication_name: z.string().min(2, 'Le nom du médicament doit contenir au moins 2 caractères'),
-  dosage: z.string().min(1, 'Le dosage est requis'),
-  frequency: z.string().min(1, 'La fréquence est requise'),
-  duration: z.string().min(1, 'La durée est requise'),
+  medication_name: z.string()
+    .min(2, 'Le nom du médicament doit contenir au moins 2 caractères'),
+  dosage: z.string()
+    .min(1, 'Le dosage est requis'),
+  frequency: z.string()
+    .min(1, 'La fréquence est requise'),
+  duration: z.string()
+    .min(1, 'La durée est requise'),
   instructions: z.string().optional().nullable(),
   warnings: z.string().optional().nullable(),
 });
 
 export const labResultSchema = z.object({
-  test_name: z.string().min(2, "Le nom de l'examen doit contenir au moins 2 caractères"),
+  test_name: z.string()
+    .min(2, 'Le nom de l\'examen doit contenir au moins 2 caractères'),
   test_date: z.string(),
   result_value: z.string().optional().nullable(),
   result_unit: z.string().optional().nullable(),
@@ -116,8 +148,10 @@ export const labResultSchema = z.object({
 
 export const consultationNoteSchema = z.object({
   consultation_date: z.string(),
-  chief_complaint: z.string().min(5, 'Le motif doit contenir au moins 5 caractères'),
-  diagnosis: z.string().min(5, 'Le diagnostic doit contenir au moins 5 caractères'),
+  chief_complaint: z.string()
+    .min(5, 'Le motif doit contenir au moins 5 caractères'),
+  diagnosis: z.string()
+    .min(5, 'Le diagnostic doit contenir au moins 5 caractères'),
   treatment_plan: z.string().optional().nullable(),
   follow_up_date: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),

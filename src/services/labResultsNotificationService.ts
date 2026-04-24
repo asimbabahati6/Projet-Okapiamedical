@@ -228,19 +228,16 @@ export async function notifyLabResultsForOrder(labOrderId: string, isUrgent: boo
       };
     }
 
-    const patient = Array.isArray(labOrder.patient) ? labOrder.patient[0] : labOrder.patient as any;
-    const doctor = Array.isArray(labOrder.doctor) ? labOrder.doctor[0] : labOrder.doctor as any;
-
     const notificationData: LabResultNotificationData = {
       labOrderId: labOrder.id,
-      patientId: patient.id,
-      patientFirstName: patient.first_name,
-      patientLastName: patient.last_name,
-      patientPhone: patient.phone || '',
+      patientId: labOrder.patient.id,
+      patientFirstName: labOrder.patient.first_name,
+      patientLastName: labOrder.patient.last_name,
+      patientPhone: labOrder.patient.phone || '',
       orderNumber: labOrder.order_number,
       testType: labOrder.test_type,
       isUrgent,
-      doctorName: doctor?.full_name
+      doctorName: labOrder.doctor?.full_name
     };
 
     return await notifyPatientLabResultsReady(notificationData);

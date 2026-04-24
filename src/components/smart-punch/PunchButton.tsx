@@ -1,4 +1,4 @@
-import { LogIn, LogOut, Coffee, ArrowRight, Loader as Loader2, Lock } from 'lucide-react';
+import { LogIn, LogOut, Coffee, ArrowRight, Loader2, Lock } from 'lucide-react';
 import type { TodayStatus } from '../../services/smartPunchService';
 
 interface Props {
@@ -72,7 +72,7 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
 
   if (!buttonConfig) return null;
 
-  const isDisabled = !canPunch || isLoading || (currentStatus as string) === 'departed';
+  const isDisabled = !canPunch || isLoading || currentStatus === 'departed';
   const Icon = buttonConfig.icon;
 
   return (
@@ -112,7 +112,7 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
       {/* Main punch button */}
       <div className="relative">
         {/* Animated ring (only when active and enabled) */}
-        {!isDisabled && (currentStatus as string) !== 'departed' && (
+        {!isDisabled && currentStatus !== 'departed' && (
           <span className={`absolute inset-0 rounded-full ring-8 ${buttonConfig.ringClass} animate-ping opacity-30`} />
         )}
 
@@ -128,7 +128,7 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
         >
           {isLoading ? (
             <Loader2 className="w-10 h-10 animate-spin" />
-          ) : isDisabled && !isExemptRole && (currentStatus as string) !== 'departed' ? (
+          ) : isDisabled && !isExemptRole && currentStatus !== 'departed' ? (
             <>
               <Lock className="w-8 h-8 text-gray-400" />
               <span className="text-xs text-gray-500 text-center px-4 leading-tight">
@@ -145,9 +145,9 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
       </div>
 
       <p className={`text-sm text-center max-w-xs ${
-        isDisabled && (currentStatus as string) !== 'departed' ? 'text-gray-400' : 'text-gray-600'
+        isDisabled && currentStatus !== 'departed' ? 'text-gray-400' : 'text-gray-600'
       }`}>
-        {isDisabled && !isExemptRole && (currentStatus as string) !== 'departed'
+        {isDisabled && !isExemptRole && currentStatus !== 'departed'
           ? 'Rapprochez-vous du bureau OKAPIA Medical pour activer le pointage.'
           : buttonConfig.sublabel
         }

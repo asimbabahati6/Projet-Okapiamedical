@@ -299,12 +299,4 @@ export interface SavedFinancialReport {
     pageCount: number;
     includesCharts: boolean;
   };
-  // snake_case aliases for DB-mapped usage
-  report_number?: string;
-  period_type?: ReportPeriodType;
-  start_date?: string;
-  end_date?: string;
-  file_url?: string | null;
-  file_size?: number | null;
-  generated_at?: string;
 }

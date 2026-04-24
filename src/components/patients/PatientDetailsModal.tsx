@@ -20,7 +20,7 @@ interface PatientDetailsModalProps {
   onEdit: () => void;
 }
 
-type PatientWithPhysician = Omit<Patient, 'primary_care_physician'> & {
+interface PatientWithPhysician extends Patient {
   primary_care_physician?: {
     id: string;
     license_number: string | null;
@@ -32,7 +32,7 @@ type PatientWithPhysician = Omit<Patient, 'primary_care_physician'> & {
       department_id: string | null;
     };
   };
-};
+}
 
 export function PatientDetailsModal({ patient: initialPatient, onClose, onEdit }: PatientDetailsModalProps) {
   const navigate = useNavigate();

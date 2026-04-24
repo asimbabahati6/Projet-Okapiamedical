@@ -69,7 +69,7 @@ export async function getReceptionists(): Promise<any[]> {
       return [];
     }
 
-    return receptionists?.filter(user => (user.role as any)?.name === 'receptionist' || (user.role as any)?.[0]?.name === 'receptionist') || [];
+    return receptionists?.filter(user => user.role?.name === 'receptionist') || [];
   } catch (error) {
     console.error('Error in getReceptionists:', error);
     return [];
