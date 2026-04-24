@@ -163,12 +163,21 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-4">Article non trouvé</h2>
-          <button
-            onClick={() => onNavigate('news')}
-            className="text-blue-600 hover:text-blue-700 font-medium"
-          >
-            {getTranslation('back')}
-          </button>
+          <div className="flex items-center justify-center gap-4">
+            <button
+              onClick={() => onNavigate('news')}
+              className="text-blue-600 hover:text-blue-700 font-medium"
+            >
+              {getTranslation('back')}
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              onClick={() => onNavigate('home')}
+              className="text-gray-600 hover:text-gray-800 font-medium"
+            >
+              Accueil
+            </button>
+          </div>
         </div>
       </div>
     );

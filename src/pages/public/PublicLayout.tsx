@@ -13,6 +13,10 @@ import { NewsDetail } from './NewsDetail';
 import { About } from './About';
 import { PatientRegistration } from './PatientRegistration';
 
+const validPages = new Set([
+  'home', 'services', 'appointments', 'news', 'news-detail', 'about', 'contact', 'register',
+]);
+
 export function PublicLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -26,21 +30,27 @@ export function PublicLayout() {
     if (hash) {
       if (hash.includes('/')) {
         const [page, slug] = hash.split('/');
-        setCurrentPage(page);
-        if (page === 'news-detail' && slug) {
-          setNewsSlug(slug);
-          setSelectedDoctorId(null);
+        if (validPages.has(page)) {
+          setCurrentPage(page);
+          if (page === 'news-detail' && slug) {
+            setNewsSlug(slug);
+            setSelectedDoctorId(null);
+          } else {
+            setNewsSlug(null);
+          }
         } else {
+          setCurrentPage('home');
           setNewsSlug(null);
+          setSelectedDoctorId(null);
         }
       } else if (hash.includes('?doctor=')) {
         const [page, query] = hash.split('?');
-        setCurrentPage(page);
+        setCurrentPage(validPages.has(page) ? page : 'home');
         const doctorId = query.replace('doctor=', '');
         setSelectedDoctorId(doctorId);
         setNewsSlug(null);
       } else {
-        setCurrentPage(hash);
+        setCurrentPage(validPages.has(hash) ? hash : 'home');
         setNewsSlug(null);
         setSelectedDoctorId(null);
       }
