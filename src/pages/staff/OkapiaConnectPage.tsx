@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Hash, User, ChevronLeft, ChevronRight,
   Search, Plus, MoreVertical
@@ -53,6 +54,11 @@ interface DirectConversation {
   unreadCount?: number;
 }
 
+interface TypingUser {
+  userId: string;
+  fullName: string;
+}
+
 export default function OkapiaConnectPage() {
   const { user } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -66,7 +72,11 @@ export default function OkapiaConnectPage() {
   const [loading, setLoading] = useState(true);
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isNearBottomRef = useRef(true);
 
   useEffect(() => {
     fetchChannels();
@@ -81,13 +91,165 @@ export default function OkapiaConnectPage() {
     }
   }, [selectedChannel, selectedConversation]);
 
+  // Supabase Realtime: subscribe to new messages
   useEffect(() => {
-    scrollToBottom();
+    const channelId = selectedChannel?.id;
+    const conversationId = selectedConversation?.id;
+    if (!channelId && !conversationId) return;
+
+    const filterCol = channelId ? 'channel_id' : 'conversation_id';
+    const filterVal = channelId || conversationId;
+
+    const realtimeChannel = supabase
+      .channel(`messages-${filterVal}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `${filterCol}=eq.${filterVal}`,
+        },
+        async (payload) => {
+          const newRow = payload.new as Record<string, unknown>;
+
+          // Don't re-add if we already have this message (from optimistic insert)
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === newRow.id)) return prev;
+            return prev; // will be added below after enrichment
+          });
+
+          // Fetch sender info for the new message
+          const senderId = newRow.sender_id as string;
+          let senderInfo = { full_name: 'Utilisateur', role: 'Utilisateur' };
+
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('full_name, role_id')
+            .eq('id', senderId)
+            .maybeSingle();
+
+          if (profile) {
+            const { data: roleData } = await supabase
+              .from('roles')
+              .select('name')
+              .eq('id', profile.role_id)
+              .maybeSingle();
+
+            senderInfo = {
+              full_name: profile.full_name || 'Utilisateur',
+              role: roleData?.name || 'Utilisateur',
+            };
+          }
+
+          const enrichedMessage: Message = {
+            id: newRow.id as string,
+            sender_id: senderId,
+            content: newRow.content as string,
+            created_at: newRow.created_at as string,
+            sender: senderInfo,
+            attachments: (newRow.attachments as Attachment[]) || undefined,
+            patient_reference: newRow.patient_reference as string | undefined,
+            exam_reference: newRow.exam_reference as string | undefined,
+          };
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === enrichedMessage.id)) return prev;
+            return [...prev, enrichedMessage];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(realtimeChannel);
+    };
+  }, [selectedChannel?.id, selectedConversation?.id]);
+
+  // Supabase Realtime: subscribe to typing indicators
+  useEffect(() => {
+    const channelId = selectedChannel?.id;
+    const conversationId = selectedConversation?.id;
+    if (!channelId && !conversationId) return;
+
+    const filterCol = channelId ? 'typing_in_channel' : 'typing_in_conversation';
+    const filterVal = channelId || conversationId;
+
+    const typingChannel = supabase
+      .channel(`typing-${filterVal}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'chat_user_status',
+        },
+        (payload) => {
+          const updated = payload.new as Record<string, unknown>;
+          const typingUserId = updated.user_id as string;
+
+          if (typingUserId === user?.id) return;
+
+          const isTypingHere =
+            (channelId && updated.typing_in_channel === channelId) ||
+            (conversationId && updated.typing_in_conversation === conversationId);
+
+          setTypingUsers((prev) => {
+            const without = prev.filter((u) => u.userId !== typingUserId);
+            if (isTypingHere) {
+              return [...without, { userId: typingUserId, fullName: '' }];
+            }
+            return without;
+          });
+
+          // Resolve the name asynchronously
+          if (isTypingHere) {
+            (async () => {
+              const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('full_name')
+                .eq('id', typingUserId)
+                .maybeSingle();
+
+              if (profile) {
+                setTypingUsers((prev) =>
+                  prev.map((u) =>
+                    u.userId === typingUserId
+                      ? { ...u, fullName: profile.full_name }
+                      : u
+                  )
+                );
+              }
+            })();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(typingChannel);
+      setTypingUsers([]);
+    };
+  }, [selectedChannel?.id, selectedConversation?.id, user?.id]);
+
+  // Auto-scroll when messages change, but only if user is near bottom
+  useEffect(() => {
+    if (isNearBottomRef.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
-  const scrollToBottom = () => {
+  const handleScroll = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const threshold = 120;
+    isNearBottomRef.current =
+      container.scrollHeight - container.scrollTop - container.clientHeight < threshold;
+  }, []);
+
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   const fetchChannels = async () => {
     try {
@@ -114,11 +276,7 @@ export default function OkapiaConnectPage() {
     try {
       const { data, error } = await supabase
         .from('chat_direct_conversations')
-        .select(`
-          id,
-          participant_1,
-          participant_2
-        `)
+        .select('id, participant_1, participant_2')
         .or(`participant_1.eq.${user?.id},participant_2.eq.${user?.id}`);
 
       if (error) throw error;
@@ -127,8 +285,7 @@ export default function OkapiaConnectPage() {
         (data || []).map(async (conv) => {
           const otherUserId = conv.participant_1 === user?.id ? conv.participant_2 : conv.participant_1;
 
-          // Essayer d'abord la vue
-          let userData: any = null;
+          let userData: { id: string; full_name: string; role: string } | null = null;
           const { data: viewData } = await supabase
             .from('user_profiles_with_email')
             .select('id, full_name, role')
@@ -138,7 +295,6 @@ export default function OkapiaConnectPage() {
           if (viewData) {
             userData = viewData;
           } else {
-            // Fallback
             const { data: directData } = await supabase
               .from('user_profiles')
               .select('id, full_name, role_id')
@@ -155,7 +311,7 @@ export default function OkapiaConnectPage() {
               userData = {
                 id: directData.id,
                 full_name: directData.full_name,
-                role: roleData?.name || 'Utilisateur'
+                role: roleData?.name || 'Utilisateur',
               };
             }
           }
@@ -172,8 +328,8 @@ export default function OkapiaConnectPage() {
               id: userData?.id || otherUserId,
               full_name: userData?.full_name || 'Utilisateur',
               role: userData?.role || 'Utilisateur',
-              status: statusData?.status || 'offline'
-            }
+              status: statusData?.status || 'offline',
+            },
           };
         })
       );
@@ -183,6 +339,18 @@ export default function OkapiaConnectPage() {
       console.error('Error fetching conversations:', error);
     }
   };
+
+  const transformMessages = (data: Record<string, unknown>[]): Message[] =>
+    data.map((msg) => {
+      const sender = msg.sender as { full_name?: string; role?: { name?: string } } | null;
+      return {
+        ...(msg as unknown as Message),
+        sender: {
+          full_name: sender?.full_name || 'Utilisateur',
+          role: sender?.role?.name || 'Utilisateur',
+        },
+      };
+    });
 
   const fetchChannelMessages = async (channelId: string) => {
     try {
@@ -200,17 +368,9 @@ export default function OkapiaConnectPage() {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-
-      // Transform data to match expected interface
-      const transformedData = (data || []).map(msg => ({
-        ...msg,
-        sender: {
-          full_name: msg.sender?.full_name || 'Utilisateur',
-          role: msg.sender?.role?.name || 'Utilisateur'
-        }
-      }));
-
-      setMessages(transformedData);
+      setMessages(transformMessages(data || []));
+      // Force scroll to bottom on initial load
+      isNearBottomRef.current = true;
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -232,30 +392,57 @@ export default function OkapiaConnectPage() {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-
-      // Transform data to match expected interface
-      const transformedData = (data || []).map(msg => ({
-        ...msg,
-        sender: {
-          full_name: msg.sender?.full_name || 'Utilisateur',
-          role: msg.sender?.role?.name || 'Utilisateur'
-        }
-      }));
-
-      setMessages(transformedData);
+      setMessages(transformMessages(data || []));
+      isNearBottomRef.current = true;
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
   };
 
+  const broadcastTyping = useCallback(async () => {
+    if (!user?.id) return;
+
+    const upsertData: Record<string, unknown> = {
+      user_id: user.id,
+      typing_in_channel: selectedChannel?.id || null,
+      typing_in_conversation: selectedConversation?.id || null,
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase.from('chat_user_status').upsert(upsertData, { onConflict: 'user_id' });
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(async () => {
+      await supabase
+        .from('chat_user_status')
+        .upsert(
+          { user_id: user.id, typing_in_channel: null, typing_in_conversation: null, updated_at: new Date().toISOString() },
+          { onConflict: 'user_id' }
+        );
+    }, 3000);
+  }, [user?.id, selectedChannel?.id, selectedConversation?.id]);
+
+  const clearTyping = useCallback(async () => {
+    if (!user?.id) return;
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    await supabase
+      .from('chat_user_status')
+      .upsert(
+        { user_id: user.id, typing_in_channel: null, typing_in_conversation: null, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      );
+  }, [user?.id]);
+
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim() && currentAttachments.length === 0) return;
 
+    const content = messageInput.trim() || 'Fichier(s) joint(s)';
+
     try {
-      const messageData: any = {
+      const messageData: Record<string, unknown> = {
         sender_id: user?.id,
-        content: messageInput.trim() || '📎 Fichier(s) attaché(s)'
+        content,
       };
 
       if (selectedChannel) {
@@ -264,39 +451,42 @@ export default function OkapiaConnectPage() {
         messageData.conversation_id = selectedConversation.id;
       }
 
-      // Add attachments if any
       if (currentAttachments.length > 0) {
         messageData.attachments = currentAttachments;
       }
 
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert(messageData);
-
-      if (error) throw error;
-
       setMessageInput('');
       setCurrentAttachments([]);
+      clearTyping();
 
-      if (selectedChannel) {
-        fetchChannelMessages(selectedChannel.id);
-      } else if (selectedConversation) {
-        fetchDirectMessages(selectedConversation.id);
-      }
+      // Force scroll to bottom for own messages
+      isNearBottomRef.current = true;
+
+      const { error } = await supabase.from('chat_messages').insert(messageData);
+
+      if (error) throw error;
+      // No manual refetch needed -- Realtime subscription handles it
     } catch (error) {
       console.error('Error sending message:', error);
     }
   };
 
+  const handleInputChange = (value: string) => {
+    setMessageInput(value);
+    if (value.trim()) {
+      broadcastTyping();
+    }
+  };
+
   const getIconComponent = (iconName: string) => {
-    const icons: Record<string, any> = {
+    const icons: Record<string, typeof Hash> = {
       hash: Hash,
       flask: Hash,
       pill: Hash,
       scan: Hash,
       stethoscope: Hash,
       briefcase: Hash,
-      'alert-triangle': Hash
+      'alert-triangle': Hash,
     };
     return icons[iconName] || Hash;
   };
@@ -307,20 +497,26 @@ export default function OkapiaConnectPage() {
     green: 'text-green-600 bg-green-50',
     purple: 'text-purple-600 bg-purple-50',
     red: 'text-red-600 bg-red-50',
-    orange: 'text-orange-600 bg-orange-50'
+    orange: 'text-orange-600 bg-orange-50',
   };
 
   const statusColors: Record<string, string> = {
     online: 'bg-green-500',
     away: 'bg-yellow-500',
     busy: 'bg-red-500',
-    offline: 'bg-gray-400'
+    offline: 'bg-gray-400',
   };
+
+  const typingLabel = typingUsers.length > 0
+    ? typingUsers.length === 1
+      ? `${typingUsers[0].fullName || 'Quelqu\'un'} est en train d'écrire...`
+      : `${typingUsers.length} personnes écrivent...`
+    : null;
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600" />
       </div>
     );
   }
@@ -390,6 +586,7 @@ export default function OkapiaConnectPage() {
                         onClick={() => {
                           setSelectedChannel(channel);
                           setSelectedConversation(null);
+                          setTypingUsers([]);
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                           isSelected ? 'bg-cyan-600' : 'hover:bg-cyan-800'
@@ -430,6 +627,7 @@ export default function OkapiaConnectPage() {
                         onClick={() => {
                           setSelectedConversation(conv);
                           setSelectedChannel(null);
+                          setTypingUsers([]);
                         }}
                         className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
                           isSelected ? 'bg-cyan-600' : 'hover:bg-cyan-800'
@@ -466,7 +664,7 @@ export default function OkapiaConnectPage() {
             <div className="flex items-center gap-3">
               {selectedChannel && (
                 <>
-                  <div className={`p-2 rounded-lg ${colorClasses[selectedChannel.color]}`}>
+                  <div className={`p-2 rounded-lg ${colorClasses[selectedChannel.color] || 'text-cyan-600 bg-cyan-50'}`}>
                     <Hash className="w-5 h-5" />
                   </div>
                   <div>
@@ -497,68 +695,109 @@ export default function OkapiaConnectPage() {
         </div>
 
         {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50">
-          {messages.map((message) => {
-            const isOwnMessage = message.sender_id === user?.id;
+        <div
+          ref={messagesContainerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-6 space-y-4 bg-gray-50"
+        >
+          <AnimatePresence initial={false}>
+            {messages.map((message) => {
+              const isOwnMessage = message.sender_id === user?.id;
 
-            return (
-              <div
-                key={message.id}
-                className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-              >
-                <div className={`max-w-2xl ${isOwnMessage ? 'order-2' : 'order-1'}`}>
-                  {!isOwnMessage && (
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm font-semibold text-gray-900">{message.sender.full_name}</span>
-                      <span className="text-xs text-gray-500">{message.sender.role}</span>
-                    </div>
-                  )}
-                  <div
-                    className={`px-4 py-3 rounded-2xl ${
-                      isOwnMessage
-                        ? 'bg-cyan-600 text-white rounded-br-sm'
-                        : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm'
-                    }`}
-                  >
-                    {message.content && (
-                      <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                    )}
-
-                    {/* Display attachments */}
-                    {message.attachments && message.attachments.length > 0 && (
-                      <MessageAttachments attachments={message.attachments} />
-                    )}
-
-                    {message.patient_reference && (
-                      <div className="mt-2 pt-2 border-t border-cyan-500">
-                        <button className="text-xs font-medium flex items-center gap-1 hover:underline">
-                          Voir le dossier patient
-                        </button>
+              return (
+                <motion.div
+                  key={message.id}
+                  initial={{ opacity: 0, y: 12, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  transition={{ duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
+                  layout
+                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                >
+                  <div className={`max-w-2xl ${isOwnMessage ? 'order-2' : 'order-1'}`}>
+                    {!isOwnMessage && (
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-semibold text-gray-900">{message.sender.full_name}</span>
+                        <span className="text-xs text-gray-500">{message.sender.role}</span>
                       </div>
                     )}
+                    <motion.div
+                      whileHover={{ scale: 1.005 }}
+                      className={`px-4 py-3 rounded-2xl ${
+                        isOwnMessage
+                          ? 'bg-cyan-600 text-white rounded-br-sm'
+                          : 'bg-white text-gray-900 border border-gray-200 rounded-bl-sm shadow-sm'
+                      }`}
+                    >
+                      {message.content && (
+                        <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                      )}
+
+                      {message.attachments && message.attachments.length > 0 && (
+                        <MessageAttachments attachments={message.attachments} />
+                      )}
+
+                      {message.patient_reference && (
+                        <div className="mt-2 pt-2 border-t border-cyan-500">
+                          <button className="text-xs font-medium flex items-center gap-1 hover:underline">
+                            Voir le dossier patient
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                    <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
+                      {new Date(message.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </p>
                   </div>
-                  <p className={`text-xs text-gray-500 mt-1 ${isOwnMessage ? 'text-right' : 'text-left'}`}>
-                    {new Date(message.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </p>
-                </div>
-              </div>
-            );
-          })}
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Typing Indicator */}
+        <AnimatePresence>
+          {typingLabel && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="bg-white border-t border-gray-100 px-6 overflow-hidden"
+            >
+              <div className="flex items-center gap-2 py-2">
+                <div className="flex gap-1">
+                  <motion.span
+                    className="w-1.5 h-1.5 bg-cyan-500 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0 }}
+                  />
+                  <motion.span
+                    className="w-1.5 h-1.5 bg-cyan-500 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.15 }}
+                  />
+                  <motion.span
+                    className="w-1.5 h-1.5 bg-cyan-500 rounded-full"
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 0.6, repeat: Infinity, delay: 0.3 }}
+                  />
+                </div>
+                <span className="text-xs text-gray-500 italic">{typingLabel}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Message Input */}
         <div className="bg-white border-t border-gray-200 p-4">
           <form onSubmit={sendMessage} className="space-y-3">
             <div className="flex items-end gap-3">
-              <FileAttachmentUpload
-                onAttachmentsChange={setCurrentAttachments}
-              />
+              <FileAttachmentUpload onAttachmentsChange={setCurrentAttachments} />
 
               <div className="flex-1">
                 <textarea
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={(e) => handleInputChange(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -571,13 +810,15 @@ export default function OkapiaConnectPage() {
                 />
               </div>
 
-              <button
+              <motion.button
                 type="submit"
                 disabled={!messageInput.trim() && currentAttachments.length === 0}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 className="p-3 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Send className="w-5 h-5" />
-              </button>
+              </motion.button>
             </div>
           </form>
         </div>
@@ -588,35 +829,21 @@ export default function OkapiaConnectPage() {
         <CreateChannelModal
           onClose={() => setShowCreateChannel(false)}
           onSuccess={async (channelId) => {
-            console.log('=== CreateChannelModal onSuccess ===');
-            console.log('Channel ID:', channelId);
-
             try {
-              // Récupérer le canal créé
-              const { data: newChannel, error: channelError } = await supabase
+              const { data: newChannel } = await supabase
                 .from('chat_channels')
                 .select('*')
                 .eq('id', channelId)
                 .maybeSingle();
 
-              console.log('Channel data:', newChannel, 'Error:', channelError);
-
-              if (channelError) {
-                console.error('Error fetching channel:', channelError);
-              }
-
-              // Rafraîchir la liste des canaux
               await fetchChannels();
 
-              // Sélectionner le nouveau canal automatiquement
               if (newChannel) {
-                console.log('✅ Selecting new channel:', newChannel.name);
                 setSelectedChannel(newChannel);
                 setSelectedConversation(null);
               }
             } catch (error) {
               console.error('Error in onSuccess:', error);
-              // Au moins rafraîchir la liste
               await fetchChannels();
             } finally {
               setShowCreateChannel(false);
@@ -629,146 +856,77 @@ export default function OkapiaConnectPage() {
         <NewConversationModal
           onClose={() => setShowNewConversation(false)}
           onSuccess={async (conversationId) => {
-            console.log('=== onSuccess called with conversationId:', conversationId);
-
             try {
-              // 1. Récupérer la conversation créée
-              const { data: convData, error: convError } = await supabase
+              const { data: convData } = await supabase
                 .from('chat_direct_conversations')
                 .select('id, participant_1, participant_2')
                 .eq('id', conversationId)
                 .maybeSingle();
 
-              console.log('Conversation data:', convData, 'Error:', convError);
+              if (!convData) throw new Error('Conversation not found');
 
-              if (convError) {
-                console.error('Error fetching conversation:', convError);
-                throw convError;
-              }
-
-              if (!convData) {
-                throw new Error('Conversation not found');
-              }
-
-              // 2. Identifier l'autre utilisateur
               const otherUserId = convData.participant_1 === user?.id
                 ? convData.participant_2
                 : convData.participant_1;
 
-              console.log('Other user ID:', otherUserId);
+              let userInfo: { id: string; full_name: string; role: string } | null = null;
 
-              // 3. Récupérer les infos utilisateur avec fallback robuste
-              let userInfo: any = null;
-
-              // Essai 1: Vue user_profiles_with_email
-              const { data: viewData, error: viewError } = await supabase
+              const { data: viewData } = await supabase
                 .from('user_profiles_with_email')
                 .select('id, full_name, role')
                 .eq('id', otherUserId)
                 .maybeSingle();
 
-              console.log('View data:', viewData, 'Error:', viewError);
-
               if (viewData) {
                 userInfo = viewData;
               } else {
-                // Essai 2: user_profiles + roles
-                console.log('Fallback to user_profiles...');
-
-                const { data: profileData, error: profileError } = await supabase
+                const { data: profileData } = await supabase
                   .from('user_profiles')
                   .select('id, full_name, role_id')
                   .eq('id', otherUserId)
                   .maybeSingle();
 
-                console.log('Profile data:', profileData, 'Error:', profileError);
-
-                if (profileError) {
-                  console.error('Error fetching profile:', profileError);
-                }
-
                 if (profileData) {
-                  // Récupérer le nom du rôle
                   const { data: roleData } = await supabase
                     .from('roles')
                     .select('name')
                     .eq('id', profileData.role_id)
                     .maybeSingle();
 
-                  console.log('Role data:', roleData);
-
                   userInfo = {
                     id: profileData.id,
                     full_name: profileData.full_name,
-                    role: roleData?.name || 'Utilisateur'
-                  };
-                } else {
-                  // Fallback ultime
-                  userInfo = {
-                    id: otherUserId,
-                    full_name: 'Utilisateur',
-                    role: 'Utilisateur'
+                    role: roleData?.name || 'Utilisateur',
                   };
                 }
               }
 
-              console.log('Final user info:', userInfo);
-
-              // 4. Récupérer le statut
               const { data: statusData } = await supabase
                 .from('chat_user_status')
                 .select('status')
                 .eq('user_id', otherUserId)
                 .maybeSingle();
 
-              console.log('Status data:', statusData);
-
-              // 5. Construire l'objet conversation
               const newConversation: DirectConversation = {
                 id: conversationId,
                 otherUser: {
-                  id: userInfo.id,
-                  full_name: userInfo.full_name,
-                  role: userInfo.role,
-                  status: statusData?.status || 'offline'
-                }
+                  id: userInfo?.id || otherUserId,
+                  full_name: userInfo?.full_name || 'Utilisateur',
+                  role: userInfo?.role || 'Utilisateur',
+                  status: statusData?.status || 'offline',
+                },
               };
 
-              console.log('New conversation object:', newConversation);
-
-              // 6. Sélectionner la conversation IMMÉDIATEMENT
               setSelectedConversation(newConversation);
               setSelectedChannel(null);
 
-              console.log('Conversation selected!');
-
-              // 7. Rafraîchir la liste en arrière-plan
-              fetchConversations().catch(err =>
+              fetchConversations().catch((err) =>
                 console.error('Error refreshing conversations:', err)
               );
-
             } catch (error) {
-              console.error('=== CRITICAL ERROR in onSuccess:', error);
-
-              // Même en cas d'erreur, on rafraîchit la liste
-              try {
-                await fetchConversations();
-
-                // Essayer de sélectionner la conversation malgré l'erreur
-                const convs = await supabase
-                  .from('chat_direct_conversations')
-                  .select('*')
-                  .eq('id', conversationId)
-                  .maybeSingle();
-
-                if (convs.data) {
-                  console.log('Fallback: found conversation, will refresh list');
-                }
-              } catch (fallbackError) {
-                console.error('Fallback also failed:', fallbackError);
-              }
+              console.error('Error in onSuccess:', error);
+              await fetchConversations();
             } finally {
-              // Toujours fermer le modal
               setShowNewConversation(false);
             }
           }}
