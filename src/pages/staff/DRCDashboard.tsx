@@ -3,50 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users, Briefcase, AlertTriangle, DollarSign, FileText,
   Calendar, TrendingUp, Package, Play,
-  Stethoscope, FlaskConical, Pill, Lock,
+  Stethoscope, FlaskConical, Pill,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import type { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';
-import { useRBAC } from '../../contexts/RBACContext';
-
-// ---------------------------------------------------------------------------
-// Access-denied screen shown to roles not in DASHBOARD_ALLOWED_ROLES
-// ---------------------------------------------------------------------------
-
-function DashboardAccessDenied() {
-  const navigate = useNavigate();
-  return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] text-center space-y-5 px-4">
-      <div className="w-20 h-20 bg-red-100 rounded-2xl flex items-center justify-center">
-        <Lock className="w-10 h-10 text-red-500" />
-      </div>
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Accès restreint</h2>
-        <p className="text-gray-500 max-w-md">
-          Ce tableau de bord est réservé aux rôles{' '}
-          <strong>Administrateur</strong> et{' '}
-          <strong>Médecin Directeur</strong>.
-          Votre profil actuel ne dispose pas des autorisations nécessaires.
-        </p>
-      </div>
-      <button
-        onClick={() => navigate(-1)}
-        className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
-      >
-        Retour
-      </button>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Main dashboard
-// ---------------------------------------------------------------------------
 
 export function DRCDashboard() {
   const navigate = useNavigate();
-  const { canAccessDashboard } = useRBAC();
 
   const [kpis, setKpis] = useState<DashboardKPIs>({
     daily_patients: 0,
@@ -59,11 +23,6 @@ export function DRCDashboard() {
   });
   const [exchangeRate, setExchangeRate] = useState<{ usd_to_cdf: number; cdf_to_usd: number } | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Enforce access control: only admin & medical_director
-  if (!canAccessDashboard) {
-    return <DashboardAccessDenied />;
-  }
 
   useEffect(() => {
     loadDashboardData();

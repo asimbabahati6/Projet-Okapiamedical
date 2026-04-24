@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import type { UserRole } from '../config/rbac';
-import { hasAccess, DASHBOARD_ALLOWED_ROLES } from '../config/rbac';
+import { hasAccess } from '../config/rbac';
 import { useAuth } from './AuthContext';
 import type { SimulationSettings, ActiveSessionInfo } from '../services/simulationAuditService';
 
@@ -10,7 +10,6 @@ export interface RBACContextType {
   // Legacy API (used by simple components)
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
-  canAccessDashboard: boolean;
   hasPermission: (permissionOrRoles: string | string[]) => boolean;
 
   // Simulation API
@@ -57,14 +56,11 @@ export function RBACProvider({ children }: { children: ReactNode }) {
     setCurrentRole(userRole);
   }, [userRole]);
 
-  const canAccessDashboard = hasAccess(userRole, DASHBOARD_ALLOWED_ROLES);
-
   const canUseSimulation = actualRole === 'admin' || actualRole === 'super_admin'
     || actualRole === 'hospital_admin' || actualRole === 'directeur_general';
 
   function hasPermission(permissionOrRoles: string | string[]): boolean {
     const items = Array.isArray(permissionOrRoles) ? permissionOrRoles : [permissionOrRoles];
-    // Treat items as role names (legacy usage)
     return hasAccess(userRole, items as UserRole[]);
   }
 
@@ -97,7 +93,6 @@ export function RBACProvider({ children }: { children: ReactNode }) {
     <RBACContext.Provider value={{
       currentRole,
       setCurrentRole,
-      canAccessDashboard,
       hasPermission,
       userRole,
       actualRole,

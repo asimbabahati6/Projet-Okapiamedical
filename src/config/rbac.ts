@@ -79,96 +79,89 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   information_systems_coordinator: "Coordinateur Systèmes d'Information",
 };
 
-/** Roles that may access the main DRC dashboard */
-export const DASHBOARD_ALLOWED_ROLES: UserRole[] = ['admin', 'medical_director'];
+const ALL_ROLES: UserRole[] = [
+  'admin', 'medical_director', 'doctor', 'administrative', 'hr_admin', 'accountant',
+  'operations', 'receptionist', 'laboratory', 'pharmacist', 'logistician',
+  'directeur_general', 'medecin_chef_staff', 'gestionnaire', 'radio_chef', 'radio_tech',
+  'caissiere', 'technique', 'hygiene', 'super_admin', 'hospital_admin',
+  'administrative_staff', 'nurse', 'lab_technician', 'dentist', 'physical_therapist',
+  'hr_manager', 'finance_manager', 'operations_manager', 'administrative_director',
+  'administrative_officer', 'administrative_assistant', 'information_systems_coordinator',
+];
+
+/** All authenticated roles can access the main dashboard */
+export const DASHBOARD_ALLOWED_ROLES: UserRole[] = ALL_ROLES;
 
 export const MENU_STRUCTURE: MenuItem[] = [
   {
-    id: 'medical_pole',
-    label: 'Pôle Médical',
+    id: 'patients',
+    label: 'Gestion des Patients',
+    icon: 'Users',
+    path: '/staff/patients',
+    roles: ['admin', 'medical_director', 'doctor', 'receptionist', 'nurse', 'medecin_chef_staff', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'appointments',
+    label: 'Rendez-vous',
+    icon: 'Calendar',
+    path: '/staff/appointments',
+    roles: ['admin', 'medical_director', 'doctor', 'receptionist', 'medecin_chef_staff', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'consultations',
+    label: 'Consultations',
+    icon: 'Stethoscope',
+    path: '/staff/consultations',
+    roles: ['admin', 'medical_director', 'doctor', 'medecin_chef_staff', 'nurse', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'medical_staff',
+    label: 'Médecins',
+    icon: 'UserCog',
+    path: '/staff/doctors-dashboard',
+    roles: ['admin', 'medical_director', 'medecin_chef_staff', 'directeur_general', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'prescriptions',
+    label: 'Ordonnances',
+    icon: 'FileText',
+    path: '/staff/prescriptions',
+    roles: ['admin', 'medical_director', 'doctor', 'medecin_chef_staff', 'pharmacist', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'laboratory',
+    label: 'Labo',
+    icon: 'FlaskConical',
+    path: '/staff/laboratory',
+    roles: ['admin', 'medical_director', 'doctor', 'laboratory', 'lab_technician', 'medecin_chef_staff', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'radiology',
+    label: 'Radiologie',
     icon: 'Activity',
-    category: 'medical',
-    roles: ['admin', 'medical_director', 'doctor', 'receptionist', 'directeur_general', 'medecin_chef_staff', 'radio_chef', 'radio_tech'],
-    children: [
-      {
-        id: 'patients',
-        label: 'Gestion des Patients',
-        icon: 'Users',
-        path: '/staff/patients',
-        roles: ['admin', 'medical_director', 'doctor', 'receptionist'],
-      },
-      {
-        id: 'appointments',
-        label: 'Rendez-vous',
-        icon: 'Calendar',
-        path: '/staff/appointments',
-        roles: ['admin', 'medical_director', 'doctor', 'receptionist'],
-      },
-      {
-        id: 'consultations',
-        label: 'Consultations',
-        icon: 'Stethoscope',
-        path: '/staff/consultations',
-        roles: ['admin', 'medical_director', 'doctor'],
-      },
-      {
-        id: 'medical_staff',
-        label: 'Personnel Médical',
-        icon: 'UserCog',
-        path: '/staff/doctors-dashboard',
-        roles: ['admin', 'medical_director'],
-      },
-      {
-        id: 'prescriptions',
-        label: 'Ordonnances',
-        icon: 'FileText',
-        path: '/staff/prescriptions',
-        roles: ['admin', 'medical_director', 'doctor'],
-      },
-      {
-        id: 'medical_services',
-        label: 'Services Médicaux',
-        icon: 'Briefcase',
-        roles: ['admin', 'medical_director', 'doctor', 'laboratory', 'pharmacist', 'directeur_general', 'medecin_chef_staff', 'radio_chef', 'radio_tech'],
-        children: [
-          {
-            id: 'laboratory',
-            label: 'Laboratoire',
-            icon: 'FlaskConical',
-            path: '/staff/laboratory',
-            roles: ['admin', 'medical_director', 'doctor', 'laboratory'],
-          },
-          {
-            id: 'radiology',
-            label: 'Radiologie',
-            icon: 'Activity',
-            path: '/staff/radiology',
-            roles: ['admin', 'medical_director', 'doctor', 'directeur_general', 'medecin_chef_staff', 'radio_chef', 'radio_tech'],
-          },
-          {
-            id: 'pharmacy',
-            label: 'Pharmacie',
-            icon: 'Pill',
-            path: '/staff/pharmacy',
-            roles: ['admin', 'medical_director', 'doctor', 'pharmacist', 'directeur_general'],
-          },
-          {
-            id: 'pharmacy_inventory',
-            label: 'Stock Pharmacie',
-            icon: 'Package',
-            path: '/staff/pharmacy-inventory',
-            roles: ['admin', 'pharmacist', 'directeur_general'],
-          },
-        ],
-      },
-    ],
+    path: '/staff/radiology',
+    roles: ['admin', 'medical_director', 'doctor', 'directeur_general', 'medecin_chef_staff', 'radio_chef', 'radio_tech', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'pharmacy',
+    label: 'Pharmacie',
+    icon: 'Pill',
+    path: '/staff/pharmacy',
+    roles: ['admin', 'medical_director', 'doctor', 'pharmacist', 'directeur_general', 'medecin_chef_staff', 'super_admin', 'hospital_admin'],
+  },
+  {
+    id: 'pharmacy_inventory',
+    label: 'Stock Pharmacie',
+    icon: 'Package',
+    path: '/staff/pharmacy-inventory',
+    roles: ['admin', 'pharmacist', 'directeur_general', 'logistician', 'super_admin', 'hospital_admin'],
   },
   {
     id: 'administrative_pole',
     label: 'Pôle Administratif',
     icon: 'Building2',
     category: 'administrative',
-    roles: ['admin', 'administrative', 'hr_admin', 'operations', 'receptionist'],
+    roles: ['admin', 'administrative', 'hr_admin', 'operations', 'receptionist', 'super_admin', 'hospital_admin', 'administrative_staff'],
     children: [],
   },
 ];

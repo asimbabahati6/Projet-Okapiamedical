@@ -1,13 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import {
-  ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings,
-  Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill,
-  Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck,
-  Building, TrendingUp, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store,
-  FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3,
-} from 'lucide-react';
-import { MENU_STRUCTURE, type MenuItem, filterMenuByRole, ROLE_LABELS, DASHBOARD_ALLOWED_ROLES, hasAccess } from '../../config/rbac';
+import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Shield, Wallet, LayoutDashboard, Newspaper, Hop as Home, Store, FileCheck, Receipt, MessageSquare, FingerprintPattern as Fingerprint, ChartBar as BarChart3 } from 'lucide-react';
+import { MENU_STRUCTURE, type MenuItem, filterMenuByRole, ROLE_LABELS } from '../../config/rbac';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles } from '../../utils/roleMapping';
 
@@ -78,7 +72,6 @@ export function RBACNavigation() {
   const [showSimulator, setShowSimulator] = useState(false);
   const filteredMenu = filterMenuByRole(MENU_STRUCTURE, currentRole);
   const simulatorRoles = getAllSimulatorRoles();
-  const canSeeMainDashboard = hasAccess(currentRole, DASHBOARD_ALLOWED_ROLES);
 
   return (
     <div className="h-full flex flex-col bg-white border-r border-gray-200 w-64 flex-shrink-0">
@@ -101,28 +94,25 @@ export function RBACNavigation() {
         >
           <Shield className="w-3.5 h-3.5 flex-shrink-0" />
           <span className="flex-1 text-left">
-            {showSimulator ? 'Masquer simulateur' : 'Sélectionner un rôle ci-dessus pour activer le mode simulation'}
+            {showSimulator ? 'Masquer simulateur' : 'Simuler un rôle'}
           </span>
           <ChevronDown className={`w-3 h-3 transition-transform ${showSimulator ? 'rotate-180' : ''}`} />
         </button>
 
         {showSimulator && (
           <div className="mt-2 space-y-1">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-1">Simuler un rôle</p>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide px-2 mb-1">Sélectionner un rôle</p>
             {simulatorRoles.map(role => (
               <button
                 key={role}
                 onClick={() => { setCurrentRole(role); setShowSimulator(false); }}
-                className={`flex items-center justify-between w-full px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
+                className={`flex items-center w-full px-2.5 py-1.5 rounded-lg text-xs transition-colors ${
                   currentRole === role
                     ? 'bg-blue-600 text-white font-semibold'
                     : 'text-gray-600 hover:bg-gray-100'
                 }`}
               >
                 <span>{ROLE_LABELS[role]}</span>
-                {!hasAccess(role, DASHBOARD_ALLOWED_ROLES) && (
-                  <Lock className="w-3 h-3 opacity-60" />
-                )}
               </button>
             ))}
           </div>
@@ -131,16 +121,14 @@ export function RBACNavigation() {
 
       {/* Nav */}
       <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
-        {/* Main dashboard — only for admin & medical_director */}
-        {canSeeMainDashboard && (
-          <Link
-            to="/staff/dashboard"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-          >
-            <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
-            <span>Tableau de Bord Principal</span>
-          </Link>
-        )}
+        {/* Main dashboard — visible for all roles */}
+        <Link
+          to="/staff/dashboard"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+        >
+          <LayoutDashboard className="w-4 h-4 flex-shrink-0" />
+          <span>Tableau de Bord</span>
+        </Link>
 
         {/* Role-filtered menu */}
         {filteredMenu.map(item => (
@@ -151,7 +139,7 @@ export function RBACNavigation() {
       {/* Current role badge */}
       <div className="p-3 border-t border-gray-100">
         <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
-          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${hasAccess(currentRole, DASHBOARD_ALLOWED_ROLES) ? 'bg-green-500' : 'bg-gray-400'}`} />
+          <div className="w-2 h-2 rounded-full flex-shrink-0 bg-green-500" />
           <span className="text-xs text-gray-600 truncate">{ROLE_LABELS[currentRole]}</span>
         </div>
       </div>
