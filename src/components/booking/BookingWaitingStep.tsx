@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Clock, Users, Stethoscope, MapPin, Video, Wifi } from 'lucide-react';
+import { Clock, Users, Stethoscope, MapPin, Video, Wifi, PhoneCall, Loader2 } from 'lucide-react';
 
 interface BookingWaitingStepProps {
   ticketNumber: string;
@@ -10,6 +10,8 @@ interface BookingWaitingStepProps {
   roomNumber?: string;
   videoLink?: string;
   patientStatus: 'pending' | 'paid' | 'called';
+  onSimulateDoctorCall?: () => void;
+  simulatingCall?: boolean;
 }
 
 export function BookingWaitingStep({
@@ -21,6 +23,8 @@ export function BookingWaitingStep({
   roomNumber,
   videoLink,
   patientStatus,
+  onSimulateDoctorCall,
+  simulatingCall,
 }: BookingWaitingStepProps) {
   const estimatedWait = Math.max(0, (queuePosition - 1) * 15);
   const isCalled = patientStatus === 'called';
@@ -155,6 +159,33 @@ export function BookingWaitingStep({
             </div>
           )}
         </motion.div>
+      )}
+
+      {/* Simulate Doctor Call Button */}
+      {!isCalled && onSimulateDoctorCall && (
+        <motion.button
+          type="button"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={onSimulateDoctorCall}
+          disabled={simulatingCall}
+          className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-medical-600 to-medical-500 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+        >
+          {simulatingCall ? (
+            <>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Le médecin vous appelle...
+            </>
+          ) : (
+            <>
+              <PhoneCall className="w-4 h-4" />
+              Simuler l'appel du médecin
+            </>
+          )}
+        </motion.button>
       )}
 
       {/* Queue List */}

@@ -9,6 +9,8 @@ import {
   Clock,
   CreditCard,
   Printer,
+  Loader2,
+  Banknote,
 } from 'lucide-react';
 import QRCode from 'qrcode';
 
@@ -28,9 +30,11 @@ interface BookingTicketData {
 
 interface BookingTicketStepProps {
   ticket: BookingTicketData;
+  onSimulatePayment?: () => void;
+  simulatingPayment?: boolean;
 }
 
-export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
+export function BookingTicketStep({ ticket, onSimulatePayment, simulatingPayment }: BookingTicketStepProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [qrGenerated, setQrGenerated] = useState(false);
 
@@ -203,7 +207,7 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
                 <span className="font-bold text-green-800">Paiement validé</span>
               </motion.div>
             ) : (
-              <div>
+              <div className="space-y-3">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   <motion.div
                     className="w-2.5 h-2.5 bg-orange-500 rounded-full"
@@ -212,9 +216,31 @@ export function BookingTicketStep({ ticket }: BookingTicketStepProps) {
                   />
                   <span className="font-bold text-orange-800">En attente de paiement</span>
                 </div>
-                <p className="text-xs text-orange-700">
-                  Veuillez vous rendre à la Caisse pour valider votre paiement
+                <p className="text-xs text-orange-700 mb-2">
+                  Veuillez vous rendre à la Caisse ou payez en ligne
                 </p>
+                {onSimulatePayment && (
+                  <motion.button
+                    type="button"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onSimulatePayment}
+                    disabled={simulatingPayment}
+                    className="w-full py-3 rounded-xl bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+                  >
+                    {simulatingPayment ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Traitement en cours...
+                      </>
+                    ) : (
+                      <>
+                        <Banknote className="w-4 h-4" />
+                        Payer maintenant ({ticket.consultationFee} USD)
+                      </>
+                    )}
+                  </motion.button>
+                )}
               </div>
             )}
           </motion.div>

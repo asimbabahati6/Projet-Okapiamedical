@@ -35,6 +35,8 @@ export function MedicalBookingSystem() {
   const [registrationLoading, setRegistrationLoading] = useState(false);
   const [totalInQueue, setTotalInQueue] = useState(0);
   const [smsToasts, setSmsToasts] = useState<SMSToast[]>([]);
+  const [simulatingPayment, setSimulatingPayment] = useState(false);
+  const [simulatingCall, setSimulatingCall] = useState(false);
 
   const addSmsToast = useCallback((type: SMSToast['type'], message: string, detail?: string) => {
     const id = Math.random().toString(36).substring(2);
@@ -71,6 +73,8 @@ export function MedicalBookingSystem() {
             const newVideoLink = (updated.video_link as string) || prev.videoLink;
 
             if (newPaymentStatus === 'paid' && prev.paymentStatus === 'pending') {
+              setSimulatingPayment(false);
+
               addSmsToast(
                 'payment',
                 'Paiement confirmé !',
@@ -88,6 +92,7 @@ export function MedicalBookingSystem() {
             }
 
             if (newPatientStatus === 'called' && prev.patientStatus !== 'called') {
+              setSimulatingCall(false);
               const locationMsg =
                 prev.consultationType === 'presentiel'
                   ? `Bureau ${newRoom || 'A-101'}`
@@ -269,11 +274,61 @@ export function MedicalBookingSystem() {
     }
   }
 
+  async function handleSimulatePayment() {
+    if (!booking?.id || simulatingPayment) return;
+    setSimulatingPayment(true);
+    try {
+      const { error } = await supabase
+        .from('booking_queue')
+        .update({
+          payment_status: 'paid',
+          patient_status: 'paid',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Payment simulation error:', error);
+      setSimulatingPayment(false);
+    }
+  }
+
+  async function handleSimulateDoctorCall() {
+    if (!booking?.id || simulatingCall) return;
+    setSimulatingCall(true);
+    try {
+      const roomAssignment = booking.consultationType === 'presentiel'
+        ? `A-${String(Math.floor(Math.random() * 10) + 101)}`
+        : '';
+      const videoLinkAssignment = booking.consultationType === 'visioconference'
+        ? `https://consultation.okapia.com/room/${booking.ticketNumber}`
+        : '';
+
+      const { error } = await supabase
+        .from('booking_queue')
+        .update({
+          patient_status: 'called',
+          room_number: roomAssignment,
+          video_link: videoLinkAssignment,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.id);
+
+      if (error) throw error;
+    } catch (error) {
+      console.error('Doctor call simulation error:', error);
+      setSimulatingCall(false);
+    }
+  }
+
   function handleReset() {
     setCurrentStep(1);
     setBooking(null);
     setSmsToasts([]);
     setTotalInQueue(0);
+    setSimulatingPayment(false);
+    setSimulatingCall(false);
   }
 
   const stepVariants = {
@@ -346,6 +401,8 @@ export function MedicalBookingSystem() {
                     paymentStatus: booking.paymentStatus,
                     queuePosition: booking.queuePosition,
                   }}
+                  onSimulatePayment={handleSimulatePayment}
+                  simulatingPayment={simulatingPayment}
                 />
               </motion.div>
             )}
@@ -361,6 +418,8 @@ export function MedicalBookingSystem() {
                   roomNumber={booking.roomNumber}
                   videoLink={booking.videoLink}
                   patientStatus={booking.patientStatus}
+                  onSimulateDoctorCall={handleSimulateDoctorCall}
+                  simulatingCall={simulatingCall}
                 />
               </motion.div>
             )}

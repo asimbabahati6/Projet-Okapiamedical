@@ -119,22 +119,10 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   async function fetchDoctors() {
     setLoadingDoctors(true);
     try {
-      const { data: profiles } = await supabase
-        .from('user_profiles')
-        .select('id, full_name, department_id')
-        .not('department_id', 'is', null);
-
-      if (!profiles || profiles.length === 0) {
-        setDoctors([]);
-        return;
-      }
-
-      const ids = profiles.map((p) => p.id);
       let query = supabase
         .from('medical_staff')
-        .select('id, specialization, consultation_fee, telemedicine_enabled')
-        .eq('is_accepting_patients', true)
-        .in('id', ids);
+        .select('id, display_name, specialization, consultation_fee, telemedicine_enabled, user_profiles!inner(full_name)')
+        .eq('is_accepting_patients', true);
 
       if (consultationType === 'visioconference') {
         query = query.eq('telemedicine_enabled', true);
@@ -143,12 +131,12 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       const { data: staff } = await query;
 
       if (staff && staff.length > 0) {
-        const mapped = staff.map((s) => {
-          const profile = profiles.find((p) => p.id === s.id);
+        const mapped = staff.map((s: Record<string, unknown>) => {
+          const profile = s.user_profiles as { full_name: string } | null;
           return {
-            id: s.id,
-            name: profile?.full_name || '',
-            specialization: s.specialization || '',
+            id: s.id as string,
+            name: profile?.full_name || (s.display_name as string) || '',
+            specialization: (s.specialization as string) || '',
             consultationFee: Number(s.consultation_fee) || 50,
           };
         });
