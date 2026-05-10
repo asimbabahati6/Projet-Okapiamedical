@@ -13,10 +13,6 @@ import { NewsDetail } from './NewsDetail';
 import { About } from './About';
 import { PatientRegistration } from './PatientRegistration';
 
-const validPages = new Set([
-  'home', 'services', 'appointments', 'news', 'news-detail', 'about', 'contact', 'register',
-]);
-
 export function PublicLayout() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -30,27 +26,21 @@ export function PublicLayout() {
     if (hash) {
       if (hash.includes('/')) {
         const [page, slug] = hash.split('/');
-        if (validPages.has(page)) {
-          setCurrentPage(page);
-          if (page === 'news-detail' && slug) {
-            setNewsSlug(slug);
-            setSelectedDoctorId(null);
-          } else {
-            setNewsSlug(null);
-          }
-        } else {
-          setCurrentPage('home');
-          setNewsSlug(null);
+        setCurrentPage(page);
+        if (page === 'news-detail' && slug) {
+          setNewsSlug(slug);
           setSelectedDoctorId(null);
+        } else {
+          setNewsSlug(null);
         }
       } else if (hash.includes('?doctor=')) {
         const [page, query] = hash.split('?');
-        setCurrentPage(validPages.has(page) ? page : 'home');
+        setCurrentPage(page);
         const doctorId = query.replace('doctor=', '');
         setSelectedDoctorId(doctorId);
         setNewsSlug(null);
       } else {
-        setCurrentPage(validPages.has(hash) ? hash : 'home');
+        setCurrentPage(hash);
         setNewsSlug(null);
         setSelectedDoctorId(null);
       }
@@ -94,11 +84,7 @@ export function PublicLayout() {
       case 'news':
         return <News onNavigate={handleNavigate} />;
       case 'news-detail':
-        if (!newsSlug) {
-          handleNavigate('news');
-          return <News onNavigate={handleNavigate} />;
-        }
-        return <NewsDetail slug={newsSlug} onNavigate={handleNavigate} />;
+        return newsSlug ? <NewsDetail slug={newsSlug} onNavigate={handleNavigate} /> : <News onNavigate={handleNavigate} />;
       case 'about':
         return <About />;
       case 'contact':

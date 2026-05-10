@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Users,
   Calendar,
@@ -11,9 +12,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { useRBAC } from '../../contexts/RBACContext';
 import { supabase } from '../../lib/supabase';
-import { useSupabaseQuery } from '../../hooks/useSupabaseQuery';
-import { LoadingSpinner } from '../../components/ui/LoadingSpinner';
-import { DashboardErrorFallback } from '../../components/ui/DashboardErrorFallback';
 
 interface DashboardStats {
   todayPatients: number;
@@ -24,45 +22,64 @@ interface DashboardStats {
   activeConsultations: number;
 }
 
-async function fetchDashboardStats(): Promise<DashboardStats> {
-  const today = new Date().toISOString().split('T')[0];
-  const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
-
-  const [patientsRes, staffRes, appointmentsRes, consultationsRes] = await Promise.all([
-    supabase.from('patients').select('id', { count: 'exact', head: true }),
-    supabase.from('employees').select('id', { count: 'exact', head: true }).eq('status', 'active'),
-    supabase.from('appointments').select('id', { count: 'exact', head: true }).gte('appointment_date', today).eq('status', 'scheduled'),
-    supabase.from('consultations').select('id', { count: 'exact', head: true }).gte('created_at', startOfMonth),
-  ]);
-
-  return {
-    todayPatients: patientsRes.count || 0,
-    onDutyStaff: staffRes.count || 0,
-    monthlyRevenue: 115,
-    criticalAlerts: 0,
-    pendingAppointments: appointmentsRes.count || 0,
-    activeConsultations: consultationsRes.count || 0,
-  };
-}
-
 export function Dashboard() {
   const { profile } = useAuth();
   const { userRole } = useRBAC();
-
-  const { data: stats, loading, error, refetch } = useSupabaseQuery(
-    () => fetchDashboardStats(),
-    [],
-    { cacheKey: 'staff-dashboard-stats', staleTime: 180_000 }
-  );
-
-  const s: DashboardStats = stats || {
+  const [stats, setStats] = useState<DashboardStats>({
     todayPatients: 0,
     onDutyStaff: 0,
     monthlyRevenue: 0,
     criticalAlerts: 0,
     pendingAppointments: 0,
-    activeConsultations: 0,
-  };
+    activeConsultations: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadDashboardStats();
+  }, []);
+
+  async function loadDashboardStats() {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
+      const [patientsRes, staffRes, appointmentsRes, consultationsRes] = await Promise.all([
+        supabase
+          .from('patients')
+          .select('id', { count: 'exact', head: true }),
+
+        supabase
+          .from('employees')
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'active'),
+
+        supabase
+          .from('appointments')
+          .select('id', { count: 'exact', head: true })
+          .gte('appointment_date', today)
+          .eq('status', 'scheduled'),
+
+        supabase
+          .from('consultations')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', startOfMonth)
+      ]);
+
+      setStats({
+        todayPatients: patientsRes.count || 0,
+        onDutyStaff: staffRes.count || 0,
+        monthlyRevenue: 115,
+        criticalAlerts: 0,
+        pendingAppointments: appointmentsRes.count || 0,
+        activeConsultations: consultationsRes.count || 0
+      });
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const getRoleDisplayName = () => {
     const roleMap: Record<string, string> = {
@@ -84,16 +101,12 @@ export function Dashboard() {
     return roleMap[userRole] || userRole;
   };
 
-  if (loading && !stats) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <LoadingSpinner size="xl" text="Chargement du tableau de bord..." />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
       </div>
     );
-  }
-
-  if (error && !stats) {
-    return <DashboardErrorFallback onRetry={refetch} />;
   }
 
   return (
@@ -128,7 +141,7 @@ export function Dashboard() {
             <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-blue-600" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">{s.todayPatients}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.todayPatients}</span>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Patients Aujourd'hui</h3>
           <p className="text-xs text-gray-500">Total enregistrés</p>
@@ -139,7 +152,7 @@ export function Dashboard() {
             <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center">
               <Activity className="w-6 h-6 text-green-600" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">{s.onDutyStaff}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.onDutyStaff}</span>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Personnel de Garde</h3>
           <p className="text-xs text-gray-500">Actuellement actif</p>
@@ -151,8 +164,8 @@ export function Dashboard() {
               <DollarSign className="w-6 h-6 text-yellow-600" />
             </div>
             <div className="text-right">
-              <span className="text-3xl font-bold text-gray-900">{s.monthlyRevenue} FC</span>
-              <p className="text-xs text-gray-500 mt-1">${(s.monthlyRevenue / 2500).toFixed(2)}</p>
+              <span className="text-3xl font-bold text-gray-900">{stats.monthlyRevenue} FC</span>
+              <p className="text-xs text-gray-500 mt-1">${(stats.monthlyRevenue / 2500).toFixed(2)}</p>
             </div>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Revenu Mensuel</h3>
@@ -164,7 +177,7 @@ export function Dashboard() {
             <div className="bg-red-100 w-12 h-12 rounded-lg flex items-center justify-center">
               <AlertTriangle className="w-6 h-6 text-red-600" />
             </div>
-            <span className="text-3xl font-bold text-gray-900">{s.criticalAlerts}</span>
+            <span className="text-3xl font-bold text-gray-900">{stats.criticalAlerts}</span>
           </div>
           <h3 className="text-sm font-medium text-gray-600 mb-1">Alertes Critiques</h3>
           <p className="text-xs text-gray-500">Nécessitent attention</p>
@@ -178,14 +191,14 @@ export function Dashboard() {
             Rendez-vous à Venir
           </h2>
           <div className="space-y-3">
-            {s.pendingAppointments > 0 ? (
+            {stats.pendingAppointments > 0 ? (
               <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-100 w-10 h-10 rounded-full flex items-center justify-center">
                     <Clock className="w-5 h-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{s.pendingAppointments} rendez-vous planifiés</p>
+                    <p className="text-sm font-medium text-gray-900">{stats.pendingAppointments} rendez-vous planifiés</p>
                     <p className="text-xs text-gray-600">À partir d'aujourd'hui</p>
                   </div>
                 </div>
@@ -205,14 +218,14 @@ export function Dashboard() {
             Consultations du Mois
           </h2>
           <div className="space-y-3">
-            {s.activeConsultations > 0 ? (
+            {stats.activeConsultations > 0 ? (
               <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <div className="bg-green-100 w-10 h-10 rounded-full flex items-center justify-center">
                     <Activity className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{s.activeConsultations} consultations</p>
+                    <p className="text-sm font-medium text-gray-900">{stats.activeConsultations} consultations</p>
                     <p className="text-xs text-gray-600">Ce mois</p>
                   </div>
                 </div>

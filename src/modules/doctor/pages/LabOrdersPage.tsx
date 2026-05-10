@@ -3,7 +3,7 @@ import { FlaskConical, Plus, Search, Clock, CheckCircle, XCircle } from 'lucide-
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/useToast';
-import { CreateLabOrderModal } from '@/components/laboratory/CreateLabOrderModal';
+import { AddLabOrderModal } from '@/components/laboratory/AddLabOrderModal';
 
 interface LabOrder {
   id: string;
@@ -201,7 +201,7 @@ export const LabOrdersPage: React.FC = () => {
       </div>
 
       {showAddModal && (
-        <CreateLabOrderModal
+        <AddLabOrderModal
           onClose={() => setShowAddModal(false)}
           onSuccess={fetchOrders}
         />

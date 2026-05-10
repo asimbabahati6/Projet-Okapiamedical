@@ -265,47 +265,10 @@ export function PatientRegistrationForm() {
 
     setLoading(true);
     try {
-      // Convert empty strings to null so PostgREST accepts nullable columns
-      const nullify = (val: string | undefined) =>
-        val && val.trim() !== '' ? val.trim() : null;
-
       const registrationData = {
-        // Required fields
-        first_name: formData.first_name.trim(),
-        last_name: formData.last_name.trim(),
-        date_of_birth: formData.date_of_birth,
-        gender: formData.gender,
-        primary_phone: formData.primary_phone.trim(),
-        primary_email: formData.primary_email.trim(),
-        street_address: formData.street_address.trim(),
-        city: formData.city.trim(),
-        country: formData.country || 'Republic of Congo',
-        consultation_reason: formData.consultation_reason.trim(),
-        preferred_consultation_type: formData.preferred_consultation_type,
-        // Optional text fields — empty string → null
-        secondary_phone: nullify(formData.secondary_phone),
-        backup_email: nullify(formData.backup_email),
-        postal_code: nullify(formData.postal_code),
-        profession: nullify(formData.profession),
-        employer: nullify(formData.employer),
-        medical_history: nullify(formData.medical_history),
-        known_allergies: nullify(formData.known_allergies),
-        chronic_conditions: nullify(formData.chronic_conditions),
-        current_medications: nullify(formData.current_medications),
-        current_physician_name: nullify(formData.current_physician_name),
-        insurance_provider: nullify(formData.insurance_provider),
-        insurance_policy_number: nullify(formData.insurance_policy_number),
-        emergency_contact_name: nullify(formData.emergency_contact_name),
-        emergency_contact_phone: nullify(formData.emergency_contact_phone),
-        emergency_contact_relationship: nullify(formData.emergency_contact_relationship),
-        // UUID fields — empty string must become null (PostgREST rejects "" for uuid)
-        preferred_doctor_id: nullify(formData.preferred_doctor_id),
-        preferred_department_id: nullify(formData.preferred_department_id),
-        // Array + time fields
-        preferred_days: formData.preferred_days.length > 0 ? formData.preferred_days : null,
-        preferred_time_start: nullify(formData.preferred_time_start),
-        preferred_time_end: nullify(formData.preferred_time_end),
-        // Payment & biometric
+        ...formData,
+        preferred_doctor_id: formData.preferred_doctor_id || null,
+        preferred_department_id: formData.preferred_department_id || null,
         payment_amount: 50.0,
         biometric_enrolled: biometricEnrolled,
         biometric_consent_given: biometricEnrolled,
@@ -322,55 +285,42 @@ export function PatientRegistrationForm() {
 
       for (const doc of documents) {
         if (doc.frontImage) {
-          const ext = doc.frontImage.name.split('.').pop();
-          const frontPath = `${registration.id}/${doc.type}_front_${Date.now()}.${ext}`;
-          const { error: frontUploadError } = await supabase.storage
-            .from('identity-documents')
-            .upload(frontPath, doc.frontImage);
-          if (frontUploadError) throw frontUploadError;
+          const frontPath = `${registration.id}/${doc.type}_front_${Date.now()}.${doc.frontImage.name.split('.').pop()}`;
+          await supabase.storage.from('identity-documents').upload(frontPath, doc.frontImage);
 
-          let backPath: string | null = null;
+          let backPath = null;
           if (doc.backImage) {
-            const backExt = doc.backImage.name.split('.').pop();
-            backPath = `${registration.id}/${doc.type}_back_${Date.now()}.${backExt}`;
-            const { error: backUploadError } = await supabase.storage
-              .from('identity-documents')
-              .upload(backPath, doc.backImage);
-            if (backUploadError) throw backUploadError;
+            backPath = `${registration.id}/${doc.type}_back_${Date.now()}.${doc.backImage.name.split('.').pop()}`;
+            await supabase.storage.from('identity-documents').upload(backPath, doc.backImage);
           }
 
-          const { error: docInsertError } = await supabase.from('identity_documents').insert([
+          await supabase.from('identity_documents').insert([
             {
               registration_id: registration.id,
               document_type: doc.type,
               document_number: doc.number,
-              document_expiry_date: nullify(doc.expiryDate),
+              document_expiry_date: doc.expiryDate || null,
               front_image_path: frontPath,
               back_image_path: backPath,
             },
           ]);
-          if (docInsertError) throw docInsertError;
         }
       }
 
-      const { error: historyError } = await supabase
-        .from('registration_verification_history')
-        .insert([
-          {
-            registration_id: registration.id,
-            action_type: 'submitted',
-            new_status: 'pending_verification',
-            notes: 'Registration submitted by patient',
-          },
-        ]);
-      if (historyError) throw historyError;
+      await supabase.from('registration_verification_history').insert([
+        {
+          registration_id: registration.id,
+          action_type: 'submitted',
+          new_status: 'pending_verification',
+          notes: 'Registration submitted by patient',
+        },
+      ]);
 
       setRegistrationId(registration.id);
       setSuccess(true);
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error submitting registration:', error);
-      const message = error?.message || error?.error_description || 'Unknown error';
-      alert(`Failed to submit registration: ${message}`);
+      alert('Failed to submit registration. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -1,40 +1,12 @@
-import { useState, Component, ReactNode } from 'react';
+import { useState } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, Menu, X, Moon, Sun, AlertTriangle } from 'lucide-react';
+import { LogOut, Menu, X, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
 import ChatNotificationBell from '../../components/chat/ChatNotificationBell';
 import RBACNavigation from '../../components/layout/RBACNavigation';
 import { SimulationModeBanner } from '../../components/simulation/SimulationModeBanner';
 import { SimulationFloatingBadge } from '../../components/simulation/SimulationFloatingBadge';
-
-class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  constructor(props: { children: ReactNode }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  render() {
-    if (this.state.hasError) {
-      return (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <AlertTriangle className="w-12 h-12 text-amber-500 mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Une erreur est survenue</h2>
-          <p className="text-gray-600 mb-4">Cette page n'a pas pu se charger correctement.</p>
-          <button
-            onClick={() => this.setState({ hasError: false })}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Réessayer
-          </button>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
-}
 
 export function StaffLayout() {
   const navigate = useNavigate();
@@ -102,7 +74,7 @@ export function StaffLayout() {
                 <div>
                   <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
                   <p className="text-xs text-gray-600">
-                    {profile?.role?.name?.split('_').map((word: string) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                    {profile?.role?.name.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
                   </p>
                 </div>
                 <button
@@ -136,9 +108,7 @@ export function StaffLayout() {
             <ChatNotificationBell />
             <NotificationCenter />
           </div>
-          <PageErrorBoundary>
-            <Outlet />
-          </PageErrorBoundary>
+          <Outlet />
         </div>
       </main>
 
