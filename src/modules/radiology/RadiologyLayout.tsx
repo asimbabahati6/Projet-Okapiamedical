@@ -1,7 +1,17 @@
 import { useState, useMemo } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { PageErrorBoundary } from '@/components/ui/PageErrorBoundary';
-import { LayoutDashboard, ListChecks, File as FileEdit, Eye, History, PlusCircle, Activity, Menu, X, LogOut } from 'lucide-react';
+import {
+  LayoutDashboard,
+  ListChecks,
+  FileEdit,
+  Eye,
+  History,
+  PlusCircle,
+  Activity,
+  Menu,
+  X,
+  LogOut
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useRadiologyPermissions } from '../../hooks/useRadiologyPermissions';
 
@@ -127,9 +137,7 @@ export default function RadiologyLayout() {
 
         {/* Main Content */}
         <main className="flex-1">
-          <PageErrorBoundary>
-            <Outlet />
-          </PageErrorBoundary>
+          <Outlet />
         </main>
       </div>
     </div>
