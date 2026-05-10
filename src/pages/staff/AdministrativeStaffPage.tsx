@@ -54,9 +54,9 @@ export default function AdministrativeStaffPage() {
 
   const filteredStaff = staff.filter((member) => {
     const matchesSearch =
-      member.employee.first_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.employee.last_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      member.specific_role.toLowerCase().includes(searchTerm.toLowerCase());
+      (member.employee?.first_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (member.employee?.last_name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+      (member.specific_role?.toLowerCase() || '').includes(searchTerm.toLowerCase());
 
     const matchesDivision = selectedDivision === 'all' || member.division === selectedDivision;
     const matchesPosition = selectedPosition === 'all' || member.position_level === selectedPosition;
@@ -192,7 +192,7 @@ export default function AdministrativeStaffPage() {
                     </div>
                     <div>
                       <h3 className="text-lg font-semibold text-gray-900">
-                        {member.employee.first_name} {member.employee.last_name}
+                        {member.employee?.first_name} {member.employee?.last_name}
                       </h3>
                       <p className="text-sm text-gray-600">{member.specific_role}</p>
                       {member.department_head && (
@@ -227,16 +227,16 @@ export default function AdministrativeStaffPage() {
                   </div>
 
                   <div className="pt-3 border-t border-gray-200 space-y-2">
-                    {member.employee.email && (
+                    {member.employee?.email && (
                       <div className="flex items-center text-sm text-gray-600">
                         <Mail className="h-4 w-4 mr-2 text-gray-400" />
                         {member.employee.email}
                       </div>
                     )}
-                    {member.employee.phone && (
+                    {member.employee?.phone && (
                       <div className="flex items-center text-sm text-gray-600">
                         <Phone className="h-4 w-4 mr-2 text-gray-400" />
-                        {member.employee.phone}
+                        {member.employee?.phone}
                       </div>
                     )}
                   </div>

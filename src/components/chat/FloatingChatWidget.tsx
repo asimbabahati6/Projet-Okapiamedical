@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, X, Send, Minimize2, Maximize2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -36,36 +37,61 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
   useEffect(() => {
     if (isOpen && currentChannelId) {
       fetchMessages();
-
-      const subscription = supabase
-        .channel('chat-messages')
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'chat_messages',
-            filter: `channel_id=eq.${currentChannelId}`
-          },
-          () => {
-            fetchMessages();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        subscription.unsubscribe();
-      };
     }
+  }, [isOpen, currentChannelId]);
+
+  // Supabase Realtime subscription
+  useEffect(() => {
+    if (!isOpen || !currentChannelId) return;
+
+    const channel = supabase
+      .channel(`widget-messages-${currentChannelId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `channel_id=eq.${currentChannelId}`,
+        },
+        async (payload) => {
+          const newRow = payload.new as Record<string, unknown>;
+          const senderId = newRow.sender_id as string;
+
+          const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('full_name')
+            .eq('id', senderId)
+            .maybeSingle();
+
+          const enriched: Message = {
+            id: newRow.id as string,
+            sender_id: senderId,
+            content: newRow.content as string,
+            created_at: newRow.created_at as string,
+            sender: { full_name: profile?.full_name || 'Utilisateur' },
+          };
+
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === enriched.id)) return prev;
+            return [...prev, enriched];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [isOpen, currentChannelId]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   const fetchDefaultChannel = async () => {
     try {
@@ -73,10 +99,10 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
         .from('chat_channels')
         .select('id')
         .eq('slug', 'general')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
-      setCurrentChannelId(data.id);
+      if (data) setCurrentChannelId(data.id);
     } catch (error) {
       console.error('Error fetching default channel:', error);
     }
@@ -107,19 +133,19 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
     e.preventDefault();
     if (!messageInput.trim() || !currentChannelId || !user?.id) return;
 
+    const content = messageInput.trim();
+    setMessageInput('');
+
     try {
       const { error } = await supabase
         .from('chat_messages')
         .insert({
           channel_id: currentChannelId,
           sender_id: user.id,
-          content: messageInput.trim()
+          content,
         });
 
       if (error) throw error;
-
-      setMessageInput('');
-      fetchMessages();
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -127,17 +153,22 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
 
   if (!isOpen) {
     return (
-      <button
+      <motion.button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-full shadow-2xl hover:shadow-cyan-500/50 hover:scale-110 transition-all duration-300 flex items-center justify-center z-50 animate-bounce"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-br from-cyan-500 to-cyan-700 text-white rounded-full shadow-2xl hover:shadow-cyan-500/50 transition-shadow duration-300 flex items-center justify-center z-50"
       >
         <MessageSquare className="w-6 h-6" />
-      </button>
+      </motion.button>
     );
   }
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: 20, scale: 0.95 }}
       className={`fixed bottom-6 right-6 bg-white rounded-2xl shadow-2xl z-50 transition-all duration-300 ${
         isMinimized ? 'w-80 h-16' : 'w-96 h-[600px]'
       }`}
@@ -171,39 +202,44 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
         <>
           {/* Messages */}
           <div className="h-[480px] overflow-y-auto p-4 space-y-3">
-            {messages.map((message) => {
-              const isOwnMessage = message.sender_id === user?.id;
+            <AnimatePresence initial={false}>
+              {messages.map((message) => {
+                const isOwnMessage = message.sender_id === user?.id;
 
-              return (
-                <div
-                  key={message.id}
-                  className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div className={`max-w-[80%]`}>
-                    {!isOwnMessage && (
-                      <p className="text-xs font-semibold text-gray-600 mb-1">
-                        {message.sender.full_name}
+                return (
+                  <motion.div
+                    key={message.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className={`flex ${isOwnMessage ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className="max-w-[80%]">
+                      {!isOwnMessage && (
+                        <p className="text-xs font-semibold text-gray-600 mb-1">
+                          {message.sender.full_name}
+                        </p>
+                      )}
+                      <div
+                        className={`px-3 py-2 rounded-lg ${
+                          isOwnMessage
+                            ? 'bg-cyan-600 text-white rounded-br-sm'
+                            : 'bg-gray-100 text-gray-900 rounded-bl-sm'
+                        }`}
+                      >
+                        <p className="text-sm">{message.content}</p>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {new Date(message.created_at).toLocaleTimeString('fr-FR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </p>
-                    )}
-                    <div
-                      className={`px-3 py-2 rounded-lg ${
-                        isOwnMessage
-                          ? 'bg-cyan-600 text-white rounded-br-sm'
-                          : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-                      }`}
-                    >
-                      <p className="text-sm">{message.content}</p>
                     </div>
-                    <p className="text-xs text-gray-400 mt-1">
-                      {new Date(message.created_at).toLocaleTimeString('fr-FR', {
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
             <div ref={messagesEndRef} />
           </div>
 
@@ -228,6 +264,6 @@ export default function FloatingChatWidget({ channelId, channelName = 'Général
           </div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }

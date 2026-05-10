@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/core/contexts/NotificationContext';
+import { PageErrorBoundary } from '@/components/ui/PageErrorBoundary';
 import {
   LayoutDashboard,
   Package,
@@ -169,7 +170,9 @@ export const PharmacyLayout: React.FC = () => {
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
-          <Outlet />
+          <PageErrorBoundary>
+            <Outlet />
+          </PageErrorBoundary>
         </main>
       </div>
     </div>

@@ -1,37 +1,22 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Search, Plus, Clock, User, Phone, CheckCircle, XCircle, Download, Trash2, Ban, ShieldCheck } from 'lucide-react';
+import { Calendar, Plus, Search, Clock, User, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { Appointment } from '../../types/database';
-import { AddAppointmentModal } from '../../components/appointments/AddAppointmentModal';
-import { AppointmentDetailsModal } from '../../components/appointments/AppointmentDetailsModal';
-import { AppointmentValidationModal } from '../../components/appointments/AppointmentValidationModal';
-import { BulkActionsToolbar } from '../../components/appointments/BulkActionsToolbar';
-import { CancelAppointmentModal } from '../../components/appointments/CancelAppointmentModal';
-import { DeleteAppointmentModal } from '../../components/appointments/DeleteAppointmentModal';
-import { useAppointmentActions } from '../../hooks/useAppointmentActions';
-import { useAuth } from '../../contexts/AuthContext';
 
-const VALIDATION_ROLES = ['medecin_chef_staff', 'caissiere', 'admin', 'super_admin', 'hospital_admin', 'medical_director'];
+interface Appointment {
+  id: string;
+  appointment_number: string;
+  appointment_date: string;
+  appointment_time: string;
+  status: string;
+  reason: string | null;
+  doctor_name?: string;
+}
 
 export function AppointmentsPage() {
-  const { profile } = useAuth();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [dateFilter, setDateFilter] = useState<string>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
-  const [showDetailsModal, setShowDetailsModal] = useState(false);
-  const [showValidationModal, setShowValidationModal] = useState(false);
-  const [validationAppointment, setValidationAppointment] = useState<Appointment | null>(null);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [quickActionAppointment, setQuickActionAppointment] = useState<Appointment | null>(null);
-  const [showQuickCancel, setShowQuickCancel] = useState(false);
-  const [showQuickDelete, setShowQuickDelete] = useState(false);
-  const { cancelAppointment, deleteAppointment, canCancelAppointment, canDeleteAppointment } = useAppointmentActions();
-  const userRoleName = (profile?.role as { name?: string } | null)?.name || '';
-  const canValidate = VALIDATION_ROLES.includes(userRoleName);
+  const [statusFilter, setStatusFilter] = useState('all');
 
   useEffect(() => {
     fetchAppointments();
@@ -39,592 +24,151 @@ export function AppointmentsPage() {
 
   async function fetchAppointments() {
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('appointments')
-        .select(`
-          *,
-          patient:patients(*),
-          doctor:medical_staff(*, user_profile:user_profiles(*))
-        `)
+        .select('id, appointment_number, appointment_date, appointment_time, status, reason')
         .order('appointment_date', { ascending: false })
-        .order('appointment_time', { ascending: true })
-        .limit(100);
+        .limit(50);
 
-      if (error) throw error;
-      setAppointments(data || []);
+      if (data) {
+        setAppointments(data.map((a: Record<string, unknown>) => ({
+          id: a.id as string,
+          appointment_number: a.appointment_number as string,
+          appointment_date: a.appointment_date as string,
+          appointment_time: a.appointment_time as string,
+          status: (a.status as string) || 'pending',
+          reason: a.reason as string | null,
+        })));
+      }
     } catch (error) {
-      console.error('Error fetching appointments:', error);
-      generateMockAppointments();
+      console.error('Error:', error);
     } finally {
       setLoading(false);
     }
   }
 
-  function generateMockAppointments() {
-    const statuses: Appointment['status'][] = ['pending', 'confirmed', 'in_progress', 'completed', 'cancelled', 'no_show'];
-    const types: Appointment['appointment_type'][] = ['consultation', 'follow_up', 'emergency'];
-    const mockPatients = [
-      { first_name: 'Jean', last_name: 'Dupont', phone: '+243 812 345 678' },
-      { first_name: 'Marie', last_name: 'Koffi', phone: '+243 823 456 789' },
-      { first_name: 'Paul', last_name: 'Mbala', phone: '+243 834 567 890' },
-      { first_name: 'Sophie', last_name: 'Lukeni', phone: '+243 845 678 901' },
-      { first_name: 'André', last_name: 'Kabila', phone: '+243 856 789 012' },
-      { first_name: 'Claire', last_name: 'Tshisekedi', phone: '+243 867 890 123' },
-      { first_name: 'David', last_name: 'Lumumba', phone: '+243 878 901 234' },
-      { first_name: 'Emma', last_name: 'Mobutu', phone: '+243 889 012 345' },
-    ];
-    const mockDoctors = [
-      { full_name: 'Dr. Civeon Bazebosso', specialization: 'Cardiologie' },
-      { full_name: 'Dr. Sarah Kimbangu', specialization: 'Pédiatrie' },
-      { full_name: 'Dr. Michel Kasai', specialization: 'Chirurgie' },
-      { full_name: 'Dr. Henriette Mbuyi', specialization: 'Médecine Générale' },
-    ];
-
-    const mockData: Appointment[] = [];
-    const today = new Date();
-
-    for (let i = 0; i < 50; i++) {
-      const daysOffset = Math.floor(Math.random() * 60) - 30;
-      const appointmentDate = new Date(today);
-      appointmentDate.setDate(today.getDate() + daysOffset);
-
-      const hour = 8 + Math.floor(Math.random() * 9);
-      const minute = Math.random() < 0.5 ? '00' : '30';
-      const appointmentTime = `${hour.toString().padStart(2, '0')}:${minute}:00`;
-
-      const patient = mockPatients[Math.floor(Math.random() * mockPatients.length)];
-      const doctor = mockDoctors[Math.floor(Math.random() * mockDoctors.length)];
-      const status = statuses[Math.floor(Math.random() * statuses.length)];
-      const type = types[Math.floor(Math.random() * types.length)];
-
-      mockData.push({
-        id: `appt-${i}`,
-        appointment_number: `APT${String(1000 + i).padStart(6, '0')}`,
-        patient_id: `patient-${i}`,
-        doctor_id: `doctor-${i}`,
-        department_id: null,
-        appointment_date: appointmentDate.toISOString().split('T')[0],
-        appointment_time: appointmentTime,
-        status,
-        appointment_type: type,
-        reason: type === 'emergency' ? 'Urgence médicale' : type === 'follow_up' ? 'Suivi médical' : 'Consultation générale',
-        notes: null,
-        checked_in_at: status === 'in_progress' || status === 'completed' ? new Date().toISOString() : null,
-        completed_at: status === 'completed' ? new Date().toISOString() : null,
-        cancelled_at: status === 'cancelled' ? new Date().toISOString() : null,
-        cancellation_reason: status === 'cancelled' ? 'Conflit d\'horaire' : null,
-        created_by: null,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        patient: {
-          ...patient,
-          id: `patient-${i}`,
-          patient_number: `PAT${String(1000 + i).padStart(6, '0')}`,
-          date_of_birth: '1990-01-01',
-          gender: Math.random() < 0.5 ? 'M' : 'F',
-          blood_group: 'O+',
-          email: `${patient.first_name.toLowerCase()}@email.com`,
-          address: 'Kinshasa, RDC',
-          city: 'Kinshasa',
-          emergency_contact_name: null,
-          emergency_contact_phone: null,
-          emergency_contact_relationship: null,
-          insurance_provider: null,
-          insurance_number: null,
-          allergies: null,
-          chronic_conditions: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-        doctor: {
-          id: `doctor-${i}`,
-          license_number: `LIC${1000 + i}`,
-          specialization: doctor.specialization,
-          qualifications: ['MD'],
-          years_of_experience: 5 + Math.floor(Math.random() * 15),
-          consultation_fee: 50 + Math.floor(Math.random() * 150),
-          bio: null,
-          is_accepting_patients: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          user_profile: {
-            id: `user-${i}`,
-            role_id: 'role-doctor',
-            full_name: doctor.full_name,
-            phone: '+243 800 000 000',
-            avatar_url: null,
-            department_id: null,
-            is_active: true,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          },
-        },
-      } as Appointment);
-    }
-
-    setAppointments(mockData);
-  }
-
-  const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch =
-      appointment.appointment_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      `${appointment.patient?.first_name} ${appointment.patient?.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      appointment.doctor?.user_profile?.full_name.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesStatus = statusFilter === 'all' || appointment.status === statusFilter;
-
-    const today = new Date().toISOString().split('T')[0];
-    const appointmentDate = appointment.appointment_date;
-    const matchesDate =
-      dateFilter === 'all' ||
-      (dateFilter === 'today' && appointmentDate === today) ||
-      (dateFilter === 'upcoming' && appointmentDate >= today) ||
-      (dateFilter === 'past' && appointmentDate < today);
-
-    return matchesSearch && matchesStatus && matchesDate;
+  const filtered = appointments.filter(a => {
+    const matchesSearch = a.appointment_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
+    return matchesSearch && matchesStatus;
   });
 
-  const stats = {
-    today: appointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0]).length,
-    upcoming: appointments.filter(a => a.appointment_date >= new Date().toISOString().split('T')[0] && a.status === 'confirmed').length,
-    completed: appointments.filter(a => a.status === 'completed').length,
-    cancelled: appointments.filter(a => a.status === 'cancelled').length,
-  };
-
-  function getStatusColor(status: string) {
-    const colors = {
+  const statusBadge = (status: string) => {
+    const map: Record<string, string> = {
       pending: 'bg-yellow-100 text-yellow-800',
       confirmed: 'bg-blue-100 text-blue-800',
-      in_progress: 'bg-green-100 text-green-800',
-      completed: 'bg-gray-100 text-gray-800',
+      completed: 'bg-green-100 text-green-800',
       cancelled: 'bg-red-100 text-red-800',
-      no_show: 'bg-orange-100 text-orange-800',
     };
-    return colors[status as keyof typeof colors] || 'bg-gray-100 text-gray-800';
-  }
+    return map[status] || 'bg-gray-100 text-gray-800';
+  };
 
-  function getTypeLabel(type: string) {
-    const labels = {
-      consultation: 'Consultation',
-      follow_up: 'Suivi',
-      emergency: 'Urgence',
+  const statusLabel = (status: string) => {
+    const map: Record<string, string> = {
+      pending: 'En attente',
+      confirmed: 'Confirmé',
+      completed: 'Terminé',
+      cancelled: 'Annulé',
     };
-    return labels[type as keyof typeof labels] || type;
-  }
-
-  function toggleSelection(appointmentId: string) {
-    const newSelected = new Set(selectedIds);
-    if (newSelected.has(appointmentId)) {
-      newSelected.delete(appointmentId);
-    } else {
-      newSelected.add(appointmentId);
-    }
-    setSelectedIds(newSelected);
-  }
-
-  function toggleSelectAll() {
-    if (selectedIds.size === filteredAppointments.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filteredAppointments.map(a => a.id)));
-    }
-  }
-
-  function clearSelection() {
-    setSelectedIds(new Set());
-  }
-
-  const selectedAppointments = appointments.filter(a => selectedIds.has(a.id));
-
-  function exportToCSV() {
-    const headers = ['Numéro', 'Patient', 'Médecin', 'Date', 'Heure', 'Motif', 'Statut', 'Raison'];
-    const rows = filteredAppointments.map(a => [
-      a.appointment_number,
-      a.patient ? `${a.patient.first_name} ${a.patient.last_name}` : '',
-      a.doctor?.user_profile?.full_name || '',
-      new Date(a.appointment_date).toLocaleDateString('fr-FR'),
-      a.appointment_time.substring(0, 5),
-      getTypeLabel(a.appointment_type),
-      a.status,
-      a.reason || ''
-    ]);
-
-    const csv = [headers, ...rows].map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rendez-vous-${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement des rendez-vous...</p>
-        </div>
-      </div>
-    );
-  }
+    return map[status] || status;
+  };
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-6 space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Rendez-vous</h1>
-          <p className="text-gray-600">Planifier et gérer les rendez-vous patients</p>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <Calendar className="w-7 h-7 text-blue-600" />
+            Rendez-vous
+          </h1>
+          <p className="text-gray-500 mt-1">Gestion des rendez-vous et consultations</p>
         </div>
-        <div className="flex gap-3">
-          <button
-            onClick={exportToCSV}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2 font-medium"
-          >
-            <Download className="w-4 h-4" />
-            Exporter CSV
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 font-medium"
-          >
-            <Plus className="w-5 h-5" />
-            Nouveau Rendez-vous
-          </button>
-        </div>
+        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+          <Plus className="w-4 h-4" />
+          Nouveau rendez-vous
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Aujourd'hui</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.today}</p>
-            </div>
-            <div className="bg-blue-500 w-12 h-12 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-white" />
-            </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {[
+          { label: "Aujourd'hui", count: appointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0]).length, color: 'blue' },
+          { label: 'En attente', count: appointments.filter(a => a.status === 'pending').length, color: 'yellow' },
+          { label: 'Confirmés', count: appointments.filter(a => a.status === 'confirmed').length, color: 'green' },
+          { label: 'Total', count: appointments.length, color: 'gray' },
+        ].map((stat) => (
+          <div key={stat.label} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
+            <p className="text-sm text-gray-500">{stat.label}</p>
+            <p className="text-2xl font-bold text-gray-900 mt-1">{stat.count}</p>
           </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">À venir</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.upcoming}</p>
-            </div>
-            <div className="bg-green-500 w-12 h-12 rounded-lg flex items-center justify-center">
-              <Clock className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Complétés</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.completed}</p>
-            </div>
-            <div className="bg-gray-500 w-12 h-12 rounded-lg flex items-center justify-center">
-              <CheckCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600 mb-1">Annulés</p>
-              <p className="text-3xl font-bold text-gray-900">{stats.cancelled}</p>
-            </div>
-            <div className="bg-red-500 w-12 h-12 rounded-lg flex items-center justify-center">
-              <XCircle className="w-6 h-6 text-white" />
-            </div>
-          </div>
-        </div>
+        ))}
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher par numéro, patient ou médecin..."
+              placeholder="Rechercher..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
-
-          <div className="flex gap-3">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Tous les statuts</option>
-              <option value="pending">En attente</option>
-              <option value="confirmed">Confirmé</option>
-              <option value="in_progress">En cours</option>
-              <option value="completed">Complété</option>
-              <option value="cancelled">Annulé</option>
-              <option value="no_show">Absent</option>
-            </select>
-
-            <select
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            >
-              <option value="all">Toutes les dates</option>
-              <option value="today">Aujourd'hui</option>
-              <option value="upcoming">À venir</option>
-              <option value="past">Passés</option>
-            </select>
-          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-200 rounded-lg text-sm"
+          >
+            <option value="all">Tous les statuts</option>
+            <option value="pending">En attente</option>
+            <option value="confirmed">Confirmés</option>
+            <option value="completed">Terminés</option>
+            <option value="cancelled">Annulés</option>
+          </select>
         </div>
-      </div>
 
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
-              <tr>
-                <th className="px-6 py-3 text-left w-12">
-                  <input
-                    type="checkbox"
-                    checked={filteredAppointments.length > 0 && selectedIds.size === filteredAppointments.length}
-                    onChange={toggleSelectAll}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                  />
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  N° Rendez-vous
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Patient
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Médecin
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Date & Heure
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Motif
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Statut
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {filteredAppointments.length === 0 ? (
+        {loading ? (
+          <div className="p-12 text-center text-gray-400">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center">
+            <Calendar className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="text-gray-500">Aucun rendez-vous trouvé</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <td colSpan={8} className="px-6 py-12 text-center text-gray-500">
-                    Aucun rendez-vous trouvé
-                  </td>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">N°</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Heure</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Motif</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                 </tr>
-              ) : (
-                filteredAppointments.map((appointment) => (
-                  <tr key={appointment.id} className={`hover:bg-gray-50 transition-colors ${selectedIds.has(appointment.id) ? 'bg-blue-50' : ''}`}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedIds.has(appointment.id)}
-                        onChange={() => toggleSelection(appointment.id)}
-                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
-                      />
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((apt) => (
+                  <tr key={apt.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-sm text-gray-700">{apt.appointment_number}</td>
+                    <td className="px-4 py-3 text-gray-600">{apt.appointment_date}</td>
+                    <td className="px-4 py-3 text-gray-600 flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {apt.appointment_time}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm font-medium text-blue-600">{appointment.appointment_number}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                          <User className="w-5 h-5 text-gray-600" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-900">
-                            {appointment.patient?.first_name} {appointment.patient?.last_name}
-                          </p>
-                          <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <Phone className="w-3 h-3" />
-                            {appointment.patient?.phone}
-                          </p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm text-gray-900">{appointment.doctor?.user_profile?.full_name}</p>
-                      <p className="text-xs text-gray-500">{appointment.doctor?.specialization}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4 text-gray-400" />
-                        <div>
-                          <p className="text-sm text-gray-900">{new Date(appointment.appointment_date).toLocaleDateString('fr-FR')}</p>
-                          <p className="text-xs text-gray-500">{appointment.appointment_time.substring(0, 5)}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-gray-900">{getTypeLabel(appointment.appointment_type)}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
-                        {appointment.status}
+                    <td className="px-4 py-3 text-gray-600">{apt.reason || '-'}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge(apt.status)}`}>
+                        {statusLabel(apt.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {canValidate && (appointment.status === 'pending' || appointment.status === 'confirmed') && (
-                          <button
-                            onClick={() => {
-                              setValidationAppointment(appointment);
-                              setShowValidationModal(true);
-                            }}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="Valider"
-                          >
-                            <ShieldCheck className="w-4 h-4" />
-                          </button>
-                        )}
-                        {canCancelAppointment(appointment) && (
-                          <button
-                            onClick={() => {
-                              setQuickActionAppointment(appointment);
-                              setShowQuickCancel(true);
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Annuler"
-                          >
-                            <Ban className="w-4 h-4" />
-                          </button>
-                        )}
-                        {canDeleteAppointment(appointment) && (
-                          <button
-                            onClick={() => {
-                              setQuickActionAppointment(appointment);
-                              setShowQuickDelete(true);
-                            }}
-                            className="p-2 text-red-800 hover:bg-red-50 rounded-lg transition-colors"
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => {
-                            setSelectedAppointment(appointment);
-                            setShowDetailsModal(true);
-                          }}
-                          className="text-blue-600 hover:text-blue-700 text-sm font-medium px-3 py-1"
-                        >
-                          Détails
-                        </button>
-                      </div>
-                    </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
-
-      {filteredAppointments.length > 0 && (
-        <div className="mt-4 text-sm text-gray-600">
-          Affichage de {filteredAppointments.length} sur {appointments.length} rendez-vous
-        </div>
-      )}
-
-      {showValidationModal && validationAppointment && (
-        <AppointmentValidationModal
-          appointment={validationAppointment}
-          onClose={() => {
-            setShowValidationModal(false);
-            setValidationAppointment(null);
-          }}
-          onSuccess={() => {
-            fetchAppointments();
-            setShowValidationModal(false);
-            setValidationAppointment(null);
-          }}
-        />
-      )}
-
-      {showAddModal && (
-        <AddAppointmentModal
-          onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            fetchAppointments();
-            setShowAddModal(false);
-          }}
-        />
-      )}
-
-      {showDetailsModal && selectedAppointment && (
-        <AppointmentDetailsModal
-          appointment={selectedAppointment}
-          onClose={() => {
-            setShowDetailsModal(false);
-            setSelectedAppointment(null);
-          }}
-          onUpdate={() => {
-            fetchAppointments();
-            clearSelection();
-          }}
-        />
-      )}
-
-      {showQuickCancel && quickActionAppointment && (
-        <CancelAppointmentModal
-          appointment={quickActionAppointment}
-          onClose={() => {
-            setShowQuickCancel(false);
-            setQuickActionAppointment(null);
-          }}
-          onConfirm={async (reason) => {
-            await cancelAppointment(quickActionAppointment.id, reason);
-            setShowQuickCancel(false);
-            setQuickActionAppointment(null);
-            fetchAppointments();
-          }}
-        />
-      )}
-
-      {showQuickDelete && quickActionAppointment && (
-        <DeleteAppointmentModal
-          appointment={quickActionAppointment}
-          onClose={() => {
-            setShowQuickDelete(false);
-            setQuickActionAppointment(null);
-          }}
-          onConfirm={async () => {
-            await deleteAppointment(quickActionAppointment.id);
-            setShowQuickDelete(false);
-            setQuickActionAppointment(null);
-            fetchAppointments();
-          }}
-        />
-      )}
-
-      {selectedIds.size > 0 && (
-        <BulkActionsToolbar
-          selectedCount={selectedIds.size}
-          selectedAppointments={selectedAppointments}
-          onClearSelection={clearSelection}
-          onSuccess={() => {
-            fetchAppointments();
-            clearSelection();
-          }}
-        />
-      )}
     </div>
   );
 }

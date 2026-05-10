@@ -166,7 +166,7 @@ export function ShiftSchedulingPage() {
                 ) : (
                   <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
                     <span className="text-sm font-semibold text-blue-600">
-                      {shift.employee?.first_name[0]}{shift.employee?.last_name[0]}
+                      {shift.employee?.first_name?.[0]}{shift.employee?.last_name?.[0]}
                     </span>
                   </div>
                 )}
