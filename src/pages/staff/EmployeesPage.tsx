@@ -239,7 +239,7 @@ export function EmployeesPage() {
                         ) : (
                           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
                             <span className="text-sm font-semibold text-blue-600">
-                              {employee.first_name[0]}{employee.last_name[0]}
+                              {employee.first_name?.[0] || ''}{employee.last_name?.[0] || ''}
                             </span>
                           </div>
                         )}

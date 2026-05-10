@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
-import {
-  Users, Activity, Calendar, TrendingUp, Download,
-  Building2, User, Phone, Mail, BarChart3, Filter, Search, ChevronDown, ChevronUp,
-  Plus, Edit2, Trash2, UserPlus, Briefcase, Eye, FolderOpen
-} from 'lucide-react';
+import { Users, Activity, Calendar, TrendingUp, Download, Building2, User, Phone, Mail, BarChart3, Filter, Search, ChevronDown, ChevronUp, Plus, CreditCard as Edit2, Trash2, UserPlus, Briefcase, Eye, FolderOpen } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import {
   getDoctorsGlobalStats,
@@ -269,7 +265,7 @@ export default function DoctorsDashboardPage() {
               <div className="flex-1 bg-gray-200 rounded-full h-2">
                 <div
                   className="bg-green-500 h-2 rounded-full"
-                  style={{ width: `${(globalStats.activeDoctors / globalStats.totalDoctors) * 100}%` }}
+                  style={{ width: `${globalStats.totalDoctors > 0 ? (globalStats.activeDoctors / globalStats.totalDoctors) * 100 : 0}%` }}
                 />
               </div>
               <span className="text-gray-600">{globalStats.activeDoctors} disponibles</span>

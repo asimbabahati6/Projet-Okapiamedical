@@ -54,20 +54,18 @@ export async function createEmployee(formData: EmployeeFormData): Promise<string
       date_of_birth: formData.personalInfo.dateOfBirth,
       gender: formData.personalInfo.gender,
       nationality: formData.personalInfo.nationality,
-      marital_status: formData.personalInfo.maritalStatus,
-      phone: formData.contactDetails.phone,
-      email: formData.contactDetails.email,
-      address: formData.contactDetails.address,
+      phone: formData.contactDetails.primaryPhone,
+      email: formData.contactDetails.professionalEmail || formData.contactDetails.personalEmail,
+      address: formData.contactDetails.streetAddress,
       city: formData.contactDetails.city,
       department_id: formData.professionalInfo.departmentId || null,
       position: formData.professionalInfo.position,
       contract_type: formData.professionalInfo.contractType,
       employment_status: formData.professionalInfo.employmentStatus,
       hire_date: formData.professionalInfo.hireDate,
-      salary: formData.bankingInfo.salary ? Number(formData.bankingInfo.salary) : null,
       bank_name: formData.bankingInfo.bankName,
-      bank_account: formData.bankingInfo.accountNumber,
-      emergency_contact_name: formData.emergencyContact.name,
+      bank_account: formData.bankingInfo.iban,
+      emergency_contact_name: formData.emergencyContact.fullName,
       emergency_contact_phone: formData.emergencyContact.phone,
       emergency_contact_relationship: formData.emergencyContact.relationship,
     })
@@ -87,13 +85,12 @@ export async function updateEmployee(id: string, formData: Partial<EmployeeFormD
     updates.date_of_birth = formData.personalInfo.dateOfBirth;
     updates.gender = formData.personalInfo.gender;
     updates.nationality = formData.personalInfo.nationality;
-    updates.marital_status = formData.personalInfo.maritalStatus;
   }
 
   if (formData.contactDetails) {
-    updates.phone = formData.contactDetails.phone;
-    updates.email = formData.contactDetails.email;
-    updates.address = formData.contactDetails.address;
+    updates.phone = formData.contactDetails.primaryPhone;
+    updates.email = formData.contactDetails.professionalEmail || formData.contactDetails.personalEmail;
+    updates.address = formData.contactDetails.streetAddress;
     updates.city = formData.contactDetails.city;
   }
 
@@ -106,13 +103,12 @@ export async function updateEmployee(id: string, formData: Partial<EmployeeFormD
   }
 
   if (formData.bankingInfo) {
-    updates.salary = formData.bankingInfo.salary ? Number(formData.bankingInfo.salary) : null;
     updates.bank_name = formData.bankingInfo.bankName;
-    updates.bank_account = formData.bankingInfo.accountNumber;
+    updates.bank_account = formData.bankingInfo.iban;
   }
 
   if (formData.emergencyContact) {
-    updates.emergency_contact_name = formData.emergencyContact.name;
+    updates.emergency_contact_name = formData.emergencyContact.fullName;
     updates.emergency_contact_phone = formData.emergencyContact.phone;
     updates.emergency_contact_relationship = formData.emergencyContact.relationship;
   }
