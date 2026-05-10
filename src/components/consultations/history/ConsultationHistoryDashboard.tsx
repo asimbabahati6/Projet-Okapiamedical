@@ -153,7 +153,7 @@ export function ConsultationHistoryDashboard() {
       const headers = ['Date', 'Patient', 'Médecin', 'Diagnostic', 'Traitement', 'Suivi'];
       const rows = consultations.map(c => [
         new Date(c.consultation_date).toLocaleDateString('fr-FR'),
-        `${c.patient?.first_name} ${c.patient?.last_name}`,
+        c.patient ? `${c.patient.first_name} ${c.patient.last_name}` : 'N/A',
         c.doctor?.user_profile?.full_name || '',
         c.diagnosis || '',
         c.treatment_plan || '',
