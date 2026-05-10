@@ -31,25 +31,14 @@ export function NotificationCenter() {
   useEffect(() => {
     if (profile?.id) {
       loadNotifications();
-      subscribeToNotifications();
     }
   }, [profile?.id]);
 
-  async function loadNotifications() {
-    if (!profile?.id) return;
-
-    setLoading(true);
-    const data = await getAllNotifications(profile.id);
-    setNotifications(data);
-    setUnreadCount(data.filter(n => !n.is_read).length);
-    setLoading(false);
-  }
-
-  function subscribeToNotifications() {
+  useEffect(() => {
     if (!profile?.id) return;
 
     const channel = supabase
-      .channel('notifications')
+      .channel(`notifications-${profile.id}`)
       .on(
         'postgres_changes',
         {
@@ -72,6 +61,21 @@ export function NotificationCenter() {
     return () => {
       supabase.removeChannel(channel);
     };
+  }, [profile?.id]);
+
+  async function loadNotifications() {
+    if (!profile?.id) return;
+
+    setLoading(true);
+    try {
+      const data = await getAllNotifications(profile.id);
+      setNotifications(data);
+      setUnreadCount(data.filter(n => !n.is_read).length);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function playNotificationSound() {

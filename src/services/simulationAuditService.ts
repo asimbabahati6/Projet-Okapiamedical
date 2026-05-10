@@ -250,7 +250,7 @@ class SimulationAuditService {
       const { data, error } = await supabase
         .from('simulation_settings')
         .select('*')
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 

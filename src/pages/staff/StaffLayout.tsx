@@ -133,8 +133,12 @@ export function StaffLayout() {
       <main className={`flex-1 overflow-auto ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className="max-w-7xl mx-auto p-6 lg:p-8">
           <div className="flex items-center justify-end gap-2 mb-4">
-            <ChatNotificationBell />
-            <NotificationCenter />
+            <PageErrorBoundary>
+              <ChatNotificationBell />
+            </PageErrorBoundary>
+            <PageErrorBoundary>
+              <NotificationCenter />
+            </PageErrorBoundary>
           </div>
           <PageErrorBoundary>
             <Outlet />
