@@ -1,45 +1,50 @@
 import { useState, useEffect } from 'react';
-import { Pill, Search, Package, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Pill, Search, Package, AlertTriangle, Plus, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { AddMedicationModal } from '../../components/pharmacy/AddMedicationModal';
 
-interface PharmacyItem {
+interface MedicationStock {
   id: string;
+  medication_id: string;
   generic_name: string;
   brand_name: string | null;
   strength: string;
   quantity: number;
-  status: string;
+  expiry_date: string | null;
 }
 
-export function PharmacyPage() {
-  const [medications, setMedications] = useState<PharmacyItem[]>([]);
+export function EnhancedPharmacyPage() {
+  const [stock, setStock] = useState<MedicationStock[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    fetchMedications();
+    fetchStock();
   }, []);
 
-  async function fetchMedications() {
+  async function fetchStock() {
     try {
       const { data } = await supabase
         .from('pharmacy_stock')
         .select(`
           id,
+          medication_id,
           quantity,
-          medication:medications(id, generic_name, brand_name, strength)
+          expiry_date,
+          medication:medications(generic_name, brand_name, strength)
         `)
-        .order('quantity', { ascending: true })
-        .limit(50);
+        .order('quantity', { ascending: true });
 
       if (data) {
-        setMedications(data.map((item: any) => ({
+        setStock(data.map((item: any) => ({
           id: item.id,
+          medication_id: item.medication_id,
           generic_name: item.medication?.generic_name || '',
           brand_name: item.medication?.brand_name || null,
           strength: item.medication?.strength || '',
           quantity: item.quantity || 0,
-          status: item.quantity === 0 ? 'rupture' : item.quantity < 10 ? 'bas' : 'ok',
+          expiry_date: item.expiry_date,
         })));
       }
     } catch (error) {
@@ -49,59 +54,29 @@ export function PharmacyPage() {
     }
   }
 
-  const filtered = medications.filter(m =>
+  const filtered = stock.filter(m =>
     searchQuery === '' ||
     m.generic_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (m.brand_name && m.brand_name.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const outOfStock = medications.filter(m => m.status === 'rupture').length;
-  const lowStock = medications.filter(m => m.status === 'bas').length;
-
   return (
-    <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <Pill className="w-7 h-7 text-blue-600" />
-          Pharmacie
-        </h1>
-        <p className="text-gray-500 mt-1">Gestion du stock pharmaceutique</p>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Package className="w-6 h-6 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Total produits</p>
-              <p className="text-2xl font-bold text-gray-900">{medications.length}</p>
-            </div>
-          </div>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <Package className="w-7 h-7 text-blue-600" />
+            Gestion avancee de l'inventaire
+          </h1>
+          <p className="text-gray-500 mt-1">Gerer les medicaments et le stock</p>
         </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-yellow-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Stock bas</p>
-              <p className="text-2xl font-bold text-gray-900">{lowStock}</p>
-            </div>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Rupture</p>
-              <p className="text-2xl font-bold text-gray-900">{outOfStock}</p>
-            </div>
-          </div>
-        </div>
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+        >
+          <Plus className="w-4 h-4" />
+          Ajouter
+        </button>
       </div>
 
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -110,7 +85,7 @@ export function PharmacyPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher un medicament..."
+              placeholder="Rechercher..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -146,19 +121,17 @@ export function PharmacyPage() {
                     <td className="px-4 py-3 text-gray-600">{med.strength}</td>
                     <td className="px-4 py-3 text-center font-medium">{med.quantity}</td>
                     <td className="px-4 py-3 text-center">
-                      {med.status === 'ok' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
-                          <CheckCircle className="w-3 h-3" /> OK
-                        </span>
-                      )}
-                      {med.status === 'bas' && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">
-                          <Clock className="w-3 h-3" /> Bas
-                        </span>
-                      )}
-                      {med.status === 'rupture' && (
+                      {med.quantity === 0 ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-700">
                           <AlertTriangle className="w-3 h-3" /> Rupture
+                        </span>
+                      ) : med.quantity < 10 ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-700">
+                          Bas
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+                          OK
                         </span>
                       )}
                     </td>
@@ -169,6 +142,16 @@ export function PharmacyPage() {
           </div>
         )}
       </div>
+
+      {showAddModal && (
+        <AddMedicationModal
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            fetchStock();
+          }}
+        />
+      )}
     </div>
   );
 }

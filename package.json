@@ -13,7 +13,6 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@supabase/supabase-js": "^2.57.4",
-    "@types/qrcode": "^1.5.6",
     "d3": "^7.9.0",
     "docx": "^9.5.1",
     "framer-motion": "^12.38.0",
@@ -33,6 +32,7 @@
     "@eslint/js": "^9.9.1",
     "@types/d3": "^7.4.3",
     "@types/node": "^24.10.1",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^5.1.4",

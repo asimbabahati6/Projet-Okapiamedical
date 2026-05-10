@@ -1,0 +1,175 @@
+import { supabase } from '../lib/supabase';
+import { EmployeeFormData } from '../types/employeeForm';
+
+export interface Department {
+  id: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+}
+
+export interface EmployeeDocument {
+  id: string;
+  employee_id: string;
+  document_type: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  uploaded_by: string | null;
+  uploaded_at: string;
+  notes: string | null;
+}
+
+export async function getDepartments(): Promise<Department[]> {
+  const { data, error } = await supabase
+    .from('departments')
+    .select('id, name, description, is_active')
+    .eq('is_active', true)
+    .order('name');
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function getEmployeeById(id: string) {
+  const { data, error } = await supabase
+    .from('employees')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function createEmployee(formData: EmployeeFormData): Promise<string> {
+  const employeeNumber = await generateUniqueEmployeeNumber();
+
+  const { data, error } = await supabase
+    .from('employees')
+    .insert({
+      employee_number: employeeNumber,
+      first_name: formData.personalInfo.firstName,
+      last_name: formData.personalInfo.lastName,
+      date_of_birth: formData.personalInfo.dateOfBirth,
+      gender: formData.personalInfo.gender,
+      nationality: formData.personalInfo.nationality,
+      marital_status: formData.personalInfo.maritalStatus,
+      phone: formData.contactDetails.phone,
+      email: formData.contactDetails.email,
+      address: formData.contactDetails.address,
+      city: formData.contactDetails.city,
+      department_id: formData.professionalInfo.departmentId || null,
+      position: formData.professionalInfo.position,
+      contract_type: formData.professionalInfo.contractType,
+      employment_status: formData.professionalInfo.employmentStatus,
+      hire_date: formData.professionalInfo.hireDate,
+      salary: formData.bankingInfo.salary ? Number(formData.bankingInfo.salary) : null,
+      bank_name: formData.bankingInfo.bankName,
+      bank_account: formData.bankingInfo.accountNumber,
+      emergency_contact_name: formData.emergencyContact.name,
+      emergency_contact_phone: formData.emergencyContact.phone,
+      emergency_contact_relationship: formData.emergencyContact.relationship,
+    })
+    .select('id')
+    .single();
+
+  if (error) throw error;
+  return data.id;
+}
+
+export async function updateEmployee(id: string, formData: Partial<EmployeeFormData>): Promise<void> {
+  const updates: Record<string, unknown> = {};
+
+  if (formData.personalInfo) {
+    updates.first_name = formData.personalInfo.firstName;
+    updates.last_name = formData.personalInfo.lastName;
+    updates.date_of_birth = formData.personalInfo.dateOfBirth;
+    updates.gender = formData.personalInfo.gender;
+    updates.nationality = formData.personalInfo.nationality;
+    updates.marital_status = formData.personalInfo.maritalStatus;
+  }
+
+  if (formData.contactDetails) {
+    updates.phone = formData.contactDetails.phone;
+    updates.email = formData.contactDetails.email;
+    updates.address = formData.contactDetails.address;
+    updates.city = formData.contactDetails.city;
+  }
+
+  if (formData.professionalInfo) {
+    updates.department_id = formData.professionalInfo.departmentId || null;
+    updates.position = formData.professionalInfo.position;
+    updates.contract_type = formData.professionalInfo.contractType;
+    updates.employment_status = formData.professionalInfo.employmentStatus;
+    updates.hire_date = formData.professionalInfo.hireDate;
+  }
+
+  if (formData.bankingInfo) {
+    updates.salary = formData.bankingInfo.salary ? Number(formData.bankingInfo.salary) : null;
+    updates.bank_name = formData.bankingInfo.bankName;
+    updates.bank_account = formData.bankingInfo.accountNumber;
+  }
+
+  if (formData.emergencyContact) {
+    updates.emergency_contact_name = formData.emergencyContact.name;
+    updates.emergency_contact_phone = formData.emergencyContact.phone;
+    updates.emergency_contact_relationship = formData.emergencyContact.relationship;
+  }
+
+  const { error } = await supabase
+    .from('employees')
+    .update(updates)
+    .eq('id', id);
+
+  if (error) throw error;
+}
+
+export async function generateUniqueEmployeeNumber(): Promise<string> {
+  const year = new Date().getFullYear().toString().slice(-2);
+  const { count } = await supabase
+    .from('employees')
+    .select('*', { count: 'exact', head: true });
+
+  const nextNum = ((count || 0) + 1).toString().padStart(4, '0');
+  return `EMP-${year}${nextNum}`;
+}
+
+export async function getEmployeeDocuments(employeeId: string): Promise<EmployeeDocument[]> {
+  const { data, error } = await supabase
+    .from('employee_documents')
+    .select('*')
+    .eq('employee_id', employeeId)
+    .order('uploaded_at', { ascending: false });
+
+  if (error) throw error;
+  return data || [];
+}
+
+export async function addEmployeeDocument(doc: {
+  employee_id: string;
+  document_type: string;
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  uploaded_by: string | null;
+  notes?: string;
+}): Promise<EmployeeDocument> {
+  const { data, error } = await supabase
+    .from('employee_documents')
+    .insert(doc)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
+export async function deleteEmployeeDocument(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('employee_documents')
+    .delete()
+    .eq('id', id);
+
+  if (error) throw error;
+}
