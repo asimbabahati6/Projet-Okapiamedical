@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Search, Plus, Phone, MapPin } from 'lucide-react';
+import { Users, Search, Plus, Phone, MapPin, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Patient {
@@ -16,6 +16,21 @@ export function PatientManagement() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    first_name: '',
+    last_name: '',
+    gender: 'M',
+    date_of_birth: '',
+    phone: '',
+    email: '',
+    city: '',
+    address: '',
+    blood_group: '',
+    emergency_contact_name: '',
+    emergency_contact_phone: '',
+  });
 
   useEffect(() => {
     fetchPatients();
@@ -25,17 +40,59 @@ export function PatientManagement() {
     try {
       const { data } = await supabase
         .from('patients')
-        .select('id, full_name, phone, gender, date_of_birth, city, created_at')
+        .select('id, first_name, last_name, phone, gender, date_of_birth, city, created_at')
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (data) {
-        setPatients(data as Patient[]);
+        setPatients(data.map((p: Record<string, unknown>) => ({
+          id: p.id as string,
+          full_name: `${p.last_name || ''} ${p.first_name || ''}`.trim(),
+          phone: (p.phone as string) || '',
+          gender: (p.gender as string) || '',
+          date_of_birth: p.date_of_birth as string | null,
+          city: p.city as string | null,
+          created_at: p.created_at as string,
+        })));
       }
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleCreatePatient(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const now = new Date();
+      const patientNumber = `PAT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+      const { error } = await supabase.from('patients').insert({
+        patient_number: patientNumber,
+        first_name: form.first_name,
+        last_name: form.last_name,
+        gender: form.gender,
+        date_of_birth: form.date_of_birth,
+        phone: form.phone || null,
+        email: form.email || null,
+        city: form.city || null,
+        address: form.address || null,
+        blood_group: form.blood_group || null,
+        emergency_contact_name: form.emergency_contact_name || null,
+        emergency_contact_phone: form.emergency_contact_phone || null,
+      });
+
+      if (error) throw error;
+
+      setShowModal(false);
+      setForm({ first_name: '', last_name: '', gender: 'M', date_of_birth: '', phone: '', email: '', city: '', address: '', blood_group: '', emergency_contact_name: '', emergency_contact_phone: '' });
+      fetchPatients();
+    } catch (error) {
+      console.error('Error creating patient:', error);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -54,7 +111,10 @@ export function PatientManagement() {
           </h1>
           <p className="text-gray-500 mt-1">Registre et dossiers des patients</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+        >
           <Plus className="w-4 h-4" />
           Nouveau patient
         </button>
@@ -124,6 +184,175 @@ export function PatientManagement() {
           </div>
         )}
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Nouveau patient</h2>
+              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreatePatient} className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Nom *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.last_name}
+                    onChange={(e) => setForm({ ...form, last_name: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Nom de famille"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Prenom *</label>
+                  <input
+                    type="text"
+                    required
+                    value={form.first_name}
+                    onChange={(e) => setForm({ ...form, first_name: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Prenom"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Sexe *</label>
+                  <select
+                    required
+                    value={form.gender}
+                    onChange={(e) => setForm({ ...form, gender: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="M">Masculin</option>
+                    <option value="F">Feminin</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date de naissance *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.date_of_birth}
+                    onChange={(e) => setForm({ ...form, date_of_birth: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Telephone</label>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="+243..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="email@exemple.com"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ville</label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => setForm({ ...form, city: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Ville"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Groupe sanguin</label>
+                  <select
+                    value={form.blood_group}
+                    onChange={(e) => setForm({ ...form, blood_group: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    <option value="">-- Non renseigne --</option>
+                    <option value="A+">A+</option>
+                    <option value="A-">A-</option>
+                    <option value="B+">B+</option>
+                    <option value="B-">B-</option>
+                    <option value="AB+">AB+</option>
+                    <option value="AB-">AB-</option>
+                    <option value="O+">O+</option>
+                    <option value="O-">O-</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
+                <input
+                  type="text"
+                  value={form.address}
+                  onChange={(e) => setForm({ ...form, address: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  placeholder="Adresse complete"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact d'urgence</label>
+                  <input
+                    type="text"
+                    value={form.emergency_contact_name}
+                    onChange={(e) => setForm({ ...form, emergency_contact_name: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Nom du contact"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tel. urgence</label>
+                  <input
+                    type="tel"
+                    value={form.emergency_contact_phone}
+                    onChange={(e) => setForm({ ...form, emergency_contact_phone: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="+243..."
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

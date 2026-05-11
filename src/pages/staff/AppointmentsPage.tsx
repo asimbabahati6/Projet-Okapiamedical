@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Search, Clock, User, Filter } from 'lucide-react';
+import { Calendar, Plus, Search, Clock, User, Filter, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface Appointment {
@@ -12,11 +12,35 @@ interface Appointment {
   doctor_name?: string;
 }
 
+interface Patient {
+  id: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+}
+
+interface Department {
+  id: string;
+  name: string;
+}
+
 export function AppointmentsPage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [showModal, setShowModal] = useState(false);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    patient_id: '',
+    department_id: '',
+    appointment_date: '',
+    appointment_time: '',
+    reason: '',
+    appointment_type: 'consultation',
+  });
 
   useEffect(() => {
     fetchAppointments();
@@ -44,6 +68,46 @@ export function AppointmentsPage() {
       console.error('Error:', error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function openNewAppointmentModal() {
+    setShowModal(true);
+    const [{ data: pats }, { data: deps }] = await Promise.all([
+      supabase.from('patients').select('id, first_name, last_name, phone').order('last_name').limit(200),
+      supabase.from('departments').select('id, name').order('name'),
+    ]);
+    if (pats) setPatients(pats);
+    if (deps) setDepartments(deps);
+  }
+
+  async function handleCreateAppointment(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const now = new Date();
+      const appointmentNumber = `RDV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+
+      const { error } = await supabase.from('appointments').insert({
+        appointment_number: appointmentNumber,
+        patient_id: form.patient_id || null,
+        department_id: form.department_id || null,
+        appointment_date: form.appointment_date,
+        appointment_time: form.appointment_time,
+        reason: form.reason || null,
+        appointment_type: form.appointment_type,
+        status: 'pending',
+      });
+
+      if (error) throw error;
+
+      setShowModal(false);
+      setForm({ patient_id: '', department_id: '', appointment_date: '', appointment_time: '', reason: '', appointment_type: 'consultation' });
+      fetchAppointments();
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -83,7 +147,10 @@ export function AppointmentsPage() {
           </h1>
           <p className="text-gray-500 mt-1">Gestion des rendez-vous et consultations</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+        <button
+          onClick={openNewAppointmentModal}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+        >
           <Plus className="w-4 h-4" />
           Nouveau rendez-vous
         </button>
@@ -169,6 +236,113 @@ export function AppointmentsPage() {
           </div>
         )}
       </div>
+
+      {showModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900">Nouveau rendez-vous</h2>
+              <button onClick={() => setShowModal(false)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateAppointment} className="p-5 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
+                <select
+                  value={form.patient_id}
+                  onChange={(e) => setForm({ ...form, patient_id: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">-- Selectionner un patient --</option>
+                  {patients.map(p => (
+                    <option key={p.id} value={p.id}>{p.last_name} {p.first_name} {p.phone ? `(${p.phone})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departement</label>
+                <select
+                  value={form.department_id}
+                  onChange={(e) => setForm({ ...form, department_id: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">-- Selectionner un departement --</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.appointment_date}
+                    onChange={(e) => setForm({ ...form, appointment_date: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Heure *</label>
+                  <input
+                    type="time"
+                    required
+                    value={form.appointment_time}
+                    onChange={(e) => setForm({ ...form, appointment_time: e.target.value })}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+                <select
+                  value={form.appointment_type}
+                  onChange={(e) => setForm({ ...form, appointment_type: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="consultation">Consultation</option>
+                  <option value="follow_up">Suivi</option>
+                  <option value="emergency">Urgence</option>
+                  <option value="telemedicine">Teleconsultation</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
+                <textarea
+                  value={form.reason}
+                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  rows={2}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                  placeholder="Motif de la consultation..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
+                >
+                  {saving ? 'Enregistrement...' : 'Enregistrer'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
