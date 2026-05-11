@@ -3,7 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 
 const CLINIC_LAT = -4.3716655824942405;
 const CLINIC_LNG = 15.253661517603327;
-const GEOFENCE_RADIUS_METERS = 20;
+const GEOFENCE_RADIUS_METERS = 100;
 const MIN_GPS_ACCURACY_METERS = 50;
 const EXEMPT_ROLES = ['super_admin', 'hospital_admin', 'directeur_general'];
 
