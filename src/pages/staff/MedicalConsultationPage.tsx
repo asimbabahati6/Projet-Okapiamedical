@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   FileText, Plus, Search, Clock, User, FileSearch, UserPlus, RefreshCw,
-  ChevronRight, ArrowLeft, AlertCircle
+  ChevronRight, ArrowLeft, AlertCircle, List
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -42,13 +42,14 @@ interface ConsultationFull {
 }
 
 type FlowMode = 'new_patient' | 'exam_referral';
+type ViewMode = 'list' | 'new' | 'detail';
 
 export default function MedicalConsultationPage() {
   const { user, profile } = useAuth();
   const [consultations, setConsultations] = useState<ConsultationListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeConsultation, setActiveConsultation] = useState<ConsultationFull | null>(null);
-  const [showNewForm, setShowNewForm] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -92,10 +93,24 @@ export default function MedicalConsultationPage() {
         .maybeSingle();
 
       if (error) throw error;
-      if (data) setActiveConsultation(data);
+      if (data) {
+        setActiveConsultation(data);
+        setViewMode('detail');
+      }
     } catch (err) {
       console.error('Error loading consultation:', err);
     }
+  }
+
+  function handleCreated(id: string) {
+    openConsultation(id);
+    loadConsultations();
+  }
+
+  function handleBack() {
+    setViewMode('list');
+    setActiveConsultation(null);
+    loadConsultations();
   }
 
   const filteredConsultations = consultations.filter(c => {
@@ -106,49 +121,59 @@ export default function MedicalConsultationPage() {
     return patientName.includes(q) || patientNum.includes(q) || (c.consultation_number || '').toLowerCase().includes(q);
   });
 
-  if (activeConsultation) {
+  // Detail view
+  if (viewMode === 'detail' && activeConsultation) {
     return (
       <ConsultationDetail
         consultation={activeConsultation}
         isNurseRole={isNurseRole}
         isDoctorRole={isDoctorRole}
         userId={user?.id || ''}
-        onBack={() => { setActiveConsultation(null); loadConsultations(); }}
-        onRefresh={async () => {
-          await openConsultation(activeConsultation.id);
-        }}
+        onBack={handleBack}
+        onRefresh={async () => { await openConsultation(activeConsultation.id); }}
       />
     );
   }
 
-  if (showNewForm) {
+  // New consultation form
+  if (viewMode === 'new') {
     return (
       <NewConsultationForm
         userId={user?.id || ''}
         isNurseRole={isNurseRole}
-        onBack={() => setShowNewForm(false)}
-        onCreated={(id) => { setShowNewForm(false); openConsultation(id); }}
+        onBack={() => setViewMode('list')}
+        onCreated={handleCreated}
       />
     );
   }
 
+  // List view
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
             <FileText className="w-7 h-7 text-teal-600" />
-            Consultations Médicales
+            Consultation Médicale
           </h1>
-          <p className="text-sm text-gray-500 mt-1">Workflow infirmier-médecin</p>
+          <p className="text-sm text-gray-500 mt-1">Workflow infirmier - médecin</p>
         </div>
         <button
-          onClick={() => setShowNewForm(true)}
+          onClick={() => setViewMode('new')}
           className="flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium shadow-sm"
         >
           <Plus className="w-4 h-4" />
           Nouvelle consultation
         </button>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <StatCard label="Total" value={consultations.length} color="gray" />
+        <StatCard label="Infirmier" value={consultations.filter(c => c.workflow_status === 'nurse_in_progress' || c.workflow_status === 'nurse_pending').length} color="blue" />
+        <StatCard label="Att. Médecin" value={consultations.filter(c => c.workflow_status === 'awaiting_doctor').length} color="amber" />
+        <StatCard label="Médecin" value={consultations.filter(c => c.workflow_status === 'doctor_in_progress').length} color="teal" />
+        <StatCard label="Terminé" value={consultations.filter(c => c.workflow_status === 'completed').length} color="green" />
       </div>
 
       {/* Filters */}
@@ -160,13 +185,13 @@ export default function MedicalConsultationPage() {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Rechercher par patient ou numéro..."
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+          className="px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
         >
           <option value="all">Tous les statuts</option>
           <option value="nurse_pending">En attente infirmier</option>
@@ -175,7 +200,7 @@ export default function MedicalConsultationPage() {
           <option value="doctor_in_progress">Médecin en cours</option>
           <option value="completed">Terminé</option>
         </select>
-        <button onClick={loadConsultations} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">
+        <button onClick={loadConsultations} className="p-2.5 text-gray-500 hover:bg-gray-100 rounded-lg transition-colors border border-gray-300">
           <RefreshCw className="w-4 h-4" />
         </button>
       </div>
@@ -186,9 +211,16 @@ export default function MedicalConsultationPage() {
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-600" />
         </div>
       ) : filteredConsultations.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <FileText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p className="text-sm">Aucune consultation trouvée</p>
+        <div className="text-center py-16 bg-white rounded-xl border border-gray-200">
+          <List className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+          <p className="text-gray-500 mb-4">Aucune consultation en cours</p>
+          <button
+            onClick={() => setViewMode('new')}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" />
+            Démarrer une consultation
+          </button>
         </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
@@ -215,7 +247,7 @@ export default function MedicalConsultationPage() {
                   <span className="text-xs text-gray-300">|</span>
                   <span className="text-xs text-gray-400 flex items-center gap-1">
                     <Clock className="w-3 h-3" />
-                    {new Date(c.created_at).toLocaleDateString('fr-FR')}
+                    {new Date(c.created_at).toLocaleDateString('fr-FR')} {new Date(c.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
                   </span>
                 </div>
               </div>
@@ -228,6 +260,26 @@ export default function MedicalConsultationPage() {
     </div>
   );
 }
+
+// ─── Stats Card ──────────────────────────────────────────────────────────────
+
+function StatCard({ label, value, color }: { label: string; value: number; color: string }) {
+  const colorClasses: Record<string, string> = {
+    gray: 'border-gray-200 text-gray-700',
+    blue: 'border-blue-100 text-blue-700',
+    amber: 'border-amber-100 text-amber-700',
+    teal: 'border-teal-100 text-teal-700',
+    green: 'border-green-100 text-green-700',
+  };
+  return (
+    <div className={`bg-white rounded-xl border p-3.5 ${colorClasses[color]}`}>
+      <p className="text-[11px] font-medium uppercase tracking-wide opacity-70">{label}</p>
+      <p className="text-xl font-bold mt-0.5">{value}</p>
+    </div>
+  );
+}
+
+// ─── Workflow Status Badge ────────────────────────────────────────────────────
 
 function WorkflowStatusBadge({ status }: { status: WorkflowStatus }) {
   const config: Record<WorkflowStatus, { label: string; color: string }> = {
@@ -316,124 +368,134 @@ function NewConsultationForm({ userId, isNurseRole, onBack, onCreated }: NewCons
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-6">
       <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
         <ArrowLeft className="w-4 h-4" />
         Retour à la liste
       </button>
 
-      <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
-        <h2 className="text-lg font-bold text-gray-900">Nouvelle Consultation</h2>
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50">
+          <h2 className="text-lg font-bold text-gray-900">Nouvelle Consultation</h2>
+          <p className="text-sm text-gray-500 mt-0.5">Sélectionnez le type de flux et le patient</p>
+        </div>
 
-        {/* Flow Mode Selection */}
-        {!flowMode ? (
-          <div className="grid grid-cols-2 gap-4">
-            <button
-              onClick={() => setFlowMode('new_patient')}
-              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-gray-200 hover:border-green-400 hover:bg-green-50/50 transition-all group"
-            >
-              <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                <UserPlus className="w-7 h-7 text-green-600" />
-              </div>
-              <div className="text-center">
-                <p className="font-semibold text-gray-900">Nouveau Patient</p>
-                <p className="text-xs text-gray-500 mt-1">Dossier complet</p>
-              </div>
-            </button>
-            <button
-              onClick={() => setFlowMode('exam_referral')}
-              className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50/50 transition-all group"
-            >
-              <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-                <FileSearch className="w-7 h-7 text-blue-600" />
-              </div>
-              <div className="text-center">
-                <p className="font-semibold text-gray-900">Patient Recommandé</p>
-                <p className="text-xs text-gray-500 mt-1">Examen - formulaire simplifié</p>
-              </div>
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className={`flex items-center gap-2 p-3 rounded-lg border ${
-              flowMode === 'new_patient' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-blue-50 border-blue-200 text-blue-800'
-            }`}>
-              {flowMode === 'new_patient' ? <UserPlus className="w-4 h-4" /> : <FileSearch className="w-4 h-4" />}
-              <span className="text-sm font-medium">
-                {flowMode === 'new_patient' ? 'Nouveau Patient (Dossier complet)' : 'Patient Recommandé pour Examen'}
-              </span>
-              <button onClick={() => setFlowMode(null)} className="ml-auto text-xs underline opacity-70 hover:opacity-100">Changer</button>
-            </div>
-
-            {/* Patient Search */}
-            <div className="relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Numéro ou nom du patient *</label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="text"
-                  value={patientSearch}
-                  onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null); }}
-                  placeholder="PAT-XXXX ou nom du patient..."
-                  className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
-              </div>
-              {selectedPatient && (
-                <p className="mt-1 text-xs text-green-600 font-medium">
-                  Sélectionné: {selectedPatient.last_name} {selectedPatient.first_name} ({selectedPatient.patient_number})
-                </p>
-              )}
-              {showDropdown && filteredPatients.length > 0 && !selectedPatient && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                  {filteredPatients.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => { setSelectedPatient(p); setPatientSearch(`${p.last_name} ${p.first_name}`); setShowDropdown(false); }}
-                      className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                    >
-                      <span className="text-sm font-medium text-gray-900">{p.last_name} {p.first_name}</span>
-                      <span className="text-xs text-gray-500 ml-2">{p.patient_number}</span>
-                    </button>
-                  ))}
+        <div className="p-6 space-y-6">
+          {/* Flow Mode Toggle */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-3">Type de consultation</label>
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                type="button"
+                onClick={() => setFlowMode('new_patient')}
+                className={`flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                  flowMode === 'new_patient'
+                    ? 'border-green-500 bg-green-50 shadow-sm'
+                    : 'border-gray-200 hover:border-green-300 hover:bg-green-50/30'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  flowMode === 'new_patient' ? 'bg-green-200' : 'bg-green-100'
+                }`}>
+                  <UserPlus className="w-6 h-6 text-green-600" />
                 </div>
-              )}
+                <div className="text-center">
+                  <p className="font-semibold text-gray-900 text-sm">Nouveau Patient</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Dossier complet</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFlowMode('exam_referral')}
+                className={`flex flex-col items-center gap-3 p-5 rounded-xl border-2 transition-all ${
+                  flowMode === 'exam_referral'
+                    ? 'border-blue-500 bg-blue-50 shadow-sm'
+                    : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+                }`}
+              >
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                  flowMode === 'exam_referral' ? 'bg-blue-200' : 'bg-blue-100'
+                }`}>
+                  <FileSearch className="w-6 h-6 text-blue-600" />
+                </div>
+                <div className="text-center">
+                  <p className="font-semibold text-gray-900 text-sm">Patient Recommandé</p>
+                  <p className="text-[11px] text-gray-500 mt-0.5">Examen seul</p>
+                </div>
+              </button>
             </div>
+          </div>
 
-            {flowMode === 'exam_referral' && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Médecin Prescripteur</label>
-                <input
-                  type="text"
-                  value={prescribingDoctor}
-                  onChange={(e) => setPrescribingDoctor(e.target.value)}
-                  placeholder="Dr. ..."
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-                />
+          {/* Patient Search */}
+          <div className="relative">
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Identification du patient *</label>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                value={patientSearch}
+                onChange={(e) => { setPatientSearch(e.target.value); setSelectedPatient(null); }}
+                placeholder="Numéro patient (PAT-XXXX) ou nom..."
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+            {selectedPatient && (
+              <p className="mt-1.5 text-xs text-green-600 font-medium flex items-center gap-1">
+                <User className="w-3 h-3" />
+                {selectedPatient.last_name} {selectedPatient.first_name} ({selectedPatient.patient_number})
+              </p>
+            )}
+            {showDropdown && filteredPatients.length > 0 && !selectedPatient && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                {filteredPatients.map(p => (
+                  <button
+                    key={p.id}
+                    onClick={() => { setSelectedPatient(p); setPatientSearch(`${p.last_name} ${p.first_name}`); setShowDropdown(false); }}
+                    className="w-full text-left px-4 py-2.5 hover:bg-gray-50 border-b border-gray-100 last:border-0 transition-colors"
+                  >
+                    <span className="text-sm font-medium text-gray-900">{p.last_name} {p.first_name}</span>
+                    <span className="text-xs text-gray-500 ml-2">{p.patient_number}</span>
+                  </button>
+                ))}
               </div>
             )}
+          </div>
 
-            {error && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {error}
-              </div>
-            )}
+          {/* Prescribing Doctor (exam referral only) */}
+          {flowMode === 'exam_referral' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Médecin Prescripteur</label>
+              <input
+                type="text"
+                value={prescribingDoctor}
+                onChange={(e) => setPrescribingDoctor(e.target.value)}
+                placeholder="Dr. ..."
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-teal-500 focus:border-transparent"
+              />
+            </div>
+          )}
 
-            <button
-              onClick={handleCreate}
-              disabled={saving || !selectedPatient}
-              className="w-full px-5 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm disabled:opacity-50"
-            >
-              {saving ? 'Création...' : 'Créer la consultation'}
-            </button>
-          </>
-        )}
+          {error && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              {error}
+            </div>
+          )}
+
+          <button
+            onClick={handleCreate}
+            disabled={saving || !selectedPatient || !flowMode}
+            className="w-full px-5 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm disabled:opacity-50 shadow-sm"
+          >
+            {saving ? 'Création en cours...' : 'Créer et ouvrir la consultation'}
+          </button>
+        </div>
       </div>
     </div>
   );
 }
 
-// ─── Consultation Detail ─────────────────────────────────────────────────────
+// ─── Consultation Detail (Full Form) ─────────────────────────────────────────
 
 interface ConsultationDetailProps {
   consultation: ConsultationFull;
@@ -466,6 +528,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
   const [treatmentPlan, setTreatmentPlan] = useState(consultation.treatment_plan || '');
   const [paraclinicalExams, setParaclinicalExams] = useState<any[]>(consultation.paraclinical_exams || []);
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
 
   async function saveNurseData() {
     setSaving(true);
@@ -477,6 +540,8 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
         nurse_id: userId,
         updated_at: new Date().toISOString(),
       }).eq('id', consultation.id);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     } finally {
       setSaving(false);
     }
@@ -516,6 +581,8 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
         doctor_id: userId,
         updated_at: new Date().toISOString(),
       }).eq('id', consultation.id);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 2000);
     } finally {
       setSaving(false);
     }
@@ -563,7 +630,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
     : 'Patient';
 
   const isCompleted = consultation.workflow_status === 'completed';
-  const nurseCanEdit = isNurseRole && !nurseLocked;
+  const nurseCanEdit = (isNurseRole || isDoctorRole) && !nurseLocked;
   const doctorCanEdit = isDoctorRole && !isCompleted;
 
   return (
@@ -572,30 +639,43 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
       <div className="flex items-center justify-between">
         <button onClick={onBack} className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 transition-colors">
           <ArrowLeft className="w-4 h-4" />
-          Retour
+          Retour à la liste
         </button>
-        {!isCompleted && (isDoctorRole || isNurseRole) && (
-          <button
-            onClick={isDoctorRole ? saveDoctorData : saveNurseData}
-            disabled={saving}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-          >
-            {saving ? 'Sauvegarde...' : 'Sauvegarder brouillon'}
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {saveSuccess && (
+            <span className="text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full font-medium border border-green-200">
+              Sauvegardé
+            </span>
+          )}
+          {!isCompleted && (
+            <button
+              onClick={isDoctorRole ? saveDoctorData : saveNurseData}
+              disabled={saving}
+              className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+            >
+              {saving ? 'Sauvegarde...' : 'Sauvegarder'}
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Patient Info Banner */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <div className="flex items-center justify-between mb-4">
+      {/* Patient Info + Progress */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5 space-y-5">
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center">
               <User className="w-5 h-5 text-gray-500" />
             </div>
             <div>
-              <h2 className="font-bold text-gray-900">{patientName}</h2>
-              <div className="flex items-center gap-2 text-xs text-gray-500">
+              <h2 className="font-bold text-gray-900 text-lg">{patientName}</h2>
+              <div className="flex items-center gap-2 text-xs text-gray-500 mt-0.5">
                 <span>{consultation.patient?.patient_number}</span>
+                {consultation.patient?.phone && (
+                  <>
+                    <span className="text-gray-300">|</span>
+                    <span>{consultation.patient.phone}</span>
+                  </>
+                )}
                 {consultation.flow_mode === 'exam_referral' && consultation.prescribing_doctor_name && (
                   <>
                     <span className="text-gray-300">|</span>
@@ -605,7 +685,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
               </div>
             </div>
           </div>
-          <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+          <div className={`px-3 py-1.5 rounded-full text-xs font-semibold ${
             consultation.flow_mode === 'exam_referral'
               ? 'bg-blue-50 text-blue-700 border border-blue-200'
               : 'bg-green-50 text-green-700 border border-green-200'
@@ -614,10 +694,13 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
           </div>
         </div>
 
-        <ConsultationProgressBar status={consultation.workflow_status} />
+        {/* Progress Bar */}
+        <div className="pt-2">
+          <ConsultationProgressBar status={consultation.workflow_status} />
+        </div>
       </div>
 
-      {/* Nurse Section */}
+      {/* Nurse Section - always visible */}
       <NursePreConsultation
         complaints={complaints}
         vitalSigns={vitalSigns}
@@ -626,10 +709,10 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
         onComplaintsChange={setComplaints}
         onVitalSignChange={handleVitalSignChange}
         onTransferToDoctor={transferToDoctor}
-        onToggleEdit={() => setNurseLocked(false)}
+        onToggleEdit={isDoctorRole ? () => setNurseLocked(false) : undefined}
       />
 
-      {/* Doctor Section -- show only if nurse is done or doctor opens it directly */}
+      {/* Doctor Section - always visible once nurse is done, or if doctor opened it directly */}
       {(nurseLocked || isDoctorRole || consultation.workflow_status === 'doctor_in_progress' || isCompleted) && (
         <DoctorExamination
           medicalHistory={medicalHistory}
@@ -645,6 +728,24 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
           onComplete={completeConsultation}
         />
       )}
+
+      {/* Completed badge */}
+      {isCompleted && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+            <FileText className="w-4 h-4 text-green-600" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-green-800">Consultation terminée</p>
+            <p className="text-xs text-green-600 mt-0.5">
+              Clôturée le {consultation.created_at ? new Date(consultation.created_at).toLocaleDateString('fr-FR') : ''}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
+export default MedicalConsultationPage

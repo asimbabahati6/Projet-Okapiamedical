@@ -35,7 +35,6 @@ import { PatientManagement } from './pages/staff/PatientManagement';
 import { LaboratoryPage } from './pages/staff/LaboratoryPage';
 import DoctorsDashboardPage from './pages/staff/DoctorsDashboardPage';
 import PurchaseOrdersPage from './pages/staff/PurchaseOrdersPage';
-import { ConsultationsPage } from './pages/staff/ConsultationsPage';
 import { PharmacyPage } from './pages/staff/PharmacyPage';
 import { PrescriptionsPage } from './pages/staff/PrescriptionsPage';
 import DoctorVisibilityPage from './pages/staff/DoctorVisibilityPage';
@@ -174,7 +173,6 @@ function App() {
                   <Route path="logistics" element={<LogisticsPage />} />
                   <Route path="transport" element={<TransportManagementPage />} />
                   <Route path="facilities" element={<AdminFacilitiesPage />} />
-                  <Route path="consultations" element={<ConsultationsPage />} />
                   <Route path="prescriptions" element={<PrescriptionsPage />} />
                   <Route path="pharmacy" element={<PharmacyPage />} />
                   <Route path="patient-checkin" element={<PatientCheckInPage />} />
