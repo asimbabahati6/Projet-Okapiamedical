@@ -746,6 +746,3 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
     </div>
   );
 }
-
-
-export default MedicalConsultationPage
