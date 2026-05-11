@@ -153,6 +153,7 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'insurance', label: 'Assurances', icon: 'Shield', path: '/staff/insurance', roles: ['admin', 'accountant', 'directeur_general'] },
       { id: 'doctor-visibility', label: 'Visibilité médecins', icon: 'Settings', path: '/staff/doctor-visibility', roles: ADMIN_ROLES },
       { id: 'role-management', label: 'Gestion des rôles', icon: 'UserCog', path: '/staff/role-management', roles: ['admin', 'directeur_general'] },
+      { id: 'pending-registrations', label: 'Inscriptions en attente', icon: 'UserCheck', path: '/staff/pending-registrations', roles: ['admin', 'directeur_general'] },
     ],
   },
   {

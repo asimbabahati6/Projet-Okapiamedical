@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Mail, Lock, AlertCircle, User, Briefcase, Phone } from 'lucide-react';
+import { Activity, Mail, Lock, AlertCircle, User, Briefcase, Phone, CheckCircle2 } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 
@@ -9,6 +9,7 @@ export function StaffRegister() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -87,12 +88,26 @@ export function StaffRegister() {
             role_id: formData.roleId,
             full_name: formData.fullName,
             phone: formData.phone,
-            is_active: true,
+            is_active: false,
+            account_status: 'pending',
           });
 
         if (profileError) throw profileError;
 
-        navigate('/admin');
+        const selectedRole = roles.find(r => r.id === formData.roleId);
+        try {
+          await supabase.functions.invoke('notify-admin-registration', {
+            body: {
+              name: formData.fullName,
+              email: formData.email,
+              role: selectedRole?.name || 'unknown',
+            },
+          });
+        } catch (notifError) {
+          console.error('Notification error (non-blocking):', notifError);
+        }
+
+        setRegistrationSuccess(true);
       }
     } catch (err: any) {
       console.error('Registration error:', err);
@@ -114,6 +129,38 @@ export function StaffRegister() {
     };
     return roleNames[roleName] || roleName;
   };
+
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
+        <div className="max-w-md w-full">
+          <div className="bg-white rounded-xl shadow-2xl p-8 text-center">
+            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 text-green-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">Inscription reussie</h2>
+            <p className="text-gray-600 mb-6 leading-relaxed">
+              Votre compte est en attente de validation par un administrateur. Vous serez notifie lorsque votre acces sera active.
+            </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-amber-800">
+                Un administrateur a ete informe de votre demande d'inscription et procedera a la validation dans les plus brefs delais.
+              </p>
+            </div>
+            <button
+              onClick={() => navigate('/admin')}
+              className="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              Retour a la connexion
+            </button>
+          </div>
+          <div className="mt-6 text-center text-white text-sm">
+            <p>&copy; {new Date().getFullYear()} OKAPIA Medical. Tous droits reserves.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">

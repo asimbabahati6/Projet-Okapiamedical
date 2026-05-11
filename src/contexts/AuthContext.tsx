@@ -2,6 +2,8 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
+export type AccountStatus = 'pending' | 'active' | 'disabled';
+
 interface UserProfile {
   id: string;
   role_id: string;
@@ -11,6 +13,7 @@ interface UserProfile {
   department_id: string | null;
   is_active: boolean;
   must_change_password: boolean;
+  account_status: AccountStatus;
   role?: {
     name: string;
     description: string;
@@ -28,6 +31,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   isRole: (roleName: string | string[]) => boolean;
   isPatient: () => boolean;
+  isAccountActive: () => boolean;
   canAccessBackend: () => boolean;
   canManagePosts: () => boolean;
   canManageEmployees: () => boolean;
@@ -155,6 +159,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return profile.role.name === 'patient';
   }
 
+  function isAccountActive(): boolean {
+    if (!profile) return false;
+    return profile.account_status === 'active';
+  }
+
   function canAccessBackend(): boolean {
     if (!profile?.role) return false;
     const allowedRoles = [
@@ -200,6 +209,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut,
     isRole,
     isPatient,
+    isAccountActive,
     canAccessBackend,
     canManagePosts,
     canManageEmployees,

@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { AccessDenied } from './AccessDenied';
+import { Clock, LogOut, ShieldX } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -8,7 +9,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRouteProps) {
-  const { user, profile, loading, isPatient, canAccessBackend } = useAuth();
+  const { user, profile, loading, isPatient, canAccessBackend, signOut } = useAuth();
 
   if (loading) {
     return (
@@ -25,12 +26,60 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
     return <Navigate to="/admin" replace />;
   }
 
+  if (profile.account_status === 'pending') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="bg-amber-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Clock className="w-8 h-8 text-amber-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Compte en attente de validation</h2>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Votre compte a bien ete cree. Un administrateur doit valider votre inscription avant que vous puissiez acceder a l'application.
+          </p>
+          <p className="text-sm text-gray-500 mb-8">
+            Vous recevrez une notification lorsque votre compte sera active.
+          </p>
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            Se deconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (profile.account_status === 'disabled') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+          <div className="bg-red-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-6">
+            <ShieldX className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-3">Compte desactive</h2>
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            Votre compte a ete desactive par un administrateur. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter l'administration.
+          </p>
+          <button
+            onClick={() => signOut()}
+            className="w-full flex items-center justify-center gap-2 bg-gray-900 text-white px-6 py-3 rounded-xl hover:bg-gray-800 transition-colors font-medium"
+          >
+            <LogOut className="w-4 h-4" />
+            Se deconnecter
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isPatient()) {
-    console.warn('Access denied: Patient attempting to access backend');
     return (
       <AccessDenied
-        message="Accès réservé au personnel médical"
-        description="En tant que patient, vous n'avez pas accès à l'espace de gestion du personnel médical. Veuillez utiliser l'espace patient pour consulter vos informations médicales et prendre rendez-vous."
+        message="Acces reserve au personnel medical"
+        description="En tant que patient, vous n'avez pas acces a l'espace de gestion du personnel medical. Veuillez utiliser l'espace patient pour consulter vos informations medicales et prendre rendez-vous."
         showHomeButton={true}
         showBackButton={false}
       />
@@ -38,11 +87,10 @@ export function ProtectedRoute({ children, requireAdmin = false }: ProtectedRout
   }
 
   if (!canAccessBackend()) {
-    console.warn('Access denied: User role not authorized for backend access');
     return (
       <AccessDenied
-        message="Accès non autorisé"
-        description="Votre rôle ne vous permet pas d'accéder à cet espace. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter votre administrateur."
+        message="Acces non autorise"
+        description="Votre role ne vous permet pas d'acceder a cet espace. Si vous pensez qu'il s'agit d'une erreur, veuillez contacter votre administrateur."
         showHomeButton={true}
         showBackButton={false}
       />
