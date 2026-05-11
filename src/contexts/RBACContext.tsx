@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { supabase } from '../lib/supabase';
 import { UserRole, ROLE_PERMISSIONS } from '../config/rbac';
@@ -24,6 +24,8 @@ interface RBACContextType {
   startSimulation: (targetRole: UserRole, reason?: string, autoEndMinutes?: number) => Promise<void>;
   endSimulation: (reason?: string) => Promise<void>;
   currentSessionId: string | null;
+  dbPermissions: string[];
+  refreshPermissions: () => Promise<void>;
 }
 
 const RBACContext = createContext<RBACContextType | undefined>(undefined);
@@ -43,6 +45,7 @@ export function RBACProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<ActiveSessionInfo | null>(null);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [canUseSimulation, setCanUseSimulation] = useState(false);
+  const [dbPermissions, setDbPermissions] = useState<string[]>([]);
 
   useEffect(() => {
     loadSimulationSettings();
@@ -64,6 +67,7 @@ export function RBACProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user) {
       fetchUserRole();
+      fetchDbPermissions();
       loadActiveSession();
     } else {
       setLoading(false);
@@ -142,6 +146,22 @@ export function RBACProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }
+
+  async function fetchDbPermissions() {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase.rpc('get_user_permissions');
+      if (error) throw error;
+      setDbPermissions(data || []);
+    } catch (error) {
+      console.error('Error fetching DB permissions:', error);
+      setDbPermissions([]);
+    }
+  }
+
+  const refreshPermissions = useCallback(async () => {
+    await fetchDbPermissions();
+  }, [user]);
 
   function setUserRole(role: UserRole) {
     setUserRoleState(role);
@@ -235,8 +255,19 @@ export function RBACProvider({ children }: { children: ReactNode }) {
 
   function hasPermission(permission: string): boolean {
     const effectiveRole = getEffectiveRole();
-    const permissions = ROLE_PERMISSIONS[effectiveRole as RBACRole];
-    return permissions?.includes('*') || permissions?.includes(permission) || false;
+
+    // Admin roles always have full access
+    if (isAdminRole(effectiveRole)) return true;
+
+    // Check DB-backed permissions first (if loaded)
+    if (dbPermissions.length > 0) {
+      if (dbPermissions.includes('*')) return true;
+      if (dbPermissions.includes(permission)) return true;
+    }
+
+    // Fallback to static ROLE_PERMISSIONS config
+    const staticPerms = ROLE_PERMISSIONS[effectiveRole as RBACRole];
+    return staticPerms?.includes('*') || staticPerms?.includes(permission) || false;
   }
 
   return (
@@ -257,7 +288,9 @@ export function RBACProvider({ children }: { children: ReactNode }) {
         activeSession,
         startSimulation,
         endSimulation,
-        currentSessionId
+        currentSessionId,
+        dbPermissions,
+        refreshPermissions
       }}
     >
       {children}
