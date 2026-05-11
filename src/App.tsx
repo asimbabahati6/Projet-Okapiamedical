@@ -68,6 +68,7 @@ import CaissePage from './pages/staff/CaissePage';
 import DoctorQueuePage from './pages/staff/DoctorQueuePage';
 import PendingRegistrationsPage from './pages/staff/PendingRegistrationsPage';
 import PermissionManagementPage from './pages/staff/PermissionManagementPage';
+import PatientFlowDashboard from './pages/staff/PatientFlowDashboard';
 
 function App() {
   return (
@@ -128,6 +129,7 @@ function App() {
                   <Route path="exchange-rates" element={<div className="text-center py-12 text-gray-500">Module Taux de Change - En développement</div>} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />
                   <Route path="permission-management" element={<PermissionManagementPage />} />
+                  <Route path="patient-flow" element={<PatientFlowDashboard />} />
                 </Route>
 
                 <Route
@@ -186,6 +188,7 @@ function App() {
                   <Route path="doctor-queue" element={<DoctorQueuePage />} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />
                   <Route path="permission-management" element={<PermissionManagementPage />} />
+                  <Route path="patient-flow" element={<PatientFlowDashboard />} />
                 </Route>
 
                 <Route path="/access-denied" element={<AccessDenied />} />
