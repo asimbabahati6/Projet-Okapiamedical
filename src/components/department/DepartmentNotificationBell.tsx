@@ -31,7 +31,7 @@ export function DepartmentNotificationBell() {
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification(newNotification.messageTitle, {
               body: newNotification.messageBody,
-              icon: '/okapia-logo-mini.png',
+              icon: '/Logo-Okapi-Medical.jpg',
             });
           }
         }

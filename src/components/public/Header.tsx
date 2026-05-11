@@ -51,7 +51,7 @@ export function Header({ onNavigate, currentPage, onNavigateToLogin, onNavigateT
           <div className="okapia-logo-wrapper cursor-pointer" onClick={() => onNavigate('home')}>
             <div className="okapia-logo-container">
               <img
-                src="/okapia-logo.png"
+                src="/Logo-Okapi-Medical.jpg"
                 alt="OKAPIA Medical Logo"
                 className="okapia-logo okapia-logo-header"
               />

@@ -13,7 +13,7 @@ export function Footer() {
             <div className="okapia-logo-wrapper mb-4">
               <div className="okapia-logo-container">
                 <img
-                  src="/okapia-logo.png"
+                  src="/Logo-Okapi-Medical.jpg"
                   alt="OKAPIA Medical Logo"
                   className="okapia-logo okapia-logo-footer"
                 />

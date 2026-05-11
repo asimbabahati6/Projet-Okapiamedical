@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link2, CheckCheck } from 'lucide-react';
+import QRCode from 'qrcode';
 
 interface SocialQRCodeProps {
   variant?: 'footer' | 'floating' | 'inline';
@@ -18,8 +19,19 @@ export function SocialQRCode({
   siteUrl = 'https://www.okapiamedical.com',
 }: SocialQRCodeProps) {
   const [copied, setCopied] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const qrSize = size === 'small' ? 96 : size === 'large' ? 160 : 140;
+
+  useEffect(() => {
+    QRCode.toDataURL(socialLink, {
+      width: qrSize * 2,
+      margin: 1,
+      color: { dark: '#0f172a', light: '#ffffff' },
+      errorCorrectionLevel: 'M',
+    }).then(setQrDataUrl).catch(console.error);
+  }, [socialLink, qrSize]);
 
   async function handleCopy(e: React.MouseEvent) {
     e.preventDefault();
@@ -60,13 +72,16 @@ export function SocialQRCode({
           title="Suivez-nous sur les réseaux sociaux"
         >
           <div className="bg-white p-3 rounded-xl shadow-inner ring-2 ring-white/20 transition-transform duration-300 group-hover:scale-105">
-            <img
-              src="/Okapia_medical_QR_code.jpeg"
-              alt="QR Code Okapia Medical"
-              style={{ width: qrSize, height: qrSize }}
-              className="object-contain block"
-              loading="lazy"
-            />
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt="QR Code Okapia Medical"
+                style={{ width: qrSize, height: qrSize }}
+                className="object-contain block"
+              />
+            ) : (
+              <canvas ref={canvasRef} style={{ width: qrSize, height: qrSize }} />
+            )}
           </div>
         </a>
 

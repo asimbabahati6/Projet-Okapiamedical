@@ -59,7 +59,7 @@ export function StaffLayout() {
               <div className="flex items-center gap-3">
                 <div className="okapia-logo-container">
                   <img
-                    src="/okapia-logo.png"
+                    src="/Logo-Okapi-Medical.jpg"
                     alt="OKAPIA Medical Logo"
                     className="okapia-logo okapia-logo-sidebar w-10 h-10"
                   />
@@ -76,7 +76,7 @@ export function StaffLayout() {
             ) : (
               <div className="mx-auto okapia-logo-container">
                 <img
-                  src="/okapia-logo.png"
+                  src="/Logo-Okapi-Medical.jpg"
                   alt="OKAPIA Medical Logo"
                   className="okapia-logo okapia-logo-sidebar-collapsed w-8 h-8"
                 />

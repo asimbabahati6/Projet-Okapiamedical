@@ -162,7 +162,7 @@ export function About() {
               </div>
               <div className="bg-gray-100 rounded-lg p-4">
                 <img
-                  src="/okapia-logo-500.png"
+                  src="/Logo-Okapi-Medical.jpg"
                   alt="OKAPIA Medical"
                   className="okapia-logo okapia-logo-xlarge mx-auto"
                 />

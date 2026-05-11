@@ -113,7 +113,7 @@ export function StaffLogin() {
             <div className="okapia-logo-wrapper mx-auto mb-4">
               <div className="okapia-logo-container">
                 <img
-                  src="/okapia-logo.png"
+                  src="/Logo-Okapi-Medical.jpg"
                   alt="OKAPIA Médical Logo"
                   className="okapia-logo"
                   style={{ width: '80px', height: '80px' }}

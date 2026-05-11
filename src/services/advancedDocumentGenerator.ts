@@ -60,7 +60,7 @@ export class AdvancedDocumentGenerator {
   private static readonly BRAND_COLOR = '#0066CC';
   private static readonly BRAND_NAME = 'Okapi Medical';
   private static readonly BRAND_TAGLINE = 'Excellence en Soins de Santé';
-  private static readonly LOGO_URL = '/okapia-logo.png';
+  private static readonly LOGO_URL = '/Logo-Okapi-Medical.jpg';
 
   private static addBrandHeader(doc: jsPDF, documentType: string) {
     doc.setFillColor(0, 102, 204);
