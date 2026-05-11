@@ -31,7 +31,6 @@ import AdminPoliciesPage from './pages/staff/AdminPoliciesPage';
 import AdminFacilitiesPage from './pages/staff/AdminFacilitiesPage';
 import AdminVendorsPage from './pages/staff/AdminVendorsPage';
 import { AppointmentsPage } from './pages/staff/AppointmentsPage';
-import { PatientManagement } from './pages/staff/PatientManagement';
 import { LaboratoryPage } from './pages/staff/LaboratoryPage';
 import DoctorsDashboardPage from './pages/staff/DoctorsDashboardPage';
 import PurchaseOrdersPage from './pages/staff/PurchaseOrdersPage';
@@ -111,7 +110,6 @@ function App() {
                   <Route index element={<DRCDashboard />} />
                   <Route path="appointments" element={<AppointmentsPage />} />
                   <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
-                  <Route path="patients" element={<PatientManagement />} />
                   <Route path="laboratory" element={<LaboratoryPage />} />
                   <Route path="pharmacy" element={<PharmacyPage />} />
                   <Route path="administration" element={<AdministrationDashboard />} />
@@ -145,7 +143,6 @@ function App() {
                   <Route path="dashboard" element={<DRCDashboard />} />
                   <Route path="appointments" element={<AppointmentsPage />} />
                   <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
-                  <Route path="patients" element={<PatientManagement />} />
                   <Route path="laboratory" element={<LaboratoryPage />} />
                   <Route path="radiology" element={<RadiologyPage />} />
                   <Route path="radiology/prescribe" element={<PrescribeExamPage />} />
