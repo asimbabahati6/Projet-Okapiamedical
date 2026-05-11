@@ -1,12 +1,67 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Clock, MapPin, Camera, Shield } from 'lucide-react';
 import { PunchButton } from '../../components/smart-punch/PunchButton';
 import { GeofenceStatus } from '../../components/smart-punch/GeofenceStatus';
 import { TodayTimeline } from '../../components/smart-punch/TodayTimeline';
 import { SelfieCapture } from '../../components/smart-punch/SelfieCapture';
+import { useGeofencing } from '../../hooks/useGeofencing';
+import { useAuth } from '../../contexts/AuthContext';
+import { getTodayPunches, computeTodayStatus, createPunchRecord, type PunchRecord, type TodayStatus } from '../../services/smartPunchService';
 
 export default function SmartPunchPage() {
   const [showSelfie, setShowSelfie] = useState(false);
+  const [records, setRecords] = useState<PunchRecord[]>([]);
+  const [todayStatus, setTodayStatus] = useState<TodayStatus>({
+    checkIn: null,
+    checkOut: null,
+    breakStart: null,
+    breakEnd: null,
+    currentStatus: 'not_started',
+    breakElapsedMinutes: null,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const { profile } = useAuth();
+  const geo = useGeofencing();
+
+  const staffId = profile?.id || '';
+
+  const loadTodayData = useCallback(async () => {
+    if (!staffId) return;
+    try {
+      const punches = await getTodayPunches(staffId);
+      setRecords(punches);
+      setTodayStatus(computeTodayStatus(punches));
+    } catch (err) {
+      console.error('Error loading today punches:', err);
+    }
+  }, [staffId]);
+
+  useEffect(() => {
+    loadTodayData();
+  }, [loadTodayData]);
+
+  async function handlePunch(punchType: 'check_in' | 'check_out' | 'break_start' | 'break_end') {
+    if (!staffId) return;
+    setIsLoading(true);
+    try {
+      await createPunchRecord({
+        staff_id: staffId,
+        punch_type: punchType,
+        gps_lat: geo.latitude,
+        gps_lng: geo.longitude,
+        gps_accuracy_meters: geo.accuracy,
+        distance_from_office_meters: geo.distanceFromOffice,
+        is_within_zone: geo.isWithinZone,
+        is_remote_exception: geo.isExemptRole,
+        remote_exception_role: geo.isExemptRole ? (profile?.role?.name || null) : null,
+      });
+      await loadTodayData();
+    } catch (err) {
+      console.error('Error creating punch:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -16,7 +71,7 @@ export default function SmartPunchPage() {
             <Clock className="w-7 h-7 text-blue-600" />
             Smart Punch
           </h1>
-          <p className="text-gray-500 mt-1">Pointage intelligent avec géolocalisation</p>
+          <p className="text-gray-500 mt-1">Pointage intelligent avec geolocalisation</p>
         </div>
       </div>
 
@@ -27,7 +82,14 @@ export default function SmartPunchPage() {
               <Shield className="w-5 h-5 text-blue-600" />
               Pointage du jour
             </h2>
-            <PunchButton />
+            <PunchButton
+              todayStatus={todayStatus}
+              canPunch={geo.canPunch}
+              isExemptRole={geo.isExemptRole}
+              isLoading={isLoading}
+              breakElapsedMinutes={todayStatus.breakElapsedMinutes}
+              onPunch={handlePunch}
+            />
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
@@ -35,7 +97,7 @@ export default function SmartPunchPage() {
               <Clock className="w-5 h-5 text-blue-600" />
               Historique aujourd'hui
             </h2>
-            <TodayTimeline />
+            <TodayTimeline records={records} />
           </div>
         </div>
 
@@ -43,21 +105,21 @@ export default function SmartPunchPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-green-600" />
-              Géolocalisation
+              Geolocalisation
             </h2>
-            <GeofenceStatus />
+            <GeofenceStatus geo={geo} onRefresh={geo.refresh} />
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Camera className="w-5 h-5 text-blue-600" />
-              Vérification
+              Verification
             </h2>
             <button
               onClick={() => setShowSelfie(true)}
               className="w-full py-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
             >
-              Prendre un selfie de vérification
+              Prendre un selfie de verification
             </button>
           </div>
         </div>
