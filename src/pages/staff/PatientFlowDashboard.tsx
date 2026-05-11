@@ -660,6 +660,3 @@ export default function PatientFlowDashboard() {
     </div>
   );
 }
-
-
-export default PatientFlowDashboard
