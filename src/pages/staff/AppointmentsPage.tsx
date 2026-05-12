@@ -28,7 +28,7 @@ interface Department {
 }
 
 export function AppointmentsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { toasts, removeToast, success: showSuccess, error: showError } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -98,7 +98,8 @@ export function AppointmentsPage() {
     setSaving(true);
     try {
       const now = new Date();
-      const appointmentNumber = `RDV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
+      const rand = Math.random().toString(36).substring(2, 6).toUpperCase();
+      const appointmentNumber = `RDV-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}-${rand}`;
 
       const { error } = await supabase.from('appointments').insert({
         appointment_number: appointmentNumber,
@@ -109,7 +110,7 @@ export function AppointmentsPage() {
         reason: form.reason || null,
         appointment_type: form.appointment_type,
         status: 'pending',
-        created_by: user?.id || null,
+        created_by: profile ? user?.id : null,
       });
 
       if (error) throw error;
@@ -119,9 +120,9 @@ export function AppointmentsPage() {
       showSuccess('Rendez-vous cree avec succes');
       await fetchAppointments();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error: unknown) {
-      console.error('Error creating appointment:', error);
-      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+    } catch (err: unknown) {
+      console.error('Error creating appointment:', err);
+      const message = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: string }).message) : 'Erreur inconnue';
       showError(`Echec de la creation du rendez-vous: ${message}`);
     } finally {
       setSaving(false);
