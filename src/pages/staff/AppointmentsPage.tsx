@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Search, Clock, User, Filter, X } from 'lucide-react';
+import { Calendar, Plus, Search, Clock, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
+import { useToast } from '../../hooks/useToast';
+import { ToastContainer } from '../../components/Toast';
 
 interface Appointment {
   id: string;
@@ -25,6 +28,8 @@ interface Department {
 }
 
 export function AppointmentsPage() {
+  const { user } = useAuth();
+  const { toasts, removeToast, success: showSuccess, error: showError } = useToast();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -48,11 +53,17 @@ export function AppointmentsPage() {
 
   async function fetchAppointments() {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('appointments')
         .select('id, appointment_number, appointment_date, appointment_time, status, reason')
         .order('appointment_date', { ascending: false })
         .limit(50);
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        showError('Impossible de charger les rendez-vous. Veuillez rafraichir la page.');
+        return;
+      }
 
       if (data) {
         setAppointments(data.map((a: Record<string, unknown>) => ({
@@ -66,6 +77,7 @@ export function AppointmentsPage() {
       }
     } catch (error) {
       console.error('Error:', error);
+      showError('Erreur de connexion au serveur.');
     } finally {
       setLoading(false);
     }
@@ -97,16 +109,20 @@ export function AppointmentsPage() {
         reason: form.reason || null,
         appointment_type: form.appointment_type,
         status: 'pending',
+        created_by: user?.id || null,
       });
 
       if (error) throw error;
 
       setShowModal(false);
       setForm({ patient_id: '', department_id: '', appointment_date: '', appointment_time: '', reason: '', appointment_type: 'consultation' });
-      fetchAppointments();
+      showSuccess('Rendez-vous cree avec succes');
+      await fetchAppointments();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Error creating appointment:', error);
+      const message = error instanceof Error ? error.message : 'Erreur inconnue';
+      showError(`Echec de la creation du rendez-vous: ${message}`);
     } finally {
       setSaving(false);
     }
@@ -344,6 +360,8 @@ export function AppointmentsPage() {
           </div>
         </div>
       )}
+
+      <ToastContainer toasts={toasts} onClose={removeToast} />
     </div>
   );
 }
