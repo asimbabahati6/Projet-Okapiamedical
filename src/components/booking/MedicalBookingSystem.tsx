@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BookingStepper } from './BookingStepper';
 import { BookingRegistrationStep } from './BookingRegistrationStep';
@@ -32,6 +32,7 @@ export function MedicalBookingSystem() {
   const [totalInQueue, setTotalInQueue] = useState(0);
   const [simulatingPayment, setSimulatingPayment] = useState(false);
   const [simulatingCall, setSimulatingCall] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!booking) return;
@@ -42,14 +43,14 @@ export function MedicalBookingSystem() {
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'booking_queue', filter: `id=eq.${booking.id}` },
         (payload) => {
-          const updated = payload.new as any;
+          const updated = payload.new as Record<string, unknown>;
           setBooking((prev) => prev ? {
             ...prev,
-            payment_status: updated.payment_status || prev.payment_status,
-            patient_status: updated.patient_status || prev.patient_status,
-            queue_position: updated.queue_position ?? prev.queue_position,
-            room_number: updated.room_number || prev.room_number,
-            video_link: updated.video_link || prev.video_link,
+            payment_status: (updated.payment_status as 'pending' | 'paid') || prev.payment_status,
+            patient_status: (updated.patient_status as 'pending' | 'paid' | 'called') || prev.patient_status,
+            queue_position: (updated.queue_position as number) ?? prev.queue_position,
+            room_number: (updated.room_number as string) || prev.room_number,
+            video_link: (updated.video_link as string) || prev.video_link,
           } : prev);
 
           if (updated.payment_status === 'paid' && step === 2) {
@@ -81,6 +82,7 @@ export function MedicalBookingSystem() {
     consultationFee: number;
   }) {
     setSubmitting(true);
+    setErrorMessage(null);
     try {
       const { count } = await supabase
         .from('booking_queue')
@@ -132,8 +134,10 @@ export function MedicalBookingSystem() {
       });
       setTotalInQueue(position);
       setStep(2);
-    } catch (error) {
-      console.error('Error creating booking:', error);
+    } catch (err: unknown) {
+      console.error('Error creating booking:', err);
+      const message = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: string }).message) : 'Erreur inconnue';
+      setErrorMessage(`Echec de l'inscription: ${message}`);
     } finally {
       setSubmitting(false);
     }
@@ -142,16 +146,20 @@ export function MedicalBookingSystem() {
   async function handleSimulatePayment() {
     if (!booking) return;
     setSimulatingPayment(true);
+    setErrorMessage(null);
     try {
-      await supabase
+      const { error } = await supabase
         .from('booking_queue')
         .update({ payment_status: 'paid', patient_status: 'paid' })
         .eq('id', booking.id);
 
+      if (error) throw error;
+
       setBooking((prev) => prev ? { ...prev, payment_status: 'paid', patient_status: 'paid' } : prev);
       setStep(3);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (err: unknown) {
+      console.error('Error:', err);
+      setErrorMessage('Le paiement a echoue. Veuillez reessayer.');
     } finally {
       setSimulatingPayment(false);
     }
@@ -160,13 +168,14 @@ export function MedicalBookingSystem() {
   async function handleSimulateDoctorCall() {
     if (!booking) return;
     setSimulatingCall(true);
+    setErrorMessage(null);
     try {
       const room = `Salle ${Math.floor(Math.random() * 10) + 1}`;
       const videoLink = booking.consultation_type === 'visioconference'
         ? `https://meet.okapia.cd/${booking.id.slice(0, 8)}`
         : null;
 
-      await supabase
+      const { error } = await supabase
         .from('booking_queue')
         .update({
           patient_status: 'called',
@@ -175,10 +184,13 @@ export function MedicalBookingSystem() {
         })
         .eq('id', booking.id);
 
+      if (error) throw error;
+
       setBooking((prev) => prev ? { ...prev, patient_status: 'called', room_number: room, video_link: videoLink } : prev);
       setStep(4);
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (err: unknown) {
+      console.error('Error:', err);
+      setErrorMessage('Erreur lors de la notification.');
     } finally {
       setSimulatingCall(false);
     }
@@ -189,6 +201,7 @@ export function MedicalBookingSystem() {
     setBooking(null);
     setSimulatingPayment(false);
     setSimulatingCall(false);
+    setErrorMessage(null);
   }
 
   return (
@@ -197,6 +210,25 @@ export function MedicalBookingSystem() {
         <div className="mb-8">
           <BookingStepper currentStep={step} />
         </div>
+
+        {errorMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3"
+          >
+            <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p>{errorMessage}</p>
+              <button
+                onClick={() => setErrorMessage(null)}
+                className="mt-1 text-xs text-red-500 underline hover:text-red-700"
+              >
+                Fermer
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
           {step === 1 && (
@@ -247,11 +279,16 @@ export function MedicalBookingSystem() {
           {step === 4 && booking && (
             <motion.div key="consultation" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <div className="text-center space-y-6 py-12">
-                <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto">
+                <motion.div
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                  className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto"
+                >
                   <svg className="w-10 h-10 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                </div>
+                </motion.div>
                 <h2 className="text-2xl font-bold text-gray-900">Consultation en cours</h2>
                 <p className="text-gray-600">
                   {booking.consultation_type === 'visioconference'

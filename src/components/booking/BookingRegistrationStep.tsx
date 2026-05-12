@@ -8,7 +8,6 @@ import {
   FileText,
   Stethoscope,
   ArrowRight,
-  Building2,
   Loader2,
   CheckCircle,
   AlertCircle,
@@ -32,11 +31,9 @@ interface BookingRegistrationStepProps {
   loading: boolean;
 }
 
-interface ServiceOption {
+interface DepartmentOption {
   id: string;
   name: string;
-  categoryId: string;
-  categoryName: string;
 }
 
 interface DoctorOption {
@@ -51,74 +48,65 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
   const [reason, setReason] = useState('');
-  const [serviceId, setServiceId] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
   const [doctorId, setDoctorId] = useState('');
-  const [services, setServices] = useState<ServiceOption[]>([]);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [doctors, setDoctors] = useState<DoctorOption[]>([]);
-  const [loadingServices, setLoadingServices] = useState(true);
+  const [loadingDepartments, setLoadingDepartments] = useState(true);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
   const [phoneTouched, setPhoneTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isPhoneValid = patientPhone.length === 9 && /^\d{9}$/.test(patientPhone);
   const fullPhone = `+243${patientPhone}`;
 
   const isFormValid = useMemo(
-    () => patientName.trim().length > 0 && isPhoneValid && serviceId !== '' && doctorId !== '',
-    [patientName, isPhoneValid, serviceId, doctorId]
+    () => patientName.trim().length > 0 && isPhoneValid && departmentId !== '' && doctorId !== '',
+    [patientName, isPhoneValid, departmentId, doctorId]
   );
 
-  const groupedServices = useMemo(() => {
-    const groups: Record<string, { categoryName: string; items: ServiceOption[] }> = {};
-    for (const svc of services) {
-      if (!groups[svc.categoryId]) {
-        groups[svc.categoryId] = { categoryName: svc.categoryName, items: [] };
-      }
-      groups[svc.categoryId].items.push(svc);
-    }
-    return Object.values(groups).sort((a, b) => a.categoryName.localeCompare(b.categoryName));
-  }, [services]);
-
   useEffect(() => {
-    fetchServices();
+    fetchDepartments();
   }, []);
 
   useEffect(() => {
-    if (serviceId) {
+    if (departmentId) {
       setDoctorId('');
       fetchDoctors();
     } else {
       setDoctors([]);
     }
-  }, [serviceId, consultationType]);
+  }, [departmentId, consultationType]);
 
-  async function fetchServices() {
+  async function fetchDepartments() {
     try {
-      const { data } = await supabase
-        .from('services')
-        .select('id, name, category_id, service_categories(name)')
-        .eq('is_active', true)
+      const { data, error: err } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('is_public', true)
         .order('name');
 
+      if (err) {
+        console.error('Error fetching departments:', err);
+        setError('Impossible de charger les specialites. Veuillez rafraichir.');
+        return;
+      }
+
       if (data) {
-        const mapped: ServiceOption[] = data.map((s: Record<string, unknown>) => {
-          const cat = s.service_categories as { name: string } | null;
-          return {
-            id: s.id as string,
-            name: s.name as string,
-            categoryId: s.category_id as string,
-            categoryName: cat?.name || 'Autre',
-          };
-        });
-        setServices(mapped);
+        setDepartments(data);
       }
     } finally {
-      setLoadingServices(false);
+      setLoadingDepartments(false);
     }
   }
 
   async function fetchDoctors() {
     setLoadingDoctors(true);
+    setError(null);
     try {
+      const selectedDept = departments.find(d => d.id === departmentId);
+      const deptName = selectedDept?.name || '';
+
       let query = supabase
         .from('medical_staff')
         .select('id, display_name, specialization, consultation_fee, telemedicine_enabled, user_profiles!inner(full_name)')
@@ -128,18 +116,40 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         query = query.eq('telemedicine_enabled', true);
       }
 
-      const { data: staff } = await query;
+      const { data: staff, error: err } = await query;
+
+      if (err) {
+        console.error('Error fetching doctors:', err);
+        setError('Impossible de charger les medecins.');
+        return;
+      }
 
       if (staff && staff.length > 0) {
-        const mapped = staff.map((s: Record<string, unknown>) => {
-          const profile = s.user_profiles as { full_name: string } | null;
-          return {
-            id: s.id as string,
-            name: profile?.full_name || (s.display_name as string) || '',
-            specialization: (s.specialization as string) || '',
-            consultationFee: Number(s.consultation_fee) || 50,
-          };
-        });
+        const mapped = staff
+          .map((s: Record<string, unknown>) => {
+            const profile = s.user_profiles as { full_name: string } | null;
+            return {
+              id: s.id as string,
+              name: profile?.full_name || (s.display_name as string) || '',
+              specialization: (s.specialization as string) || '',
+              consultationFee: Number(s.consultation_fee) || 50,
+            };
+          })
+          .filter((doc) => {
+            if (!deptName) return true;
+            const spec = doc.specialization.toLowerCase();
+            const dept = deptName.toLowerCase();
+            if (dept.includes('general') && spec.includes('general')) return true;
+            if (dept.includes('chirurgie') && spec.includes('chirurgie')) return true;
+            if (dept.includes('cardiologie') && spec.includes('cardiologie')) return true;
+            if (dept.includes('gynecol') && spec.includes('gyn')) return true;
+            if (dept.includes('pediatr') && spec.includes('pediatr')) return true;
+            if (dept.includes('dentist') && spec.includes('dentist')) return true;
+            if (dept.includes('kinesither') && spec.includes('kinesither')) return true;
+            if (dept.includes('medecine interne') && spec.includes('interne')) return true;
+            if (dept === spec) return true;
+            return dept.includes(spec) || spec.includes(dept);
+          });
         setDoctors(mapped);
       } else {
         setDoctors([]);
@@ -158,16 +168,17 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!isFormValid || loading) return;
+    setError(null);
 
     const selectedDoctor = doctors.find((d) => d.id === doctorId);
-    const selectedService = services.find((s) => s.id === serviceId);
+    const selectedDept = departments.find((d) => d.id === departmentId);
 
     onSubmit({
       patientName: patientName.trim(),
       patientPhone: fullPhone,
       consultationType,
-      specialty: selectedService?.name || '',
-      departmentId: selectedService?.categoryId || '',
+      specialty: selectedDept?.name || '',
+      departmentId,
       doctorId,
       doctorName: selectedDoctor?.name || '',
       reason,
@@ -197,29 +208,36 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       animate="visible"
       className="space-y-8"
     >
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm flex items-start gap-3"
+        >
+          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
+        </motion.div>
+      )}
+
       {/* Consultation Type */}
       <motion.div variants={itemVariants}>
-        <h3 className="text-lg font-bold text-navy-800 mb-4 flex items-center gap-2">
-          <Building2 className="w-5 h-5 text-medical-500" />
+        <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+          <Stethoscope className="w-5 h-5 text-blue-600" />
           Type de consultation
         </h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {[
             {
               type: 'presentiel' as const,
-              label: 'Présentiel',
-              desc: 'Consultation en personne à la clinique',
+              label: 'Presentiel',
+              desc: 'Consultation en personne a la clinique',
               icon: MapPin,
-              gradient: 'from-medical-500 to-medical-600',
-              light: 'bg-medical-50 border-medical-200',
             },
             {
               type: 'visioconference' as const,
-              label: 'Visioconférence',
-              desc: 'Consultation vidéo à distance',
+              label: 'Visioconference',
+              desc: 'Consultation video a distance',
               icon: Video,
-              gradient: 'from-teal-500 to-teal-600',
-              light: 'bg-teal-50 border-teal-200',
             },
           ].map((opt) => (
             <motion.button
@@ -233,14 +251,14 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
               }}
               className={`relative p-6 rounded-2xl border-2 text-left transition-all overflow-hidden ${
                 consultationType === opt.type
-                  ? `${opt.light} shadow-lg`
+                  ? 'border-blue-300 bg-blue-50 shadow-lg'
                   : 'border-gray-200 bg-white hover:border-gray-300'
               }`}
             >
               {consultationType === opt.type && (
                 <motion.div
                   layoutId="consultation-indicator"
-                  className={`absolute inset-0 bg-gradient-to-br ${opt.gradient} opacity-[0.06]`}
+                  className="absolute inset-0 bg-gradient-to-br from-blue-500 to-blue-600 opacity-[0.06]"
                   transition={{ type: 'spring', stiffness: 300, damping: 30 }}
                 />
               )}
@@ -248,13 +266,13 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 <div
                   className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 ${
                     consultationType === opt.type
-                      ? `bg-gradient-to-br ${opt.gradient} text-white shadow-md`
+                      ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-md'
                       : 'bg-gray-100 text-gray-400'
                   }`}
                 >
                   <opt.icon className="w-6 h-6" />
                 </div>
-                <h4 className="font-bold text-lg text-navy-800 mb-1">{opt.label}</h4>
+                <h4 className="font-bold text-lg text-gray-800 mb-1">{opt.label}</h4>
                 <p className="text-sm text-gray-600">{opt.desc}</p>
               </div>
             </motion.button>
@@ -265,8 +283,8 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       {/* Patient Info */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
-            <User className="w-4 h-4 text-medical-500" />
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <User className="w-4 h-4 text-blue-600" />
             Nom complet *
           </label>
           <input
@@ -275,13 +293,13 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
             value={patientName}
             onChange={(e) => setPatientName(e.target.value)}
             placeholder="Jean Dupont"
-            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80"
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80"
           />
         </div>
         <div>
-          <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
-            <Phone className="w-4 h-4 text-medical-500" />
-            Téléphone *
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <Phone className="w-4 h-4 text-blue-600" />
+            Telephone *
           </label>
           <div className="flex">
             <span className="flex items-center px-3 rounded-l-xl border-2 border-r-0 border-gray-200 bg-gray-50 text-sm text-gray-500 font-medium select-none">
@@ -297,7 +315,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
               maxLength={11}
               className={`flex-1 px-4 py-3 rounded-r-xl border-2 outline-none transition-all bg-white/80 ${
                 !phoneTouched
-                  ? 'border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20'
+                  ? 'border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20'
                   : isPhoneValid
                   ? 'border-green-400 focus:border-green-500 focus:ring-2 focus:ring-green-500/20'
                   : 'border-red-300 focus:border-red-500 focus:ring-2 focus:ring-red-500/20'
@@ -319,14 +337,14 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         </div>
       </motion.div>
 
-      {/* Specialty & Doctor */}
+      {/* Department & Doctor */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
-          <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
-            <Stethoscope className="w-4 h-4 text-medical-500" />
-            Spécialité *
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <Stethoscope className="w-4 h-4 text-blue-600" />
+            Specialite *
           </label>
-          {loadingServices ? (
+          {loadingDepartments ? (
             <div className="flex items-center gap-2 py-3 text-gray-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />
               Chargement...
@@ -334,28 +352,24 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           ) : (
             <select
               required
-              value={serviceId}
-              onChange={(e) => setServiceId(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 appearance-none"
+              value={departmentId}
+              onChange={(e) => setDepartmentId(e.target.value)}
+              className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none"
             >
-              <option value="">Sélectionnez une spécialité</option>
-              {groupedServices.map((group) => (
-                <optgroup key={group.categoryName} label={group.categoryName}>
-                  {group.items.map((svc) => (
-                    <option key={svc.id} value={svc.id}>
-                      {svc.name}
-                    </option>
-                  ))}
-                </optgroup>
+              <option value="">Selectionnez une specialite</option>
+              {departments.map((dept) => (
+                <option key={dept.id} value={dept.id}>
+                  {dept.name}
+                </option>
               ))}
             </select>
           )}
         </div>
 
         <div>
-          <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
-            <User className="w-4 h-4 text-medical-500" />
-            Médecin *
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <User className="w-4 h-4 text-blue-600" />
+            Medecin *
           </label>
           <AnimatePresence mode="wait">
             {loadingDoctors ? (
@@ -367,7 +381,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 className="flex items-center gap-2 py-3 text-gray-400 text-sm"
               >
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Chargement des médecins...
+                Chargement des medecins...
               </motion.div>
             ) : (
               <motion.select
@@ -378,18 +392,18 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 required
                 value={doctorId}
                 onChange={(e) => setDoctorId(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 appearance-none"
+                className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none"
               >
                 <option value="">
-                  {serviceId
+                  {departmentId
                     ? doctors.length === 0
-                      ? 'Aucun médecin disponible'
-                      : 'Sélectionnez un médecin'
-                    : 'Choisissez la spécialité d\'abord'}
+                      ? 'Aucun medecin disponible'
+                      : 'Selectionnez un medecin'
+                    : "Choisissez la specialite d'abord"}
                 </option>
                 {doctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} - {doc.specialization || 'Généraliste'} ({doc.consultationFee} USD)
+                    Dr. {doc.name} - {doc.specialization || 'Generaliste'} ({doc.consultationFee} USD)
                   </option>
                 ))}
               </motion.select>
@@ -400,16 +414,16 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
 
       {/* Reason */}
       <motion.div variants={itemVariants}>
-        <label className="flex items-center gap-2 text-sm font-semibold text-navy-800 mb-2">
-          <FileText className="w-4 h-4 text-medical-500" />
+        <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+          <FileText className="w-4 h-4 text-blue-600" />
           Motif de consultation
         </label>
         <textarea
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder="Décrivez brièvement le motif de votre visite..."
-          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-medical-500 focus:ring-2 focus:ring-medical-500/20 outline-none transition-all bg-white/80 resize-none"
+          placeholder="Decrivez brievement le motif de votre visite..."
+          className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 resize-none"
         />
       </motion.div>
 
@@ -422,7 +436,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
           whileTap={isFormValid && !loading ? { scale: 0.99 } : {}}
           className={`w-full py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center justify-center gap-3 ${
             isFormValid && !loading
-              ? 'bg-gradient-to-r from-navy-800 to-navy-700 text-white hover:shadow-xl cursor-pointer'
+              ? 'bg-gradient-to-r from-gray-800 to-gray-700 text-white hover:shadow-xl cursor-pointer'
               : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
           }`}
         >
