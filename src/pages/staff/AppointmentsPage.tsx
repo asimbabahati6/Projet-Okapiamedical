@@ -104,6 +104,7 @@ export function AppointmentsPage() {
       setShowModal(false);
       setForm({ patient_id: '', department_id: '', appointment_date: '', appointment_time: '', reason: '', appointment_type: 'consultation' });
       fetchAppointments();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       console.error('Error creating appointment:', error);
     } finally {
