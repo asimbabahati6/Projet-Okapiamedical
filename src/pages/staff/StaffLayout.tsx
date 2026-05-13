@@ -1,12 +1,13 @@
 import { useState, Component, ReactNode } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, Menu, X, Moon, Sun, AlertTriangle, UserCircle } from 'lucide-react';
+import { LogOut, Menu, X, Moon, Sun, AlertTriangle, CircleUser as UserCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
 import ChatNotificationBell from '../../components/chat/ChatNotificationBell';
 import RBACNavigation from '../../components/layout/RBACNavigation';
 import { SimulationModeBanner } from '../../components/simulation/SimulationModeBanner';
 import { SimulationFloatingBadge } from '../../components/simulation/SimulationFloatingBadge';
+import { RouteGuard } from '../../components/RouteGuard';
 
 class PageErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   constructor(props: { children: ReactNode }) {
@@ -149,7 +150,9 @@ export function StaffLayout() {
             </PageErrorBoundary>
           </div>
           <PageErrorBoundary>
-            <Outlet />
+            <RouteGuard>
+              <Outlet />
+            </RouteGuard>
           </PageErrorBoundary>
         </div>
       </main>

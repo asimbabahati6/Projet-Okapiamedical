@@ -35,7 +35,7 @@ export const ROLE_LABELS: Record<RBACRole, string> = {
 };
 
 const ALL_ROLES: RBACRole[] = Object.keys(ROLE_LABELS) as RBACRole[];
-const ADMIN_ROLES: RBACRole[] = ['admin', 'medical_director', 'directeur_general', 'medecin_chef_staff'];
+export const ADMIN_ROLES: RBACRole[] = ['admin', 'medical_director', 'directeur_general', 'medecin_chef_staff'];
 const MEDICAL_ROLES: RBACRole[] = ['admin', 'medical_director', 'doctor', 'medecin_chef_staff'];
 const CLINICAL_ROLES: RBACRole[] = [...MEDICAL_ROLES, 'laboratory', 'pharmacist', 'radio_chef', 'radio_tech'];
 const FINANCE_ROLES: RBACRole[] = ['admin', 'accountant', 'gestionnaire', 'directeur_general', 'caissiere'];
@@ -180,7 +180,8 @@ export const MENU_STRUCTURE: MenuItem[] = [
 export function hasAccess(userRole: UserRole | string, item: MenuItem): boolean {
   const roleStr = typeof userRole === 'string' ? userRole : '';
   const rbacRole = roleStr as RBACRole;
-  return item.roles.includes(rbacRole) || item.roles.includes('admin' as RBACRole);
+  const isUserAdmin = ADMIN_ROLES.includes(rbacRole);
+  return item.roles.includes(rbacRole) || isUserAdmin;
 }
 
 export function filterMenuByRole(menu: MenuItem[], userRole: UserRole | string): MenuItem[] {

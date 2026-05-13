@@ -68,6 +68,7 @@ import PermissionManagementPage from './pages/staff/PermissionManagementPage';
 import PatientFlowDashboard from './pages/staff/PatientFlowDashboard';
 import MedicalConsultationPage from './pages/staff/MedicalConsultationPage';
 import StaffProfilePage from './pages/staff/StaffProfilePage';
+import ExchangeRatesPage from './pages/staff/ExchangeRatesPage';
 
 function App() {
   return (
@@ -123,7 +124,7 @@ function App() {
                   <Route path="insurance" element={<InsurancePage />} />
                   <Route path="contracts" element={<ContractsPage />} />
                   <Route path="pharmacy-inventory" element={<Navigate to="/pharmacy/inventory" replace />} />
-                  <Route path="exchange-rates" element={<div className="text-center py-12 text-gray-500">Module Taux de Change - En développement</div>} />
+                  <Route path="exchange-rates" element={<ExchangeRatesPage />} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
@@ -187,6 +188,7 @@ function App() {
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
                   <Route path="medical-consultation" element={<MedicalConsultationPage />} />
+                  <Route path="exchange-rates" element={<ExchangeRatesPage />} />
                   <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
 

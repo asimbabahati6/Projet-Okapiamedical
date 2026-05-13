@@ -1,44 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import {
-  ChevronDown,
-  ChevronRight,
-  Lock,
-  Activity,
-  Building2,
-  DollarSign,
-  Settings,
-  Users,
-  Calendar,
-  Stethoscope,
-  UserCog,
-  FileText,
-  Briefcase,
-  FlaskConical,
-  Pill,
-  Package,
-  DoorOpen,
-  UserCheck,
-  BookUser,
-  CalendarClock,
-  Coffee,
-  Warehouse,
-  Truck,
-  Building,
-  TrendingUp,
-  FileSignature,
-  Shield,
-  Wallet,
-  LayoutDashboard,
-  Newspaper,
-  Home,
-  Store,
-  FileCheck,
-  Receipt,
-  MessageSquare,
-  Fingerprint,
-  BarChart3
-} from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Ligature as FileSignature, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store, FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3 } from 'lucide-react';
 import { MENU_STRUCTURE, MenuItem, hasAccess, filterMenuByRole, ROLE_LABELS, UserRole } from '../../config/rbac';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles, getRoleDisplayName, isAdminRole } from '../../utils/roleMapping';
@@ -194,6 +157,41 @@ export default function RBACNavigation() {
   const location = useLocation();
   const navigate = useNavigate();
 
+  const [exchangeRates, setExchangeRates] = useState<{ usd_to_cdf: number | null; eur_to_cdf: number | null; rate_date: string | null; }>({ usd_to_cdf: null, eur_to_cdf: null, rate_date: null });
+  const [ratesLoading, setRatesLoading] = useState(false);
+
+  const fetchRates = useCallback(async () => {
+    const { data } = await supabase
+      .from('exchange_rates')
+      .select('usd_to_cdf, eur_to_cdf, rate_date')
+      .eq('is_active', true)
+      .order('rate_date', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (data) setExchangeRates(data);
+  }, []);
+
+  useEffect(() => { fetchRates(); }, [fetchRates]);
+
+  const handleRefreshRates = async () => {
+    setRatesLoading(true);
+    try {
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/fetch-exchange-rates`;
+      await fetch(apiUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      await fetchRates();
+    } catch (e) {
+      console.error('Error refreshing rates:', e);
+    } finally {
+      setRatesLoading(false);
+    }
+  };
+
   // Determine which menu to show
   const showAllItems = !isSimulationMode && isAdminRole(actualRole);
   const menuToDisplay = isSimulationMode
@@ -325,29 +323,47 @@ export default function RBACNavigation() {
       </div>
 
       {/* Exchange Rate Widget */}
-      {(userRole === 'admin' || userRole === 'accountant') && (
+      {(userRole === 'admin' || userRole === 'accountant' || userRole === 'gestionnaire' || userRole === 'directeur_general') && (
         <div className="p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-t-2 border-green-200">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-green-600" />
               <span className="text-sm font-semibold text-green-800">Taux de Change</span>
             </div>
-            <span className="text-xs px-2 py-1 bg-green-600 text-white rounded-full animate-pulse">
-              Live
-            </span>
+            {exchangeRates.rate_date && (
+              <span className={`text-xs px-2 py-1 rounded-full ${
+                exchangeRates.rate_date === new Date().toISOString().split('T')[0]
+                  ? 'bg-green-600 text-white'
+                  : 'bg-amber-500 text-white'
+              }`}>
+                {exchangeRates.rate_date === new Date().toISOString().split('T')[0] ? 'BCC' : exchangeRates.rate_date}
+              </span>
+            )}
           </div>
           <div className="space-y-1 text-xs">
             <div className="flex justify-between">
               <span className="text-gray-600">USD/CDF</span>
-              <span className="font-semibold text-green-700">2,850 FC</span>
+              <span className="font-semibold text-green-700">
+                {exchangeRates.usd_to_cdf
+                  ? `${Number(exchangeRates.usd_to_cdf).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC`
+                  : '---'}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600">EUR/CDF</span>
-              <span className="font-semibold text-green-700">3,120 FC</span>
+              <span className="font-semibold text-green-700">
+                {exchangeRates.eur_to_cdf
+                  ? `${Number(exchangeRates.eur_to_cdf).toLocaleString('fr-FR', { maximumFractionDigits: 0 })} FC`
+                  : '---'}
+              </span>
             </div>
           </div>
-          <button className="w-full mt-2 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors">
-            Mettre à jour les taux
+          <button
+            onClick={handleRefreshRates}
+            disabled={ratesLoading}
+            className="w-full mt-2 px-3 py-1.5 bg-green-600 text-white text-xs rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+          >
+            {ratesLoading ? 'Mise a jour...' : 'Mettre a jour les taux'}
           </button>
         </div>
       )}
