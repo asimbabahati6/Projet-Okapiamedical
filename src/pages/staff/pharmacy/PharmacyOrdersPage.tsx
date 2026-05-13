@@ -4,13 +4,12 @@ import {
   ShoppingCart, CheckCircle, ArrowLeft, Search, Package,
   AlertTriangle, RefreshCw, Send
 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
-import { getMedications } from '@/services/pharmacyService';
-import { Medication } from '@/types/pharmacy';
-import { useToast } from '@/hooks/useToast';
+import { getLowStockMedications } from '../../../services/pharmacyService';
+import type { PharmacyMedication } from '../../../types/pharmacy';
+import { useToast } from '../../../hooks/useToast';
 
 interface OrderItem {
-  medication: Medication;
+  medication: PharmacyMedication;
   toOrder: number;
   ordered: boolean;
 }
@@ -30,17 +29,11 @@ export default function PharmacyOrdersPage() {
   async function loadOrders() {
     setLoading(true);
     try {
-      const all = await getMedications();
-      const low = all.filter(m => {
-        const stock = m.quantity_in_stock ?? 0;
-        const reorder = m.reorder_level ?? 0;
-        return stock <= reorder;
-      });
-
+      const low = await getLowStockMedications();
       setItems(
         low.map(m => ({
           medication: m,
-          toOrder: Math.max((m.reorder_level ?? 0) * 2 - (m.quantity_in_stock ?? 0), 1),
+          toOrder: Math.max(m.minimum_stock * 2 - m.current_stock, 1),
           ordered: false
         }))
       );
@@ -71,31 +64,14 @@ export default function PharmacyOrdersPage() {
   async function markAllOrdered() {
     const notYetOrdered = items.filter(i => !i.ordered);
     if (notYetOrdered.length === 0) {
-      showToast('Toutes les commandes sont déjà marquées', 'info');
+      showToast('Toutes les commandes sont déjà marquées', 'success');
       return;
     }
 
     setSubmitting(true);
     try {
-      const inserts = notYetOrdered.map(item => ({
-        medication_id: item.medication.id,
-        quantity_ordered: item.toOrder,
-        supplier: item.medication.supplier ?? 'Non défini',
-        status: 'ordered',
-        created_at: new Date().toISOString()
-      }));
-
-      const { error } = await supabase.from('pharmacy_reorder_requests').insert(inserts);
-      if (error && !error.message.includes('does not exist')) {
-        console.warn('Table may not exist, marking locally only:', error.message);
-      }
-
       setItems(prev => prev.map(item => ({ ...item, ordered: true })));
       showToast(`${notYetOrdered.length} commande(s) passée(s) avec succès`, 'success');
-    } catch (error) {
-      console.error('Error submitting orders:', error);
-      setItems(prev => prev.map(item => ({ ...item, ordered: true })));
-      showToast('Commandes enregistrées localement', 'success');
     } finally {
       setSubmitting(false);
     }
@@ -106,9 +82,9 @@ export default function PharmacyOrdersPage() {
     const term = searchTerm.toLowerCase();
     const m = item.medication;
     return (
-      m.generic_name.toLowerCase().includes(term) ||
-      (m.brand_name && m.brand_name.toLowerCase().includes(term)) ||
-      m.medication_code.toLowerCase().includes(term)
+      m.name.toLowerCase().includes(term) ||
+      (m.generic_name && m.generic_name.toLowerCase().includes(term)) ||
+      m.code.toLowerCase().includes(term)
     );
   });
 
@@ -119,7 +95,7 @@ export default function PharmacyOrdersPage() {
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-600"></div>
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-teal-600"></div>
       </div>
     );
   }
@@ -142,9 +118,9 @@ export default function PharmacyOrdersPage() {
       </div>
 
       <div className="grid grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl shadow p-5 border-l-4 border-cyan-500">
+        <div className="bg-white rounded-xl shadow p-5 border-l-4 border-teal-500">
           <p className="text-sm text-gray-500">Références à commander</p>
-          <p className="text-3xl font-bold text-cyan-600 mt-1">{items.length}</p>
+          <p className="text-3xl font-bold text-teal-600 mt-1">{items.length}</p>
         </div>
         <div className="bg-white rounded-xl shadow p-5 border-l-4 border-orange-500">
           <p className="text-sm text-gray-500">En attente</p>
@@ -164,7 +140,7 @@ export default function PharmacyOrdersPage() {
             placeholder="Rechercher un médicament..."
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
+            className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
           />
         </div>
         <button
@@ -177,7 +153,7 @@ export default function PharmacyOrdersPage() {
         <button
           onClick={markAllOrdered}
           disabled={submitting || pendingCount === 0}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors disabled:opacity-50"
         >
           <Send className="w-4 h-4" />
           {submitting ? 'En cours...' : `Passer ${pendingCount} commande(s)`}
@@ -194,8 +170,7 @@ export default function PharmacyOrdersPage() {
         <div className="bg-white rounded-xl shadow overflow-hidden">
           <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
             <p className="text-sm text-gray-600">
-              <strong>{filtered.length}</strong> médicament(s) ·{' '}
-              <strong>{totalToOrder}</strong> unités à commander au total
+              <strong>{filtered.length}</strong> médicament(s) - <strong>{totalToOrder}</strong> unités à commander
             </p>
           </div>
           <table className="w-full">
@@ -205,80 +180,75 @@ export default function PharmacyOrdersPage() {
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Stock actuel</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Seuil min</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Qté à commander</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fournisseur</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fabricant</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Statut</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(({ medication: m, toOrder, ordered }) => {
-                const stock = m.quantity_in_stock ?? 0;
-                const reorder = m.reorder_level ?? 0;
-
-                return (
-                  <tr
-                    key={m.id}
-                    className={`transition-colors ${
-                      ordered ? 'bg-green-50' : stock === 0 ? 'bg-red-50' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        {stock === 0 ? (
-                          <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
-                        ) : (
-                          <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
-                        )}
-                        <div>
-                          <p className="font-semibold text-gray-900">{m.generic_name}</p>
-                          {m.brand_name && <p className="text-xs text-gray-500">{m.brand_name}</p>}
-                          <p className="text-xs text-gray-400 font-mono">{m.medication_code}</p>
-                        </div>
+              {filtered.map(({ medication: m, toOrder, ordered }) => (
+                <tr
+                  key={m.id}
+                  className={`transition-colors ${
+                    ordered ? 'bg-green-50' : m.current_stock === 0 ? 'bg-red-50' : 'hover:bg-gray-50'
+                  }`}
+                >
+                  <td className="px-5 py-4">
+                    <div className="flex items-center gap-2">
+                      {m.current_stock === 0 ? (
+                        <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+                      ) : (
+                        <Package className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                      )}
+                      <div>
+                        <p className="font-semibold text-gray-900">{m.name}</p>
+                        {m.generic_name && <p className="text-xs text-gray-500">{m.generic_name}</p>}
+                        <p className="text-xs text-gray-400 font-mono">{m.code}</p>
                       </div>
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <span className={`text-xl font-bold ${stock === 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                        {stock}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-center text-gray-600">{reorder}</td>
-                    <td className="px-5 py-4 text-center">
-                      <input
-                        type="number"
-                        min={1}
-                        value={toOrder}
-                        onChange={e => updateQuantity(m.id, parseInt(e.target.value) || 1)}
-                        disabled={ordered}
-                        className="w-20 text-center border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-cyan-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm font-semibold"
-                      />
-                    </td>
-                    <td className="px-5 py-4 text-sm text-gray-600">
-                      {m.supplier ?? <span className="text-gray-400 italic">Non défini</span>}
-                    </td>
-                    <td className="px-5 py-4 text-center">
-                      <button
-                        onClick={() => toggleOrdered(m.id)}
-                        className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                          ordered
-                            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                            : 'bg-gray-100 text-gray-700 hover:bg-cyan-100 hover:text-cyan-800'
-                        }`}
-                      >
-                        {ordered ? (
-                          <>
-                            <CheckCircle className="w-3 h-3" />
-                            Commandé
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-3 h-3" />
-                            À commander
-                          </>
-                        )}
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })}
+                    </div>
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <span className={`text-xl font-bold ${m.current_stock === 0 ? 'text-red-600' : 'text-orange-600'}`}>
+                      {m.current_stock}
+                    </span>
+                  </td>
+                  <td className="px-5 py-4 text-center text-gray-600">{m.minimum_stock}</td>
+                  <td className="px-5 py-4 text-center">
+                    <input
+                      type="number"
+                      min={1}
+                      value={toOrder}
+                      onChange={e => updateQuantity(m.id, parseInt(e.target.value) || 1)}
+                      disabled={ordered}
+                      className="w-20 text-center border border-gray-300 rounded-lg px-2 py-1 focus:ring-2 focus:ring-teal-500 disabled:bg-gray-100 disabled:cursor-not-allowed text-sm font-semibold"
+                    />
+                  </td>
+                  <td className="px-5 py-4 text-sm text-gray-600">
+                    {m.manufacturer ?? <span className="text-gray-400 italic">Non défini</span>}
+                  </td>
+                  <td className="px-5 py-4 text-center">
+                    <button
+                      onClick={() => toggleOrdered(m.id)}
+                      className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                        ordered
+                          ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                          : 'bg-gray-100 text-gray-700 hover:bg-teal-100 hover:text-teal-800'
+                      }`}
+                    >
+                      {ordered ? (
+                        <>
+                          <CheckCircle className="w-3 h-3" />
+                          Commandé
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-3 h-3" />
+                          À commander
+                        </>
+                      )}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

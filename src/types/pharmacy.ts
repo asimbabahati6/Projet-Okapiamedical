@@ -2,57 +2,156 @@ export type MedicationCategory =
   | 'Antibiotique'
   | 'Antalgique'
   | 'Anti-inflammatoire'
-  | 'Antipyrétique'
-  | 'Antihypertenseur'
+  | 'Cardiovasculaire'
   | 'Antidiabétique'
+  | 'Antiparasitaire'
+  | 'Gastro-intestinal'
+  | 'Respiratoire'
+  | 'Vitamine'
+  | 'Dermatologie'
+  | 'Neurologique'
+  | 'Obstétrique'
+  | 'Ophtalmologie'
+  | 'Antihypertenseur'
   | 'Antipaludéen'
-  | 'Vitamines'
-  | 'Supplément'
+  | 'Antiviral'
+  | 'Bronchodilatateur'
+  | 'Corticoïde'
   | 'Autre';
 
 export type DosageForm =
   | 'Comprimé'
   | 'Gélule'
   | 'Sirop'
-  | 'Suspension'
-  | 'Solution injectable'
-  | 'Pommade'
-  | 'Crème'
-  | 'Gouttes'
-  | 'Inhalateur'
+  | 'Injectable'
   | 'Suppositoire'
-  | 'Autre';
+  | 'Pommade'
+  | 'Solution'
+  | 'Spray'
+  | 'Crème'
+  | 'Collyre'
+  | 'Inhalateur'
+  | 'Poudre';
 
 export type StockMovementType =
-  | 'in'
-  | 'out'
+  | 'reception'
+  | 'dispensation'
   | 'adjustment'
-  | 'expired'
-  | 'damaged'
+  | 'loss'
+  | 'expiry'
   | 'return';
 
 export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
-export interface Medication {
+export interface PharmacyMedication {
   id: string;
-  medication_code: string;
-  generic_name: string;
-  brand_name: string | null;
-  category: MedicationCategory | null;
-  dosage_form: DosageForm | null;
-  strength: string | null;
-  unit_price: number | null;
-  quantity_in_stock: number | null;
-  reorder_level: number | null;
+  code: string;
+  name: string;
+  generic_name: string | null;
+  category: MedicationCategory;
+  dosage: string;
+  form: DosageForm;
+  unit_price: number;
+  currency: string;
+  current_stock: number;
+  minimum_stock: number;
+  maximum_stock: number;
   expiry_date: string | null;
-  supplier: string | null;
-  is_controlled_substance: boolean | null;
-  is_active: boolean | null;
+  manufacturer: string | null;
+  batch_number: string | null;
+  storage_conditions: string | null;
+  requires_prescription: boolean;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
 
-export interface MedicationBatch {
+export interface StockMovement {
+  id: string;
+  medication_id: string;
+  movement_type: StockMovementType;
+  quantity: number;
+  previous_stock: number;
+  new_stock: number;
+  unit_cost: number | null;
+  total_cost: number | null;
+  reference_number: string | null;
+  reason: string | null;
+  notes: string | null;
+  performed_by: string | null;
+  created_at: string;
+  medication?: PharmacyMedication;
+}
+
+export interface PrescriptionQueueItem {
+  id: string;
+  prescription_id: string | null;
+  patient_id: string;
+  prescribed_by: string | null;
+  status: 'pending' | 'in_preparation' | 'ready' | 'dispensed' | 'cancelled';
+  priority: 'normal' | 'urgent' | 'emergency';
+  medications: PrescriptionMedication[];
+  total_amount: number | null;
+  notes: string | null;
+  prepared_by: string | null;
+  dispensed_by: string | null;
+  dispensed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PrescriptionMedication {
+  medication_id: string;
+  name: string;
+  dosage: string;
+  quantity: number;
+  instructions: string;
+}
+
+export interface DispensationRecord {
+  id: string;
+  queue_id: string | null;
+  patient_id: string;
+  medications_dispensed: PrescriptionMedication[];
+  total_amount: number;
+  payment_method: string | null;
+  receipt_number: string;
+  dispensed_by: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface PharmacyStats {
+  total_medications: number;
+  low_stock_count: number;
+  out_of_stock_count: number;
+  expiring_soon_count: number;
+  total_stock_value: number;
+  dispensed_today: number;
+  total_categories: number;
+}
+
+export interface MedicationFormData {
+  code?: string;
+  name: string;
+  generic_name?: string | null;
+  category: MedicationCategory;
+  dosage: string;
+  form: DosageForm;
+  unit_price: number;
+  current_stock: number;
+  minimum_stock: number;
+  maximum_stock: number;
+  expiry_date?: string | null;
+  manufacturer?: string | null;
+  batch_number?: string | null;
+  storage_conditions?: string | null;
+  requires_prescription: boolean;
+}
+
+// Legacy types kept for backward compatibility with other modules
+export type Medication = PharmacyMedication;
+export type MedicationBatch = {
   id: string;
   medication_id: string;
   batch_number: string;
@@ -65,9 +164,8 @@ export interface MedicationBatch {
   received_date: string | null;
   notes: string | null;
   created_at: string;
-}
-
-export interface MedicationStockAlert {
+};
+export type MedicationStockAlert = {
   id: string;
   alert_type: string;
   medication_id: string | null;
@@ -78,50 +176,4 @@ export interface MedicationStockAlert {
   resolved_by: string | null;
   resolved_at: string | null;
   created_at: string;
-}
-
-export interface MedicationFormData {
-  medication_code?: string;
-  generic_name: string;
-  brand_name?: string | null;
-  category?: MedicationCategory | null;
-  dosage_form?: DosageForm | null;
-  strength?: string | null;
-  unit_price?: number;
-  quantity_in_stock?: number;
-  reorder_level?: number;
-  supplier?: string | null;
-  is_controlled_substance?: boolean;
-  is_active?: boolean;
-  batch_number?: string;
-  manufacture_date?: string;
-  expiry_date?: string;
-}
-
-export interface PharmacyStats {
-  total_medications: number;
-  low_stock_count: number;
-  expiring_soon_count: number;
-  total_stock_value: number;
-  out_of_stock_count: number;
-}
-
-export interface StockMovement {
-  id: string;
-  medication_id: string;
-  movement_type: StockMovementType;
-  quantity: number;
-  reason: string | null;
-  reference: string | null;
-  performed_by: string;
-  created_at: string;
-  medication?: {
-    generic_name: string;
-    brand_name: string | null;
-  };
-}
-
-export interface MedicationWithBatches extends Medication {
-  batches: MedicationBatch[];
-  alerts: MedicationStockAlert[];
-}
+};

@@ -4,14 +4,14 @@ import {
   AlertTriangle, Package, ShoppingCart, Search, XCircle,
   ArrowLeft, TrendingDown
 } from 'lucide-react';
-import { getMedications } from '@/services/pharmacyService';
-import { Medication } from '@/types/pharmacy';
-import { useToast } from '@/hooks/useToast';
+import { getLowStockMedications } from '../../../services/pharmacyService';
+import type { PharmacyMedication } from '../../../types/pharmacy';
+import { useToast } from '../../../hooks/useToast';
 
 export default function PharmacyLowStockPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const [medications, setMedications] = useState<Medication[]>([]);
+  const [medications, setMedications] = useState<PharmacyMedication[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -22,12 +22,7 @@ export default function PharmacyLowStockPage() {
   async function loadLowStock() {
     setLoading(true);
     try {
-      const all = await getMedications();
-      const low = all.filter(m => {
-        const stock = m.quantity_in_stock ?? 0;
-        const reorder = m.reorder_level ?? 0;
-        return stock <= reorder;
-      });
+      const low = await getLowStockMedications();
       setMedications(low);
     } catch (error) {
       console.error('Error loading low stock:', error);
@@ -41,36 +36,25 @@ export default function PharmacyLowStockPage() {
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
-      m.generic_name.toLowerCase().includes(term) ||
-      (m.brand_name && m.brand_name.toLowerCase().includes(term)) ||
-      m.medication_code.toLowerCase().includes(term)
+      m.name.toLowerCase().includes(term) ||
+      (m.generic_name && m.generic_name.toLowerCase().includes(term)) ||
+      m.code.toLowerCase().includes(term)
     );
   });
 
-  const outOfStock = filtered.filter(m => (m.quantity_in_stock ?? 0) === 0);
-  const criticalStock = filtered.filter(m => {
-    const stock = m.quantity_in_stock ?? 0;
-    const reorder = m.reorder_level ?? 0;
-    return stock > 0 && stock < reorder / 2;
-  });
-  const lowStock = filtered.filter(m => {
-    const stock = m.quantity_in_stock ?? 0;
-    const reorder = m.reorder_level ?? 0;
-    return stock >= reorder / 2 && stock <= reorder;
-  });
+  const outOfStock = filtered.filter(m => m.current_stock === 0);
+  const criticalStock = filtered.filter(m => m.current_stock > 0 && m.current_stock < m.minimum_stock / 2);
+  const lowStock = filtered.filter(m => m.current_stock >= m.minimum_stock / 2 && m.current_stock <= m.minimum_stock);
 
-  function getSeverityBadge(med: Medication) {
-    const stock = med.quantity_in_stock ?? 0;
-    const reorder = med.reorder_level ?? 0;
-
-    if (stock === 0) {
+  function getSeverityBadge(med: PharmacyMedication) {
+    if (med.current_stock === 0) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
           <XCircle className="w-3 h-3" />
           Rupture
         </span>
       );
-    } else if (stock < reorder / 2) {
+    } else if (med.current_stock < med.minimum_stock / 2) {
       return (
         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
           <AlertTriangle className="w-3 h-3" />
@@ -86,11 +70,9 @@ export default function PharmacyLowStockPage() {
     );
   }
 
-  function getRowBg(med: Medication) {
-    const stock = med.quantity_in_stock ?? 0;
-    const reorder = med.reorder_level ?? 0;
-    if (stock === 0) return 'bg-red-50 border-l-4 border-red-500';
-    if (stock < reorder / 2) return 'bg-orange-50 border-l-4 border-orange-400';
+  function getRowBg(med: PharmacyMedication) {
+    if (med.current_stock === 0) return 'bg-red-50 border-l-4 border-red-500';
+    if (med.current_stock < med.minimum_stock / 2) return 'bg-orange-50 border-l-4 border-orange-400';
     return 'bg-yellow-50 border-l-4 border-yellow-400';
   }
 
@@ -162,10 +144,10 @@ export default function PharmacyLowStockPage() {
         </div>
         <button
           onClick={() => navigate('/pharmacy/orders')}
-          className="flex items-center gap-2 px-4 py-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors"
         >
           <ShoppingCart className="w-4 h-4" />
-          Voir les commandes
+          Commander
         </button>
       </div>
 
@@ -185,43 +167,41 @@ export default function PharmacyLowStockPage() {
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">Seuil min</th>
                 <th className="px-5 py-3 text-center text-xs font-semibold text-gray-500 uppercase">À commander</th>
                 <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Sévérité</th>
-                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fournisseur</th>
+                <th className="px-5 py-3 text-left text-xs font-semibold text-gray-500 uppercase">Fabricant</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filtered.map(med => {
-                const stock = med.quantity_in_stock ?? 0;
-                const reorder = med.reorder_level ?? 0;
-                const toOrder = Math.max(reorder * 2 - stock, 0);
+                const toOrder = Math.max(med.minimum_stock * 2 - med.current_stock, 0);
 
                 return (
                   <tr key={med.id} className={`${getRowBg(med)} hover:brightness-95 transition-all`}>
                     <td className="px-5 py-4">
-                      <p className="font-semibold text-gray-900">{med.generic_name}</p>
-                      {med.brand_name && (
-                        <p className="text-xs text-gray-500">{med.brand_name}</p>
+                      <p className="font-semibold text-gray-900">{med.name}</p>
+                      {med.generic_name && (
+                        <p className="text-xs text-gray-500">{med.generic_name}</p>
                       )}
-                      <p className="text-xs text-gray-400 font-mono">{med.medication_code}</p>
+                      <p className="text-xs text-gray-400 font-mono">{med.code}</p>
                     </td>
                     <td className="px-5 py-4">
                       <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                        {med.category ?? 'N/A'}
+                        {med.category}
                       </span>
                     </td>
                     <td className="px-5 py-4 text-center">
-                      <span className={`text-2xl font-bold ${stock === 0 ? 'text-red-600' : 'text-orange-600'}`}>
-                        {stock}
+                      <span className={`text-2xl font-bold ${med.current_stock === 0 ? 'text-red-600' : 'text-orange-600'}`}>
+                        {med.current_stock}
                       </span>
                     </td>
-                    <td className="px-5 py-4 text-center text-gray-600 font-medium">{reorder}</td>
+                    <td className="px-5 py-4 text-center text-gray-600 font-medium">{med.minimum_stock}</td>
                     <td className="px-5 py-4 text-center">
-                      <span className="px-3 py-1 bg-cyan-100 text-cyan-800 text-sm font-semibold rounded-full">
+                      <span className="px-3 py-1 bg-teal-100 text-teal-800 text-sm font-semibold rounded-full">
                         {toOrder}
                       </span>
                     </td>
                     <td className="px-5 py-4">{getSeverityBadge(med)}</td>
                     <td className="px-5 py-4 text-sm text-gray-600">
-                      {med.supplier ?? <span className="text-gray-400 italic">Non défini</span>}
+                      {med.manufacturer ?? <span className="text-gray-400 italic">Non défini</span>}
                     </td>
                   </tr>
                 );

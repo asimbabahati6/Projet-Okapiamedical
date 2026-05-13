@@ -1,119 +1,304 @@
 import { useState, useEffect } from 'react';
-import { Package, Search, Plus, AlertTriangle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Package, Search, ArrowUpRight, ArrowDownRight,
+  Activity, X, Pill, History
+} from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { recordStockMovement, getStockMovements } from '../../services/pharmacyService';
+import type { PharmacyMedication, StockMovement, StockMovementType } from '../../types/pharmacy';
+import { useToast } from '../../hooks/useToast';
 
-interface InventoryItem {
-  id: string;
-  generic_name: string;
-  brand_name: string | null;
-  strength: string;
-  quantity: number;
-  min_quantity: number;
-}
-
-export default function PharmacyInventoryPage() {
-  const [items, setItems] = useState<InventoryItem[]>([]);
+export function PharmacyInventoryPage() {
+  const { showToast } = useToast();
+  const [medications, setMedications] = useState<PharmacyMedication[]>([]);
+  const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMovementModal, setShowMovementModal] = useState(false);
+  const [selectedMed, setSelectedMed] = useState<PharmacyMedication | null>(null);
+  const [movementForm, setMovementForm] = useState({
+    type: 'reception' as StockMovementType,
+    quantity: 0,
+    reason: '',
+    reference: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    fetchInventory();
-  }, []);
+  useEffect(() => { fetchData(); }, []);
 
-  async function fetchInventory() {
+  async function fetchData() {
+    setLoading(true);
     try {
-      const { data } = await supabase
-        .from('pharmacy_stock')
-        .select(`
-          id, quantity,
-          medication:medications(generic_name, brand_name, strength)
-        `)
-        .order('quantity', { ascending: true });
-
-      if (data) {
-        setItems(data.map((d: any) => ({
-          id: d.id,
-          generic_name: d.medication?.generic_name || '',
-          brand_name: d.medication?.brand_name || null,
-          strength: d.medication?.strength || '',
-          quantity: d.quantity || 0,
-          min_quantity: 5,
-        })));
-      }
+      const [medsRes, movsRes] = await Promise.all([
+        supabase.from('pharmacy_medications').select('*').eq('is_active', true).order('name'),
+        getStockMovements(undefined, 30)
+      ]);
+      if (medsRes.data) setMedications(medsRes.data);
+      setMovements(movsRes);
     } catch (error) {
-      console.error('Error:', error);
+      console.error(error);
     } finally {
       setLoading(false);
     }
   }
 
-  const filtered = items.filter(i =>
-    search === '' ||
-    i.generic_name.toLowerCase().includes(search.toLowerCase()) ||
-    (i.brand_name && i.brand_name.toLowerCase().includes(search.toLowerCase()))
-  );
+  function openMovement(med: PharmacyMedication, type: StockMovementType) {
+    setSelectedMed(med);
+    setMovementForm({ type, quantity: 0, reason: '', reference: '' });
+    setShowMovementModal(true);
+  }
+
+  async function handleMovementSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedMed || movementForm.quantity <= 0) return;
+    setSubmitting(true);
+    try {
+      await recordStockMovement(
+        selectedMed.id,
+        movementForm.type,
+        movementForm.quantity,
+        movementForm.reason || null,
+        movementForm.reference || null
+      );
+      showToast('Mouvement enregistré avec succès', 'success');
+      setShowMovementModal(false);
+      fetchData();
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de l\'enregistrement', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const filtered = medications.filter(m => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return m.name.toLowerCase().includes(q) || m.code.toLowerCase().includes(q) ||
+      (m.generic_name || '').toLowerCase().includes(q);
+  });
+
+  const typeLabels: Record<string, { label: string; color: string }> = {
+    reception: { label: 'Réception', color: 'bg-green-100 text-green-700' },
+    dispensation: { label: 'Dispensation', color: 'bg-blue-100 text-blue-700' },
+    adjustment: { label: 'Ajustement', color: 'bg-gray-100 text-gray-700' },
+    loss: { label: 'Perte', color: 'bg-red-100 text-red-700' },
+    expiry: { label: 'Périmé', color: 'bg-orange-100 text-orange-700' },
+    return: { label: 'Retour', color: 'bg-teal-100 text-teal-700' },
+  };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Package className="w-6 h-6 text-blue-600" />
-          Inventaire
-        </h2>
+    <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+            <Package className="w-5 h-5 text-white" />
+          </div>
+          Gestion des Stocks
+        </h1>
+        <p className="text-gray-500 mt-1">Mouvements de stock et ajustements</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        <div className="p-4 border-b">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Rechercher..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm"
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="p-4 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Rechercher un médicament..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
           </div>
+
+          {loading ? (
+            <div className="p-12 text-center">
+              <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin mx-auto" />
+            </div>
+          ) : (
+            <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+              {filtered.slice(0, 30).map(med => {
+                const isLow = med.current_stock < med.minimum_stock && med.current_stock > 0;
+                const isOut = med.current_stock === 0;
+                return (
+                  <div key={med.id} className="px-4 py-3 hover:bg-gray-50/50 flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                      isOut ? 'bg-red-50' : isLow ? 'bg-amber-50' : 'bg-gray-50'
+                    }`}>
+                      <Pill className={`w-4 h-4 ${
+                        isOut ? 'text-red-500' : isLow ? 'text-amber-500' : 'text-gray-400'
+                      }`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{med.name}</p>
+                      <p className="text-xs text-gray-500">{med.code} - Stock: <span className={`font-semibold ${
+                        isOut ? 'text-red-600' : isLow ? 'text-amber-600' : 'text-gray-700'
+                      }`}>{med.current_stock}</span> / min: {med.minimum_stock}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <button
+                        onClick={() => openMovement(med, 'reception')}
+                        className="p-1.5 rounded-md hover:bg-green-50 text-green-600 transition-colors"
+                        title="Réception"
+                      >
+                        <ArrowUpRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => openMovement(med, 'dispensation')}
+                        className="p-1.5 rounded-md hover:bg-blue-50 text-blue-600 transition-colors"
+                        title="Dispensation"
+                      >
+                        <ArrowDownRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => openMovement(med, 'adjustment')}
+                        className="p-1.5 rounded-md hover:bg-gray-100 text-gray-600 transition-colors"
+                        title="Ajustement"
+                      >
+                        <Activity className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
 
-        {loading ? (
-          <div className="p-8 text-center text-gray-400">Chargement...</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b">
-                <tr>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Medicament</th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Dosage</th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-600">Stock</th>
-                  <th className="text-center px-4 py-3 font-medium text-gray-600">Statut</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {filtered.map((item) => (
-                  <tr key={item.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900">{item.brand_name || item.generic_name}</div>
-                      {item.brand_name && <div className="text-xs text-gray-500">{item.generic_name}</div>}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600">{item.strength}</td>
-                    <td className="px-4 py-3 text-center">{item.quantity}</td>
-                    <td className="px-4 py-3 text-center">
-                      {item.quantity === 0 ? (
-                        <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">Rupture</span>
-                      ) : item.quantity < item.min_quantity ? (
-                        <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">Bas</span>
-                      ) : (
-                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">OK</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm">
+          <div className="px-4 py-4 border-b border-gray-100 flex items-center gap-2">
+            <History className="w-4 h-4 text-gray-500" />
+            <h2 className="font-semibold text-gray-900 text-sm">Mouvements récents</h2>
+          </div>
+          <div className="divide-y divide-gray-50 max-h-[600px] overflow-y-auto">
+            {movements.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                <Activity className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                <p className="text-xs">Aucun mouvement enregistré</p>
+              </div>
+            ) : (
+              movements.map(mov => {
+                const info = typeLabels[mov.movement_type] || typeLabels.adjustment;
+                return (
+                  <div key={mov.id} className="px-4 py-3">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${info.color}`}>
+                        {info.label}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {new Date(mov.created_at).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-600">
+                      Qté: <span className="font-medium">{mov.quantity}</span> | {mov.previous_stock} → {mov.new_stock}
+                    </p>
+                    {mov.reason && <p className="text-xs text-gray-400 mt-0.5">{mov.reason}</p>}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      </div>
+
+      <AnimatePresence>
+        {showMovementModal && selectedMed && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+            >
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <h3 className="font-semibold text-gray-900">Mouvement de stock</h3>
+                <button onClick={() => setShowMovementModal(false)} className="p-1 hover:bg-gray-100 rounded-lg">
+                  <X className="w-5 h-5 text-gray-500" />
+                </button>
+              </div>
+
+              <form onSubmit={handleMovementSubmit} className="p-6 space-y-4">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm font-medium text-gray-900">{selectedMed.name}</p>
+                  <p className="text-xs text-gray-500">Stock actuel: {selectedMed.current_stock} unités</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Type de mouvement</label>
+                  <select
+                    value={movementForm.type}
+                    onChange={(e) => setMovementForm(prev => ({ ...prev, type: e.target.value as StockMovementType }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="reception">Réception (entrée)</option>
+                    <option value="dispensation">Dispensation (sortie)</option>
+                    <option value="return">Retour (entrée)</option>
+                    <option value="loss">Perte (sortie)</option>
+                    <option value="expiry">Périmé (sortie)</option>
+                    <option value="adjustment">Ajustement (nouveau total)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    {movementForm.type === 'adjustment' ? 'Nouveau stock total' : 'Quantité'}
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={movementForm.quantity || ''}
+                    onChange={(e) => setMovementForm(prev => ({ ...prev, quantity: parseInt(e.target.value) || 0 }))}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Raison / Note</label>
+                  <input
+                    type="text"
+                    value={movementForm.reason}
+                    onChange={(e) => setMovementForm(prev => ({ ...prev, reason: e.target.value }))}
+                    placeholder="Ex: Livraison fournisseur..."
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Référence (optionnel)</label>
+                  <input
+                    type="text"
+                    value={movementForm.reference}
+                    onChange={(e) => setMovementForm(prev => ({ ...prev, reference: e.target.value }))}
+                    placeholder="Ex: BON-2024-001"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowMovementModal(false)}
+                    className="flex-1 px-4 py-2.5 text-sm border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || movementForm.quantity <= 0}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {submitting ? 'Enregistrement...' : 'Confirmer'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
           </div>
         )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 }

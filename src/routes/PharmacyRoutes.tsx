@@ -7,7 +7,11 @@ import { PharmacyDashboard } from '@/modules/pharmacy/pages/PharmacyDashboard';
 import { EnhancedPharmacyPage } from '@/pages/staff/EnhancedPharmacyPage';
 
 const PharmacyInventoryPage = React.lazy(() =>
-  import('@/pages/staff/PharmacyInventoryPage').then(m => ({ default: m.default }))
+  import('@/pages/staff/PharmacyInventoryPage').then(m => ({ default: m.PharmacyInventoryPage }))
+);
+
+const PharmacyAnalyticsPage = React.lazy(() =>
+  import('@/pages/staff/PharmacyAnalyticsPage').then(m => ({ default: m.PharmacyAnalyticsPage }))
 );
 
 const PharmacyPrescriptionsPage = React.lazy(() =>
@@ -65,6 +69,14 @@ export const PharmacyRoutes: React.FC = () => {
             element={
               <React.Suspense fallback={<Fallback />}>
                 <PharmacyOrdersPage />
+              </React.Suspense>
+            }
+          />
+          <Route
+            path="analytics"
+            element={
+              <React.Suspense fallback={<Fallback />}>
+                <PharmacyAnalyticsPage />
               </React.Suspense>
             }
           />

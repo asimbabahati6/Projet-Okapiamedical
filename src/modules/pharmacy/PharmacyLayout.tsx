@@ -8,6 +8,7 @@ import {
   FileText,
   AlertTriangle,
   ShoppingCart,
+  BarChart3,
   Bell,
   Settings,
   LogOut
@@ -27,7 +28,8 @@ export const PharmacyLayout: React.FC = () => {
     { path: '/pharmacy/inventory', label: 'Inventaire', icon: Package },
     { path: '/pharmacy/prescriptions', label: 'Ordonnances', icon: FileText },
     { path: '/pharmacy/low-stock', label: 'Stock Bas', icon: AlertTriangle },
-    { path: '/pharmacy/orders', label: 'Commandes', icon: ShoppingCart }
+    { path: '/pharmacy/orders', label: 'Commandes', icon: ShoppingCart },
+    { path: '/pharmacy/analytics', label: 'Analyses', icon: BarChart3 }
   ];
 
   const handleSignOut = async () => {
