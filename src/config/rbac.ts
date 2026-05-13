@@ -75,7 +75,7 @@ export const MENU_STRUCTURE: MenuItem[] = [
     id: 'medical',
     label: 'Médical',
     icon: 'Stethoscope',
-    roles: CLINICAL_ROLES,
+    roles: [...CLINICAL_ROLES, 'receptionist', 'administrative', 'caissiere'],
     children: [
       { id: 'appointments', label: 'Rendez-vous', icon: 'Calendar', path: '/staff/appointments', roles: [...MEDICAL_ROLES, 'receptionist', 'administrative', 'caissiere'] },
       { id: 'medical-consultation', label: 'Consultation Médicale', icon: 'Stethoscope', path: '/staff/medical-consultation', roles: [...MEDICAL_ROLES, 'receptionist'] },
