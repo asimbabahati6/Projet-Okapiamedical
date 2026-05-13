@@ -14,7 +14,6 @@ import { DoctorRoutes } from './routes/DoctorRoutes';
 import { LaboratoryRoutes } from './routes/LaboratoryRoutes';
 import { PharmacyRoutes } from './routes/PharmacyRoutes';
 import { PatientRoutes } from './routes/PatientRoutes';
-import { RadiologyRoutes } from './routes/RadiologyRoutes';
 import { AccessDenied } from './components/AccessDenied';
 
 // Import all staff pages
@@ -97,7 +96,6 @@ function App() {
 
                 <Route path="/patient/*" element={<PatientRoutes />} />
 
-                <Route path="/staff/radiology/*" element={<RadiologyRoutes />} />
 
                 <Route
                   path="/tableau-de-bord"
