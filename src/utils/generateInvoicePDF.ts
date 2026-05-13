@@ -4,11 +4,13 @@ import { Invoice, InvoiceItem, Patient } from '../types/database';
 import { OKAPIA_LOGO_BASE64 } from './logoBase64';
 
 const CLINIC_NAME = 'OKAPIA Medical';
-const CLINIC_ADDRESS = 'Avenue du Commerce, Kinshasa';
-const CLINIC_CITY = 'Kinshasa, Republique Democratique du Congo';
-const CLINIC_PHONE = '+243 815 000 000';
-const CLINIC_EMAIL = 'contact@okapia-medical.cd';
-const CLINIC_RCCM = 'RCCM: CD/KIN/RCCM/25-B-00412';
+const CLINIC_ADDRESS = 'Chaussée Mzée Kabila n°16.881';
+const CLINIC_CITY = 'Galerie Manfield Kinshasa-Ngaliema';
+const CLINIC_COUNTRY = 'Kinshasa, République Démocratique du Congo';
+const CLINIC_DIRECTION = '+243 817 659 057';
+const CLINIC_RECEPTION = '+243 823 800 104';
+const CLINIC_EMAIL = 'info@okapiahospital.com';
+const CLINIC_WEBSITE = 'www.okapiamedical.com';
 
 export async function generateInvoicePDF(
   invoice: Invoice,
@@ -43,14 +45,15 @@ export async function generateInvoicePDF(
   doc.setTextColor(80, 80, 80);
   doc.text(CLINIC_ADDRESS, pageWidth - 14, 23, { align: 'right' });
   doc.text(CLINIC_CITY, pageWidth - 14, 28, { align: 'right' });
-  doc.text(`Tel: ${CLINIC_PHONE}`, pageWidth - 14, 33, { align: 'right' });
-  doc.text(`Email: ${CLINIC_EMAIL}`, pageWidth - 14, 38, { align: 'right' });
-  doc.text(CLINIC_RCCM, pageWidth - 14, 43, { align: 'right' });
+  doc.text(CLINIC_COUNTRY, pageWidth - 14, 33, { align: 'right' });
+  doc.text(`Direction: ${CLINIC_DIRECTION}`, pageWidth - 14, 38, { align: 'right' });
+  doc.text(`Réception: ${CLINIC_RECEPTION}`, pageWidth - 14, 43, { align: 'right' });
+  doc.text(CLINIC_EMAIL, pageWidth - 14, 48, { align: 'right' });
 
   // Separator line
   doc.setDrawColor(30, 64, 175);
   doc.setLineWidth(0.5);
-  doc.line(14, 50, pageWidth - 14, 50);
+  doc.line(14, 54, pageWidth - 14, 54);
 
   // Invoice title
   const displayNumber = invoice.invoice_number ?? (invoice as Record<string, unknown>).draft_number as string ?? 'BROUILLON';
@@ -96,10 +99,10 @@ export async function generateInvoicePDF(
     doc.setTextColor(60, 60, 60);
     doc.text(`${patient.last_name} ${patient.first_name}`, pageWidth - 14, 69, { align: 'right' });
     if (patient.patient_number) {
-      doc.text(`N Dossier: ${patient.patient_number}`, pageWidth - 14, 75, { align: 'right' });
+      doc.text(`N° Dossier: ${patient.patient_number}`, pageWidth - 14, 75, { align: 'right' });
     }
     if (patient.phone) {
-      doc.text(`Tel: ${patient.phone}`, pageWidth - 14, 81, { align: 'right' });
+      doc.text(`Tél: ${patient.phone}`, pageWidth - 14, 81, { align: 'right' });
     }
   }
 
@@ -114,7 +117,7 @@ export async function generateInvoicePDF(
 
   autoTable(doc, {
     startY: 92,
-    head: [['#', 'Description', 'Qte', 'Prix Unitaire', 'Total']],
+    head: [['#', 'Description', 'Qté', 'Prix Unitaire', 'Total']],
     body: tableData,
     theme: 'grid',
     headStyles: {
@@ -166,7 +169,7 @@ export async function generateInvoicePDF(
   }
 
   totalsY += 8;
-  doc.text('Paye:', totalsX, totalsY);
+  doc.text('Payé:', totalsX, totalsY);
   doc.text(`${invoice.paid_amount.toLocaleString('fr-FR')} USD`, pageWidth - 18, totalsY, { align: 'right' });
 
   totalsY += 10;
@@ -188,7 +191,7 @@ export async function generateInvoicePDF(
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(100, 100, 100);
     const methodLabels: Record<string, string> = {
-      cash: 'Especes',
+      cash: 'Espèces',
       mobile_money: 'Mobile Money',
       bank_transfer: 'Virement bancaire',
       card: 'Carte bancaire',
@@ -208,8 +211,8 @@ export async function generateInvoicePDF(
   doc.setFont('helvetica', 'italic');
   doc.text('Merci pour votre confiance. Ce document fait foi de facture.', 14, footerY + 6);
   doc.setFont('helvetica', 'normal');
-  doc.text(`${CLINIC_NAME} - ${CLINIC_ADDRESS} - ${CLINIC_PHONE}`, 14, footerY + 12);
-  doc.text(`Genere le ${new Date().toLocaleDateString('fr-FR')} a ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth - 14, footerY + 12, { align: 'right' });
+  doc.text(`${CLINIC_NAME} - ${CLINIC_ADDRESS}, ${CLINIC_CITY}`, 14, footerY + 12);
+  doc.text(`Générée le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`, pageWidth - 14, footerY + 12, { align: 'right' });
 
   return doc;
 }
