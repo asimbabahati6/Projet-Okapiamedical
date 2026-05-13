@@ -89,7 +89,7 @@ export function GeofenceStatus({ geo, onRefresh }: Props) {
           {distance !== null && (
             <p className="text-xs text-gray-600">
               Distance : <span className="font-medium">{distance}m</span>
-              <span className="text-gray-400"> / rayon 20m</span>
+              <span className="text-gray-400"> / rayon 500m</span>
             </p>
           )}
           {accuracy !== null && (
