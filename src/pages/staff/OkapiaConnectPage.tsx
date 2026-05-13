@@ -310,7 +310,7 @@ export default function OkapiaConnectPage() {
       {showNewConversation && (
         <NewConversationModal
           onClose={() => setShowNewConversation(false)}
-          onCreated={() => setShowNewConversation(false)}
+          onSuccess={() => { setShowNewConversation(false); fetchChannels(); }}
         />
       )}
     </div>
