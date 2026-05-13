@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react';
 import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { CreateInvoiceModal } from '../../components/billing/CreateInvoiceModal';
 
 interface Invoice {
   id: string;
   invoice_number: string;
   patient_name: string;
   amount: number;
+  net_to_pay: number;
   status: string;
+  payment_method: string;
   created_at: string;
 }
 
@@ -15,6 +18,7 @@ export function BillingPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
@@ -24,19 +28,24 @@ export function BillingPage() {
     try {
       const { data } = await supabase
         .from('invoices')
-        .select('*')
+        .select('*, patients(first_name, last_name)')
         .order('created_at', { ascending: false })
         .limit(50);
 
       if (data) {
-        setInvoices(data.map((inv: Record<string, unknown>) => ({
-          id: inv.id as string,
-          invoice_number: (inv.invoice_number as string) || `INV-${String(inv.id).slice(0, 6)}`,
-          patient_name: (inv.patient_name as string) || 'Patient',
-          amount: Number(inv.total_amount || inv.amount || 0),
-          status: (inv.status as string) || 'pending',
-          created_at: inv.created_at as string,
-        })));
+        setInvoices(data.map((inv: Record<string, unknown>) => {
+          const patient = inv.patients as { first_name: string; last_name: string } | null;
+          return {
+            id: inv.id as string,
+            invoice_number: (inv.invoice_number as string) || `INV-${String(inv.id).slice(0, 6)}`,
+            patient_name: patient ? `${patient.last_name} ${patient.first_name}` : 'Patient',
+            amount: Number(inv.total_amount || 0),
+            net_to_pay: Number(inv.net_to_pay || inv.total_amount || 0),
+            status: (inv.status as string) || 'pending',
+            payment_method: (inv.payment_method as string) || '',
+            created_at: inv.created_at as string,
+          };
+        }));
       }
     } catch (error) {
       console.error('Error:', error);
@@ -63,7 +72,10 @@ export function BillingPage() {
           </h1>
           <p className="text-gray-500 mt-1">Gestion des factures et paiements</p>
         </div>
-        <button className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium">
+        <button
+          onClick={() => setShowCreateModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
+        >
           <Plus className="w-4 h-4" />
           Nouvelle facture
         </button>
@@ -142,24 +154,29 @@ export function BillingPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">N° Facture</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">N Facture</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
-                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Montant</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Montant</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Paiement</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {filtered.map((inv) => (
-                  <tr key={inv.id} className="hover:bg-gray-50">
+                  <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-sm text-gray-700">{inv.invoice_number}</td>
-                    <td className="px-4 py-3 text-gray-900">{inv.patient_name}</td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">{inv.amount} USD</td>
+                    <td className="px-4 py-3 font-medium text-gray-900">{inv.patient_name}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{inv.net_to_pay || inv.amount} USD</td>
+                    <td className="px-4 py-3 text-sm text-gray-600 capitalize">{inv.payment_method?.replace('_', ' ') || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        inv.status === 'paid' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+                        inv.status === 'paid' ? 'bg-green-100 text-green-800' :
+                        inv.status === 'partial' ? 'bg-blue-100 text-blue-800' :
+                        inv.status === 'cancelled' ? 'bg-red-100 text-red-800' :
+                        'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {inv.status === 'paid' ? 'Payée' : 'En attente'}
+                        {inv.status === 'paid' ? 'Payee' : inv.status === 'partial' ? 'Partiel' : inv.status === 'cancelled' ? 'Annulee' : 'En attente'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-sm">
@@ -172,6 +189,16 @@ export function BillingPage() {
           </div>
         )}
       </div>
+
+      {showCreateModal && (
+        <CreateInvoiceModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            fetchInvoices();
+          }}
+        />
+      )}
     </div>
   );
 }
