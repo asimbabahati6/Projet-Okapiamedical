@@ -1,24 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText } from 'lucide-react';
+import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CreateInvoiceModal } from '../../components/billing/CreateInvoiceModal';
+import { PrintableInvoiceView } from '../../components/billing/PrintableInvoiceView';
+import { Invoice } from '../../types/database';
 
-interface Invoice {
+interface InvoiceRow {
   id: string;
   invoice_number: string;
+  patient_id: string;
   patient_name: string;
   amount: number;
   net_to_pay: number;
+  paid_amount: number;
+  balance: number;
   status: string;
   payment_method: string;
   created_at: string;
+  tva_rate: number;
+  tva_amount: number;
 }
 
 export function BillingPage() {
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -38,12 +46,17 @@ export function BillingPage() {
           return {
             id: inv.id as string,
             invoice_number: (inv.invoice_number as string) || `INV-${String(inv.id).slice(0, 6)}`,
+            patient_id: (inv.patient_id as string) || '',
             patient_name: patient ? `${patient.last_name} ${patient.first_name}` : 'Patient',
             amount: Number(inv.total_amount || 0),
             net_to_pay: Number(inv.net_to_pay || inv.total_amount || 0),
+            paid_amount: Number(inv.paid_amount || 0),
+            balance: Number(inv.balance || 0),
             status: (inv.status as string) || 'pending',
             payment_method: (inv.payment_method as string) || '',
             created_at: inv.created_at as string,
+            tva_rate: Number(inv.tva_rate || 0),
+            tva_amount: Number(inv.tva_amount || 0),
           };
         }));
       }
@@ -54,13 +67,30 @@ export function BillingPage() {
     }
   }
 
+  function handleViewInvoice(row: InvoiceRow) {
+    const inv: Invoice = {
+      id: row.id,
+      invoice_number: row.invoice_number,
+      patient_id: row.patient_id,
+      total_amount: row.amount,
+      paid_amount: row.paid_amount,
+      balance: row.balance,
+      status: row.status as Invoice['status'],
+      payment_method: row.payment_method || null,
+      payment_date: null,
+      net_to_pay: row.net_to_pay,
+      created_at: row.created_at,
+    };
+    setViewingInvoice(inv);
+  }
+
   const filtered = invoices.filter(inv =>
     inv.patient_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
-  const totalPending = invoices.filter(i => i.status === 'pending').reduce((sum, i) => sum + i.amount, 0);
+  const totalPending = invoices.filter(i => i.status === 'pending').reduce((sum, i) => sum + i.net_to_pay, 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -89,7 +119,7 @@ export function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Revenus</p>
-              <p className="text-xl font-bold text-gray-900">{totalRevenue} USD</p>
+              <p className="text-xl font-bold text-gray-900">{totalRevenue.toLocaleString('fr-FR')} USD</p>
             </div>
           </div>
         </div>
@@ -100,7 +130,7 @@ export function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">En attente</p>
-              <p className="text-xl font-bold text-gray-900">{totalPending} USD</p>
+              <p className="text-xl font-bold text-gray-900">{totalPending.toLocaleString('fr-FR')} USD</p>
             </div>
           </div>
         </div>
@@ -121,7 +151,7 @@ export function BillingPage() {
               <Receipt className="w-5 h-5 text-green-600" />
             </div>
             <div>
-              <p className="text-sm text-gray-500">Payées</p>
+              <p className="text-sm text-gray-500">Payees</p>
               <p className="text-xl font-bold text-gray-900">{invoices.filter(i => i.status === 'paid').length}</p>
             </div>
           </div>
@@ -147,7 +177,7 @@ export function BillingPage() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <Receipt className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">Aucune facture trouvée</p>
+            <p className="text-gray-500">Aucune facture trouvee</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -160,6 +190,7 @@ export function BillingPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Paiement</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
+                  <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
@@ -167,7 +198,7 @@ export function BillingPage() {
                   <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-sm text-gray-700">{inv.invoice_number}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{inv.patient_name}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{inv.net_to_pay || inv.amount} USD</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{(inv.net_to_pay || inv.amount).toLocaleString('fr-FR')} USD</td>
                     <td className="px-4 py-3 text-sm text-gray-600 capitalize">{inv.payment_method?.replace('_', ' ') || '-'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
@@ -181,6 +212,24 @@ export function BillingPage() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-sm">
                       {new Date(inv.created_at).toLocaleDateString('fr-FR')}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center gap-1">
+                        <button
+                          onClick={() => handleViewInvoice(inv)}
+                          title="Voir / Imprimer"
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleViewInvoice(inv)}
+                          title="Imprimer"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -197,6 +246,13 @@ export function BillingPage() {
             setShowCreateModal(false);
             fetchInvoices();
           }}
+        />
+      )}
+
+      {viewingInvoice && (
+        <PrintableInvoiceView
+          invoice={viewingInvoice}
+          onClose={() => setViewingInvoice(null)}
         />
       )}
     </div>
