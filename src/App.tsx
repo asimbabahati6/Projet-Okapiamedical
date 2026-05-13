@@ -67,6 +67,7 @@ import PendingRegistrationsPage from './pages/staff/PendingRegistrationsPage';
 import PermissionManagementPage from './pages/staff/PermissionManagementPage';
 import PatientFlowDashboard from './pages/staff/PatientFlowDashboard';
 import MedicalConsultationPage from './pages/staff/MedicalConsultationPage';
+import StaffProfilePage from './pages/staff/StaffProfilePage';
 
 function App() {
   return (
@@ -127,6 +128,7 @@ function App() {
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
                   <Route path="medical-consultation" element={<MedicalConsultationPage />} />
+                  <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
 
                 <Route
@@ -185,6 +187,7 @@ function App() {
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
                   <Route path="medical-consultation" element={<MedicalConsultationPage />} />
+                  <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
 
                 <Route path="/access-denied" element={<AccessDenied />} />

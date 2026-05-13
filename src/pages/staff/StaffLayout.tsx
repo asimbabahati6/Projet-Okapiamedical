@@ -1,6 +1,6 @@
 import { useState, Component, ReactNode } from 'react';
 import { useNavigate, Outlet } from 'react-router-dom';
-import { LogOut, Menu, X, Moon, Sun, AlertTriangle } from 'lucide-react';
+import { LogOut, Menu, X, Moon, Sun, AlertTriangle, UserCircle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { NotificationCenter } from '../../components/notifications/NotificationCenter';
 import ChatNotificationBell from '../../components/chat/ChatNotificationBell';
@@ -118,6 +118,14 @@ export function StaffLayout() {
                 </button>
               </div>
             </div>
+
+            <button
+              onClick={() => navigate('/staff/profile')}
+              className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors mb-1"
+            >
+              <UserCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium">Mon Profil</span>
+            </button>
 
             <button
               onClick={handleSignOut}

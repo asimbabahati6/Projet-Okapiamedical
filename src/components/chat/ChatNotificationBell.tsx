@@ -10,12 +10,20 @@ export default function ChatNotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchUnreadCount();
+    if (!user?.id) return;
 
-      const interval = setInterval(fetchUnreadCount, 10000);
-      return () => clearInterval(interval);
-    }
+    fetchUnreadCount();
+
+    const channel = supabase
+      .channel(`chat-notif-${user.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_notifications', filter: `user_id=eq.${user.id}` },
+        () => { fetchUnreadCount(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [user?.id]);
 
   const fetchUnreadCount = async () => {
@@ -25,7 +33,8 @@ export default function ChatNotificationBell() {
       const { data, error } = await supabase
         .from('chat_notifications')
         .select('unread_count')
-        .eq('user_id', user.id);
+        .eq('user_id', user.id)
+        .gt('unread_count', 0);
 
       if (error) throw error;
 
@@ -44,7 +53,7 @@ export default function ChatNotificationBell() {
     >
       <MessageSquare className="w-5 h-5" />
       {unreadCount > 0 && (
-        <span className="absolute top-0 right-0 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
+        <span className="absolute -top-0.5 -right-0.5 inline-flex items-center justify-center w-5 h-5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse">
           {unreadCount > 9 ? '9+' : unreadCount}
         </span>
       )}

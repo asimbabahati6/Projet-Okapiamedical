@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MessageSquare, Send, Hash, Plus, Search, User } from 'lucide-react';
+import { MessageSquare, Send, Hash, Plus, Search, User, Paperclip, X, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import CreateChannelModal from '../../components/chat/CreateChannelModal';
 import NewConversationModal from '../../components/chat/NewConversationModal';
+import MessageAttachments from '../../components/chat/MessageAttachments';
 
 interface Channel {
   id: string;
@@ -23,12 +24,22 @@ interface DirectConversation {
   status?: string;
 }
 
+interface Attachment {
+  id: string;
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+  previewUrl?: string;
+}
+
 interface Message {
   id: string;
   sender_id: string;
   content: string;
   created_at: string;
   sender_name: string;
+  attachments?: Attachment[];
 }
 
 type ActiveView =
@@ -47,8 +58,11 @@ export default function OkapiaConnectPage() {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [uploading, setUploading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isNearBottomRef = useRef(true);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchChannels();
@@ -62,8 +76,10 @@ export default function OkapiaConnectPage() {
 
     if (activeView.type === 'channel') {
       fetchChannelMessages(activeView.data.id);
+      markAsRead(activeView.data.id, null);
     } else {
       fetchConversationMessages(activeView.data.id);
+      markAsRead(null, activeView.data.id);
     }
   }, [activeView]);
 
@@ -95,12 +111,20 @@ export default function OkapiaConnectPage() {
             content: row.content as string,
             created_at: row.created_at as string,
             sender_name: profile?.full_name || 'Utilisateur',
+            attachments: (row.attachments as Attachment[]) || [],
           };
 
           setMessages(prev => {
             if (prev.some(m => m.id === newMsg.id)) return prev;
             return [...prev, newMsg];
           });
+
+          // Mark as read since we're currently viewing this
+          if (activeView.type === 'channel') {
+            markAsRead(activeView.data.id, null);
+          } else {
+            markAsRead(null, activeView.data.id);
+          }
         }
       )
       .subscribe();
@@ -113,6 +137,19 @@ export default function OkapiaConnectPage() {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages]);
+
+  async function markAsRead(channelId: string | null, conversationId: string | null) {
+    if (!user?.id) return;
+    try {
+      await supabase.rpc('mark_chat_messages_read', {
+        p_user_id: user.id,
+        p_channel_id: channelId,
+        p_conversation_id: conversationId,
+      });
+    } catch (err) {
+      // Silent fail - not critical
+    }
+  }
 
   async function fetchChannels() {
     const { data } = await supabase
@@ -175,7 +212,7 @@ export default function OkapiaConnectPage() {
   async function fetchChannelMessages(channelId: string) {
     const { data } = await supabase
       .from('chat_messages')
-      .select('id, sender_id, content, created_at, sender:user_profiles!chat_messages_sender_id_fkey(full_name)')
+      .select('id, sender_id, content, created_at, attachments, sender:user_profiles!chat_messages_sender_id_fkey(full_name)')
       .eq('channel_id', channelId)
       .order('created_at', { ascending: true })
       .limit(100);
@@ -189,6 +226,7 @@ export default function OkapiaConnectPage() {
           content: m.content as string,
           created_at: m.created_at as string,
           sender_name: sender?.full_name || 'Utilisateur',
+          attachments: (m.attachments as Attachment[]) || [],
         };
       }));
     }
@@ -198,7 +236,7 @@ export default function OkapiaConnectPage() {
   async function fetchConversationMessages(conversationId: string) {
     const { data } = await supabase
       .from('chat_messages')
-      .select('id, sender_id, content, created_at, sender:user_profiles!chat_messages_sender_id_fkey(full_name)')
+      .select('id, sender_id, content, created_at, attachments, sender:user_profiles!chat_messages_sender_id_fkey(full_name)')
       .eq('conversation_id', conversationId)
       .order('created_at', { ascending: true })
       .limit(100);
@@ -212,22 +250,74 @@ export default function OkapiaConnectPage() {
           content: m.content as string,
           created_at: m.created_at as string,
           sender_name: sender?.full_name || 'Utilisateur',
+          attachments: (m.attachments as Attachment[]) || [],
         };
       }));
     }
     setLoading(false);
   }
 
+  async function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !user?.id) return;
+
+    setUploading(true);
+    const uploaded: Attachment[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.size > 10 * 1024 * 1024) continue;
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+
+      const { data, error } = await supabase.storage
+        .from('chat-attachments')
+        .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+      if (error) continue;
+
+      const { data: urlData } = supabase.storage
+        .from('chat-attachments')
+        .getPublicUrl(data.path);
+
+      uploaded.push({
+        id: data.path,
+        name: file.name,
+        url: urlData.publicUrl,
+        type: file.type,
+        size: file.size,
+        previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined,
+      });
+    }
+
+    setAttachments(prev => [...prev, ...uploaded]);
+    setUploading(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
+
+  function removeAttachment(att: Attachment) {
+    if (att.previewUrl) URL.revokeObjectURL(att.previewUrl);
+    supabase.storage.from('chat-attachments').remove([att.id]);
+    setAttachments(prev => prev.filter(a => a.id !== att.id));
+  }
+
   async function sendMessage(e: React.FormEvent) {
     e.preventDefault();
-    if (!messageInput.trim() || !activeView || !user?.id) return;
+    const hasContent = messageInput.trim().length > 0;
+    const hasAttachments = attachments.length > 0;
+    if ((!hasContent && !hasAttachments) || !activeView || !user?.id) return;
 
-    const content = messageInput.trim();
+    const content = hasContent ? messageInput.trim() : (hasAttachments ? 'Fichier(s) joint(s)' : '');
+    const msgAttachments = attachments.map(({ id, name, url, type, size }) => ({ id, name, url, type, size }));
+
     setMessageInput('');
+    setAttachments([]);
 
     const insertData: Record<string, unknown> = {
       sender_id: user.id,
       content,
+      attachments: msgAttachments.length > 0 ? msgAttachments : [],
     };
 
     if (activeView.type === 'channel') {
@@ -338,10 +428,9 @@ export default function OkapiaConnectPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {/* Channels Section */}
           {filteredChannels.length > 0 && (
             <div className="py-2">
-              <div className="px-4 py-1.5 flex items-center justify-between">
+              <div className="px-4 py-1.5">
                 <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Canaux</span>
               </div>
               {filteredChannels.map(channel => (
@@ -361,7 +450,6 @@ export default function OkapiaConnectPage() {
             </div>
           )}
 
-          {/* Direct Messages Section */}
           <div className="py-2 border-t border-gray-100">
             <div className="px-4 py-1.5 flex items-center justify-between">
               <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Messages directs</span>
@@ -474,6 +562,9 @@ export default function OkapiaConnectPage() {
                               : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md'
                           }`}>
                             <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                            {msg.attachments && msg.attachments.length > 0 && (
+                              <MessageAttachments attachments={msg.attachments} />
+                            )}
                           </div>
                           <p className={`text-xs text-gray-400 mt-1 ${isOwn ? 'text-right' : ''}`}>
                             {new Date(msg.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -487,8 +578,54 @@ export default function OkapiaConnectPage() {
               <div ref={messagesEndRef} />
             </div>
 
+            {/* Attachment preview */}
+            {attachments.length > 0 && (
+              <div className="px-4 pt-3 pb-1 bg-gray-50 border-t border-gray-100">
+                <div className="flex flex-wrap gap-2">
+                  {attachments.map(att => (
+                    <div key={att.id} className="relative group flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-sm">
+                      {att.type.startsWith('image/') && att.previewUrl ? (
+                        <img src={att.previewUrl} className="w-8 h-8 rounded object-cover" alt="" />
+                      ) : (
+                        <Paperclip className="w-4 h-4 text-gray-400" />
+                      )}
+                      <span className="text-gray-700 max-w-[120px] truncate">{att.name}</span>
+                      <button
+                        onClick={() => removeAttachment(att)}
+                        className="p-0.5 hover:bg-red-50 rounded-full transition-colors"
+                      >
+                        <X className="w-3.5 h-3.5 text-gray-400 hover:text-red-500" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Message Input */}
             <div className="p-4 border-t border-gray-200 bg-white">
-              <form onSubmit={sendMessage} className="flex items-center gap-3">
+              <form onSubmit={sendMessage} className="flex items-center gap-2">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="p-2.5 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                  title="Attacher un fichier"
+                >
+                  {uploading ? (
+                    <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                  ) : (
+                    <Paperclip className="w-5 h-5 text-gray-400" />
+                  )}
+                </button>
                 <input
                   type="text"
                   value={messageInput}
@@ -498,7 +635,7 @@ export default function OkapiaConnectPage() {
                 />
                 <button
                   type="submit"
-                  disabled={!messageInput.trim()}
+                  disabled={!messageInput.trim() && attachments.length === 0}
                   className="p-2.5 bg-cyan-600 text-white rounded-xl hover:bg-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <Send className="w-4 h-4" />
