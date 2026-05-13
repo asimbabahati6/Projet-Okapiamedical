@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { X, TestTube, Search, Plus, Trash2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
-import { sendNotification } from '../../utils/notificationService';
-import { updateDocumentWorkflowStatus } from '../../utils/documentWorkflowService';
 
 interface CreateLabOrderModalProps {
   onClose: () => void;
@@ -31,7 +28,6 @@ interface LabTest {
 }
 
 export function CreateLabOrderModal({ onClose, onSuccess, preselectedPatientId }: CreateLabOrderModalProps) {
-  const { profile } = useAuth();
   const { showToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -60,13 +56,22 @@ export function CreateLabOrderModal({ onClose, onSuccess, preselectedPatientId }
 
   async function loadAvailableTests() {
     const { data, error } = await supabase
-      .from('laboratory_tests')
+      .from('lab_tests')
       .select('*')
       .eq('is_active', true)
-      .order('test_category, test_name');
+      .order('category, test_name');
 
     if (!error && data) {
-      setAvailableTests(data);
+      setAvailableTests(data.map((t: Record<string, unknown>) => ({
+        id: t.id as string,
+        test_code: t.test_code as string,
+        test_name: t.test_name as string,
+        test_category: t.category as string,
+        requires_fasting: false,
+        sample_type: (t.specimen_type as string) || '',
+        turnaround_time_hours: (t.turnaround_time as number) || 24,
+        price: (t.price as number) || 0,
+      })));
     }
   }
 
@@ -94,59 +99,22 @@ export function CreateLabOrderModal({ onClose, onSuccess, preselectedPatientId }
     setLoading(true);
 
     try {
-      const { data: labData, error: labError } = await supabase
-        .from('laboratories')
-        .select('id')
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-
-      if (labError) throw labError;
-
       const orderNumber = `LAB-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
 
-      const { data: order, error: orderError } = await supabase
-        .from('lab_test_orders')
-        .insert({
-          order_number: orderNumber,
+      const insertPromises = selectedTests.map((test) =>
+        supabase.from('lab_orders').insert({
+          order_number: `${orderNumber}-${test.test_code}`,
           patient_id: selectedPatient,
-          ordered_by: profile?.id,
-          laboratory_id: labData?.id || null,
-          test_ids: selectedTests.map(t => t.id),
+          test_id: test.id,
           priority,
-          clinical_notes: clinicalNotes,
-          status: 'pending'
+          status: 'pending',
+          notes: clinicalNotes || null,
         })
-        .select()
-        .single();
+      );
 
-      if (orderError) throw orderError;
-
-      await updateDocumentWorkflowStatus(order.id, 'lab_order', 'pending_validation');
-
-      const patient = patients.find(p => p.id === selectedPatient);
-      const { data: labStaff } = await supabase
-        .from('user_profiles')
-        .select('id')
-        .eq('role_id', (await supabase.from('roles').select('id').eq('name', 'nurse').single()).data?.id);
-
-      if (labStaff && labStaff.length > 0) {
-        await Promise.all(
-          labStaff.map(staff =>
-            sendNotification({
-              recipientId: staff.id,
-              senderId: profile?.id,
-              notificationType: 'lab_order_created',
-              title: 'Nouvelle Commande de Laboratoire',
-              message: `Nouvelle commande pour ${patient?.first_name} ${patient?.last_name} - ${selectedTests.length} test(s)`,
-              priority: priority === 'stat' ? 'critical' : priority === 'urgent' ? 'high' : 'normal',
-              relatedDocumentId: order.id,
-              relatedDocumentType: 'lab_order',
-              actionUrl: '/tableau-de-bord/laboratory'
-            })
-          )
-        );
-      }
+      const results = await Promise.all(insertPromises);
+      const errors = results.filter(r => r.error);
+      if (errors.length > 0) throw errors[0].error;
 
       showToast('Commande de laboratoire créée avec succès', 'success');
       onSuccess();
