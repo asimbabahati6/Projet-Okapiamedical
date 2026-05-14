@@ -225,35 +225,45 @@ export default function MedicalConsultationPage() {
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 overflow-hidden">
           {filteredConsultations.map(c => (
-            <button
-              key={c.id}
-              onClick={() => openConsultation(c.id)}
-              className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
-            >
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
-                c.flow_mode === 'exam_referral' ? 'bg-blue-100' : 'bg-green-100'
-              }`}>
-                {c.flow_mode === 'exam_referral'
-                  ? <FileSearch className="w-4.5 h-4.5 text-blue-600" />
-                  : <User className="w-4.5 h-4.5 text-green-600" />
-                }
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-medium text-gray-900 text-sm truncate">
-                  {c.patient ? `${c.patient.last_name} ${c.patient.first_name}` : 'Patient inconnu'}
-                </p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs text-gray-400">{c.patient?.patient_number}</span>
-                  <span className="text-xs text-gray-300">|</span>
-                  <span className="text-xs text-gray-400 flex items-center gap-1">
-                    <Clock className="w-3 h-3" />
-                    {new Date(c.created_at).toLocaleDateString('fr-FR')} {new Date(c.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
+            <div key={c.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
+              <button
+                onClick={() => openConsultation(c.id)}
+                className="flex-1 flex items-center gap-4 text-left min-w-0"
+              >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${
+                  c.flow_mode === 'exam_referral' ? 'bg-blue-100' : 'bg-green-100'
+                }`}>
+                  {c.flow_mode === 'exam_referral'
+                    ? <FileSearch className="w-4.5 h-4.5 text-blue-600" />
+                    : <User className="w-4.5 h-4.5 text-green-600" />
+                  }
                 </div>
-              </div>
-              <WorkflowStatusBadge status={c.workflow_status} />
-              <ChevronRight className="w-4 h-4 text-gray-300" />
-            </button>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-gray-900 text-sm truncate">
+                    {c.patient ? `${c.patient.last_name} ${c.patient.first_name}` : 'Patient inconnu'}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-gray-400">{c.patient?.patient_number}</span>
+                    <span className="text-xs text-gray-300">|</span>
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                      <Clock className="w-3 h-3" />
+                      {new Date(c.created_at).toLocaleDateString('fr-FR')} {new Date(c.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                </div>
+                <WorkflowStatusBadge status={c.workflow_status} />
+                <ChevronRight className="w-4 h-4 text-gray-300" />
+              </button>
+              {c.workflow_status === 'completed' && (
+                <button
+                  onClick={() => navigate(`/staff/medical-report/${c.id}`)}
+                  className="shrink-0 p-2 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                  title="Generer le rapport"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
