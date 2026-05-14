@@ -46,6 +46,8 @@ export async function uploadSelfie(
   punchType: string,
   dataUrl: string
 ): Promise<{ storagePath: string; publicUrl: string | null; fileSize: number }> {
+  await ensureBucketExists();
+
   const blob = await compressImage(dataUrl);
   const date = new Date().toISOString().split('T')[0];
   const timestamp = Date.now();

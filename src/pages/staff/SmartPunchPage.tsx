@@ -71,7 +71,17 @@ export default function SmartPunchPage() {
     setUploadError(null);
     setIsLoading(true);
     try {
-      const { storagePath, publicUrl } = await uploadSelfie(staffId, pendingPunchType, dataUrl);
+      let selfieUrl: string | null = null;
+      let selfieStoragePath: string | null = null;
+
+      try {
+        const { storagePath, publicUrl } = await uploadSelfie(staffId, pendingPunchType, dataUrl);
+        selfieUrl = publicUrl;
+        selfieStoragePath = storagePath;
+      } catch (uploadErr) {
+        console.warn('Selfie upload failed, proceeding with punch record:', uploadErr);
+      }
+
       await createPunchRecord({
         staff_id: staffId,
         punch_type: pendingPunchType,
@@ -82,8 +92,8 @@ export default function SmartPunchPage() {
         is_within_zone: geo.isWithinZone,
         is_remote_exception: geo.isExemptRole,
         remote_exception_role: geo.isExemptRole ? (profile?.role?.name || null) : null,
-        selfie_url: publicUrl,
-        selfie_storage_path: storagePath,
+        selfie_url: selfieUrl,
+        selfie_storage_path: selfieStoragePath,
       });
       setUploadingStatus('success');
       await loadTodayData();
