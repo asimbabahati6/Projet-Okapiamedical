@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, FileText, CheckCircle, Clock, AlertCircle, Plus, Eye, List, Calendar } from 'lucide-react';
+import { Activity, FileText, CheckCircle, Clock, AlertCircle, Plus, Eye, List, FilePlus2, ClipboardList } from 'lucide-react';
 import { useRadiologyPermissions } from '../../hooks/useRadiologyPermissions';
 import { supabase } from '../../lib/supabase';
 import { FullAccessBadge, ReadOnlyBadge } from '../../components/common/PermissionBadges';
@@ -148,25 +148,23 @@ export default function RadiologyPage() {
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
         <h2 className="text-xl font-bold text-gray-900 mb-4">Actions Rapides</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {permissions.canPrescribe && (
-            <button
-              onClick={() => navigate('/staff/radiology/prescribe')}
-              className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border-2 border-blue-200 text-left"
-            >
-              <Plus className="w-6 h-6 text-blue-600 mb-2" />
-              <h3 className="font-semibold text-gray-900">Prescrire un examen</h3>
-              <p className="text-sm text-gray-600 mt-1">
-                Créer une nouvelle prescription radiologique
-              </p>
-            </button>
-          )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <button
+            onClick={() => navigate('/staff/radiology/prescribe')}
+            className="p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors border-2 border-orange-200 text-left group"
+          >
+            <FilePlus2 className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
+            <h3 className="font-semibold text-gray-900">Demande d'examens</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Soumettre une nouvelle demande
+            </p>
+          </button>
 
           <button
             onClick={() => navigate('/staff/radiology/queue')}
-            className="p-4 bg-cyan-50 rounded-lg hover:bg-cyan-100 transition-colors border-2 border-cyan-200 text-left"
+            className="p-4 bg-cyan-50 rounded-lg hover:bg-cyan-100 transition-colors border-2 border-cyan-200 text-left group"
           >
-            <List className="w-6 h-6 text-cyan-600 mb-2" />
+            <List className="w-6 h-6 text-cyan-600 mb-2 group-hover:scale-110 transition-transform" />
             <h3 className="font-semibold text-gray-900">File d'attente</h3>
             <p className="text-sm text-gray-600 mt-1">
               Voir tous les examens en attente
@@ -175,24 +173,35 @@ export default function RadiologyPage() {
 
           <button
             onClick={() => navigate('/staff/radiology/history')}
-            className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border-2 border-green-200 text-left"
+            className="p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors border-2 border-green-200 text-left group"
           >
-            <Eye className="w-6 h-6 text-green-600 mb-2" />
+            <Eye className="w-6 h-6 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
             <h3 className="font-semibold text-gray-900">Historique</h3>
             <p className="text-sm text-gray-600 mt-1">
-              Consulter les examens passés
+              Consulter les examens passes
+            </p>
+          </button>
+
+          <button
+            onClick={() => navigate('/staff/radiology/report-template')}
+            className="p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors border-2 border-blue-200 text-left group"
+          >
+            <ClipboardList className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+            <h3 className="font-semibold text-gray-900">Modele de rapport</h3>
+            <p className="text-sm text-gray-600 mt-1">
+              Rapport radiologique moderne
             </p>
           </button>
 
           {permissions.canPerformExams && (
             <button
               onClick={() => navigate('/staff/radiology/queue')}
-              className="p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors border-2 border-purple-200 text-left"
+              className="p-4 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors border-2 border-teal-200 text-left group"
             >
-              <Activity className="w-6 h-6 text-purple-600 mb-2" />
+              <Activity className="w-6 h-6 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
               <h3 className="font-semibold text-gray-900">Espace de travail</h3>
               <p className="text-sm text-gray-600 mt-1">
-                Réaliser et rédiger les examens
+                Realiser et rediger les examens
               </p>
             </button>
           )}

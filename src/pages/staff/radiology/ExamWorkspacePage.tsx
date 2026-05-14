@@ -399,6 +399,13 @@ export default function ExamWorkspacePage() {
               <CheckCircle className="w-5 h-5" />
               {saving ? 'Finalisation...' : 'Terminer l\'Examen'}
             </button>
+            <button
+              onClick={() => navigate(`/staff/radiology/report-template/${examId}`)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            >
+              <FileText className="w-5 h-5" />
+              Voir le rapport
+            </button>
           </div>
         )}
       </div>

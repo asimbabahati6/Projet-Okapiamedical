@@ -52,6 +52,7 @@ import ExamQueuePage from './pages/staff/radiology/ExamQueuePage';
 import ExamWorkspacePage from './pages/staff/radiology/ExamWorkspacePage';
 import ReportViewerPage from './pages/staff/radiology/ReportViewerPage';
 import ExamHistoryPage from './pages/staff/radiology/ExamHistoryPage';
+import ReportTemplatePage from './pages/staff/radiology/ReportTemplatePage';
 import OkapiaConnectPage from './pages/staff/OkapiaConnectPage';
 import MessagingPage from './pages/staff/MessagingPage';
 import SmartPunchPage from './pages/staff/SmartPunchPage';
@@ -151,6 +152,8 @@ function App() {
                   <Route path="radiology/workspace/:examId" element={<ExamWorkspacePage />} />
                   <Route path="radiology/viewer/:examId" element={<ReportViewerPage />} />
                   <Route path="radiology/history" element={<ExamHistoryPage />} />
+                  <Route path="radiology/report-template" element={<ReportTemplatePage />} />
+                  <Route path="radiology/report-template/:examId" element={<ReportTemplatePage />} />
                   <Route path="administration" element={<AdministrationDashboard />} />
                   <Route path="employees" element={<EmployeesPage />} />
                   <Route path="payroll" element={<PayrollPage />} />
