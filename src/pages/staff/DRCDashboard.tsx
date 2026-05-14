@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package } from 'lucide-react';
+import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package, ClipboardList } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';
@@ -274,6 +274,13 @@ export function DRCDashboard() {
           >
             <FileText className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
             <p className="text-sm font-medium text-gray-900">Assurances</p>
+          </button>
+          <button
+            onClick={() => navigate('/staff/medical-report')}
+            className="p-4 bg-teal-50 rounded-lg text-left hover:bg-teal-100 transition-colors group"
+          >
+            <ClipboardList className="w-6 h-6 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
+            <p className="text-sm font-medium text-gray-900">Rapport Médical</p>
           </button>
         </div>
       </div>

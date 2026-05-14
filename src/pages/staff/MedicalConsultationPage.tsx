@@ -1,7 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText, Plus, Search, Clock, User, FileSearch, UserPlus, RefreshCw,
-  ChevronRight, ArrowLeft, AlertCircle, List
+  ChevronRight, ArrowLeft, AlertCircle, List, ClipboardList
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -45,6 +46,7 @@ type FlowMode = 'new_patient' | 'exam_referral';
 type ViewMode = 'list' | 'new' | 'detail';
 
 export default function MedicalConsultationPage() {
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [consultations, setConsultations] = useState<ConsultationListItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -517,6 +519,7 @@ interface ConsultationDetailProps {
 }
 
 function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, onBack, onRefresh }: ConsultationDetailProps) {
+  const detailNavigate = useNavigate();
   const [complaints, setComplaints] = useState(consultation.nurse_complaints || '');
   const [vitalSigns, setVitalSigns] = useState<VitalSigns>(() => {
     const vs = consultation.vital_signs || {};
@@ -656,6 +659,15 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
             <span className="text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full font-medium border border-green-200">
               Sauvegardé
             </span>
+          )}
+          {isCompleted && (
+            <button
+              onClick={() => detailNavigate(`/staff/medical-report/${consultation.id}`)}
+              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              Rapport
+            </button>
           )}
           {!isCompleted && (
             <button

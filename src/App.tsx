@@ -69,6 +69,7 @@ import PendingRegistrationsPage from './pages/staff/PendingRegistrationsPage';
 import PermissionManagementPage from './pages/staff/PermissionManagementPage';
 import PatientFlowDashboard from './pages/staff/PatientFlowDashboard';
 import MedicalConsultationPage from './pages/staff/MedicalConsultationPage';
+import MedicalReportPage from './pages/staff/medical/MedicalReportPage';
 import StaffProfilePage from './pages/staff/StaffProfilePage';
 import ExchangeRatesPage from './pages/staff/ExchangeRatesPage';
 
@@ -133,6 +134,8 @@ function App() {
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
                   <Route path="medical-consultation" element={<MedicalConsultationPage />} />
+                  <Route path="medical-report" element={<MedicalReportPage />} />
+                  <Route path="medical-report/:consultationId" element={<MedicalReportPage />} />
                   <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
 
@@ -196,6 +199,8 @@ function App() {
                   <Route path="permission-management" element={<PermissionManagementPage />} />
                   <Route path="patient-flow" element={<PatientFlowDashboard />} />
                   <Route path="medical-consultation" element={<MedicalConsultationPage />} />
+                  <Route path="medical-report" element={<MedicalReportPage />} />
+                  <Route path="medical-report/:consultationId" element={<MedicalReportPage />} />
                   <Route path="exchange-rates" element={<ExchangeRatesPage />} />
                   <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
