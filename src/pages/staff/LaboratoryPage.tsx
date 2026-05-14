@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FlaskConical,
   Search,
@@ -17,6 +18,7 @@ import {
   TrendingUp,
   Plus,
   Eye,
+  ClipboardList,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CreateLabOrderModal } from '../../components/laboratory/CreateLabOrderModal';
@@ -63,6 +65,7 @@ const CATEGORIES = [
 ];
 
 export function LaboratoryPage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<TabType>('orders');
   const [orders, setOrders] = useState<LabOrder[]>([]);
   const [tests, setTests] = useState<LabTest[]>([]);
@@ -244,13 +247,22 @@ export function LaboratoryPage() {
           </h1>
           <p className="text-gray-500 mt-1">Gestion des analyses et catalogue</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Nouvelle demande
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/staff/laboratory/report-template')}
+            className="flex items-center gap-2 px-4 py-2.5 border border-blue-200 bg-blue-50 text-blue-700 rounded-xl hover:bg-blue-100 transition-colors font-medium"
+          >
+            <ClipboardList className="w-4 h-4" />
+            Modele de rapport
+          </button>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2 px-4 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 transition-colors font-medium shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle demande
+          </button>
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -371,6 +383,7 @@ export function LaboratoryPage() {
           orders={filteredOrders}
           getStatusConfig={getStatusConfig}
           getPriorityConfig={getPriorityConfig}
+          onViewReport={(id) => navigate(`/staff/laboratory/report-template/${id}`)}
         />
       ) : (
         <CatalogView
@@ -400,10 +413,12 @@ function OrdersTable({
   orders,
   getStatusConfig,
   getPriorityConfig,
+  onViewReport,
 }: {
   orders: LabOrder[];
   getStatusConfig: (s: string) => { label: string; bg: string; text: string };
   getPriorityConfig: (s: string) => { label: string; bg: string; text: string };
+  onViewReport: (orderId: string) => void;
 }) {
   if (orders.length === 0) {
     return (
@@ -461,9 +476,20 @@ function OrdersTable({
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button className="p-1.5 rounded-lg hover:bg-teal-50 text-teal-600 transition-colors">
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button className="p-1.5 rounded-lg hover:bg-teal-50 text-teal-600 transition-colors" title="Voir details">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      {['completed', 'validated'].includes(order.status) && (
+                        <button
+                          onClick={() => onViewReport(order.id)}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors"
+                          title="Voir le rapport"
+                        >
+                          <FileText className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );

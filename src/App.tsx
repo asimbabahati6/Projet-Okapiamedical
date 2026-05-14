@@ -31,6 +31,7 @@ import AdminFacilitiesPage from './pages/staff/AdminFacilitiesPage';
 import AdminVendorsPage from './pages/staff/AdminVendorsPage';
 import { AppointmentsPage } from './pages/staff/AppointmentsPage';
 import { LaboratoryPage } from './pages/staff/LaboratoryPage';
+import LabReportTemplatePage from './pages/staff/laboratory/LabReportTemplatePage';
 import DoctorsDashboardPage from './pages/staff/DoctorsDashboardPage';
 import PurchaseOrdersPage from './pages/staff/PurchaseOrdersPage';
 import { PharmacyPage } from './pages/staff/PharmacyPage';
@@ -112,6 +113,8 @@ function App() {
                   <Route path="appointments" element={<AppointmentsPage />} />
                   <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
                   <Route path="laboratory" element={<LaboratoryPage />} />
+                  <Route path="laboratory/report-template" element={<LabReportTemplatePage />} />
+                  <Route path="laboratory/report-template/:orderId" element={<LabReportTemplatePage />} />
                   <Route path="pharmacy" element={<PharmacyPage />} />
                   <Route path="administration" element={<AdministrationDashboard />} />
                   <Route path="admin-staff" element={<AdministrativeStaffPage />} />
@@ -146,6 +149,8 @@ function App() {
                   <Route path="appointments" element={<AppointmentsPage />} />
                   <Route path="doctors-dashboard" element={<DoctorsDashboardPage />} />
                   <Route path="laboratory" element={<LaboratoryPage />} />
+                  <Route path="laboratory/report-template" element={<LabReportTemplatePage />} />
+                  <Route path="laboratory/report-template/:orderId" element={<LabReportTemplatePage />} />
                   <Route path="radiology" element={<RadiologyPage />} />
                   <Route path="radiology/prescribe" element={<PrescribeExamPage />} />
                   <Route path="radiology/queue" element={<ExamQueuePage />} />
