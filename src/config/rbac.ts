@@ -16,6 +16,7 @@ export const ROLE_LABELS: Record<RBACRole, string> = {
   admin: 'Administrateur',
   medical_director: 'Médecin Directeur',
   doctor: 'Médecin',
+  nurse: 'Infirmier(e)',
   administrative: 'Administratif',
   hr_admin: 'Responsable RH',
   accountant: 'Comptable',
@@ -37,7 +38,7 @@ export const ROLE_LABELS: Record<RBACRole, string> = {
 const ALL_ROLES: RBACRole[] = Object.keys(ROLE_LABELS) as RBACRole[];
 export const ADMIN_ROLES: RBACRole[] = ['admin', 'medical_director', 'directeur_general', 'medecin_chef_staff'];
 const MEDICAL_ROLES: RBACRole[] = ['admin', 'medical_director', 'doctor', 'medecin_chef_staff'];
-const CLINICAL_ROLES: RBACRole[] = [...MEDICAL_ROLES, 'laboratory', 'pharmacist', 'radio_chef', 'radio_tech'];
+const CLINICAL_ROLES: RBACRole[] = [...MEDICAL_ROLES, 'nurse', 'laboratory', 'pharmacist', 'radio_chef', 'radio_tech'];
 const FINANCE_ROLES: RBACRole[] = ['admin', 'accountant', 'gestionnaire', 'directeur_general', 'caissiere'];
 const HR_ROLES: RBACRole[] = ['admin', 'hr_admin', 'directeur_general', 'medecin_chef_staff', 'operations'];
 
@@ -47,6 +48,7 @@ export const ROLE_PERMISSIONS: Record<string, string[]> = {
   directeur_general: ['*'],
   medecin_chef_staff: ['dashboard', 'patients', 'appointments', 'consultations', 'prescriptions', 'laboratory', 'pharmacy', 'employees', 'reports', 'radiology'],
   doctor: ['dashboard', 'patients', 'appointments', 'consultations', 'prescriptions', 'laboratory', 'radiology'],
+  nurse: ['dashboard', 'patients', 'appointments', 'consultations', 'prescriptions', 'patient-flow', 'patient-checkin'],
   administrative: ['dashboard', 'appointments', 'patients', 'billing', 'employees'],
   hr_admin: ['dashboard', 'employees', 'payroll', 'contracts', 'shifts', 'attendance'],
   accountant: ['dashboard', 'billing', 'invoices', 'expenses', 'financial-reports', 'payroll'],
@@ -77,11 +79,11 @@ export const MENU_STRUCTURE: MenuItem[] = [
     icon: 'Stethoscope',
     roles: [...CLINICAL_ROLES, 'receptionist', 'administrative', 'caissiere'],
     children: [
-      { id: 'appointments', label: 'Rendez-vous', icon: 'Calendar', path: '/staff/appointments', roles: [...MEDICAL_ROLES, 'receptionist', 'administrative', 'caissiere'] },
-      { id: 'medical-consultation', label: 'Consultation Médicale', icon: 'Stethoscope', path: '/staff/medical-consultation', roles: [...MEDICAL_ROLES] },
-      { id: 'prescriptions', label: 'Prescriptions', icon: 'Pill', path: '/staff/prescriptions', roles: [...MEDICAL_ROLES, 'pharmacist'] },
+      { id: 'appointments', label: 'Rendez-vous', icon: 'Calendar', path: '/staff/appointments', roles: [...MEDICAL_ROLES, 'nurse', 'receptionist', 'administrative', 'caissiere'] },
+      { id: 'medical-consultation', label: 'Consultation Médicale', icon: 'Stethoscope', path: '/staff/medical-consultation', roles: [...MEDICAL_ROLES, 'nurse'] },
+      { id: 'prescriptions', label: 'Prescriptions', icon: 'Pill', path: '/staff/prescriptions', roles: [...MEDICAL_ROLES, 'nurse', 'pharmacist'] },
       { id: 'patient-flow', label: 'Flux Patients', icon: 'GitBranch', path: '/staff/patient-flow', roles: [...CLINICAL_ROLES, 'receptionist', 'administrative'] },
-      { id: 'patient-checkin', label: 'Accueil', icon: 'UserCheck', path: '/staff/patient-checkin', roles: ['admin', 'receptionist', 'administrative'] },
+      { id: 'patient-checkin', label: 'Accueil', icon: 'UserCheck', path: '/staff/patient-checkin', roles: ['admin', 'nurse', 'receptionist', 'administrative'] },
       { id: 'doctors-dashboard', label: 'Médecins', icon: 'BookUser', path: '/staff/doctors-dashboard', roles: ADMIN_ROLES },
     ],
   },

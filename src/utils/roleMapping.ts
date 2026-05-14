@@ -1,7 +1,7 @@
 import { UserRole } from '@/core/types/enums';
 
 // Type definitions for the three role systems
-export type RBACRole = 'admin' | 'medical_director' | 'doctor' | 'administrative' | 'accountant' | 'receptionist' | 'laboratory' | 'pharmacist' | 'logistician' | 'hr_admin' | 'operations' | 'directeur_general' | 'medecin_chef_staff' | 'gestionnaire' | 'radio_chef' | 'radio_tech' | 'caissiere' | 'technique' | 'hygiene';
+export type RBACRole = 'admin' | 'medical_director' | 'doctor' | 'nurse' | 'administrative' | 'accountant' | 'receptionist' | 'laboratory' | 'pharmacist' | 'logistician' | 'hr_admin' | 'operations' | 'directeur_general' | 'medecin_chef_staff' | 'gestionnaire' | 'radio_chef' | 'radio_tech' | 'caissiere' | 'technique' | 'hygiene';
 export type DatabaseRole = 'super_admin' | 'hospital_admin' | 'medical_director' | 'administrative_director' | 'hr_manager' | 'finance_manager' | 'operations_manager' | 'information_systems_coordinator' | 'doctor' | 'dentist' | 'physical_therapist' | 'nurse' | 'pharmacist' | 'administrative_staff' | 'administrative_officer' | 'administrative_assistant' | 'receptionist' | 'lab_technician' | 'logistician' | 'patient' | 'directeur_general' | 'medecin_chef_staff' | 'gestionnaire' | 'radio_chef' | 'radio_tech' | 'caissiere' | 'technique' | 'hygiene';
 
 // Mapping from RBAC roles to UserRole enum
@@ -24,7 +24,8 @@ export const RBAC_TO_ENUM_MAP: Record<RBACRole, UserRole> = {
   'radio_tech': UserRole.RADIO_TECH,
   'caissiere': UserRole.CAISSIERE,
   'technique': UserRole.TECHNIQUE,
-  'hygiene': UserRole.HYGIENE
+  'hygiene': UserRole.HYGIENE,
+  'nurse': UserRole.NURSE
 };
 
 // Mapping from UserRole enum to RBAC roles
@@ -40,7 +41,7 @@ export const ENUM_TO_RBAC_MAP: Record<UserRole, RBACRole> = {
   [UserRole.DOCTOR]: 'doctor',
   [UserRole.DENTIST]: 'doctor',
   [UserRole.PHYSICAL_THERAPIST]: 'doctor',
-  [UserRole.NURSE]: 'administrative',
+  [UserRole.NURSE]: 'nurse',
   [UserRole.PHARMACIST]: 'pharmacist',
   [UserRole.ADMINISTRATIVE_STAFF]: 'administrative',
   [UserRole.ADMINISTRATIVE_OFFICER]: 'administrative',
@@ -104,7 +105,7 @@ export const DB_TO_RBAC_MAP: Record<DatabaseRole, RBACRole> = {
   'doctor': 'doctor',
   'dentist': 'doctor',
   'physical_therapist': 'doctor',
-  'nurse': 'administrative',
+  'nurse': 'nurse',
   'pharmacist': 'pharmacist',
   'administrative_staff': 'administrative',
   'administrative_officer': 'administrative',
@@ -157,7 +158,7 @@ export function isAdminRole(role: UserRole | RBACRole | DatabaseRole | string): 
 
 // Get all available RBAC roles for the simulator
 export function getAllSimulatorRoles(): RBACRole[] {
-  return ['admin', 'medical_director', 'doctor', 'administrative', 'hr_admin', 'accountant', 'operations', 'receptionist', 'laboratory', 'pharmacist', 'logistician', 'directeur_general', 'medecin_chef_staff', 'gestionnaire', 'radio_chef', 'radio_tech', 'caissiere', 'technique', 'hygiene'];
+  return ['admin', 'medical_director', 'doctor', 'nurse', 'administrative', 'hr_admin', 'accountant', 'operations', 'receptionist', 'laboratory', 'pharmacist', 'logistician', 'directeur_general', 'medecin_chef_staff', 'gestionnaire', 'radio_chef', 'radio_tech', 'caissiere', 'technique', 'hygiene'];
 }
 
 // Get role display name
@@ -165,6 +166,7 @@ export const ROLE_DISPLAY_NAMES: Record<RBACRole, string> = {
   'admin': 'Administrateur',
   'medical_director': 'Médecin Directeur',
   'doctor': 'Médecin',
+  'nurse': 'Infirmier(e)',
   'administrative': 'Administratif/RH',
   'hr_admin': 'Responsable RH',
   'accountant': 'Comptable',
