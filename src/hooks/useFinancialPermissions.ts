@@ -1,5 +1,4 @@
 import { useRBAC } from '@/contexts/RBACContext';
-import { UserRole } from '@/config/rbac';
 
 export interface FinancialPermissions {
   canViewInvoices: boolean;
@@ -16,6 +15,7 @@ export interface FinancialPermissions {
   canApproveSupplyOrders: boolean;
   canViewCashFlow: boolean;
   canAccessCashRegister: boolean;
+  canViewReceipts: boolean;
   isDirecteurGeneral: boolean;
   isGestionnaire: boolean;
   isCaissiere: boolean;
@@ -27,9 +27,10 @@ export function useFinancialPermissions(): FinancialPermissions {
   const effectiveRole = isSimulationMode ? userRole : actualRole;
 
   const isDirecteurGeneral = effectiveRole === 'directeur_general' || effectiveRole === 'admin';
-  const isGestionnaire = effectiveRole === 'gestionnaire';
-  const isCaissiere = effectiveRole === 'caissiere';
-  const isAccountant = effectiveRole === 'accountant';
+  const isGestionnaire     = effectiveRole === 'gestionnaire';
+  const isCaissiere        = effectiveRole === 'caissiere';
+  const isAccountant       = effectiveRole === 'accountant';
+  const isReceptionist     = effectiveRole === 'receptionist';
 
   return {
     canViewInvoices: isDirecteurGeneral || isGestionnaire || isCaissiere || isAccountant,
@@ -60,8 +61,11 @@ export function useFinancialPermissions(): FinancialPermissions {
 
     canAccessCashRegister: isDirecteurGeneral || isCaissiere,
 
+    // Réceptionniste : voir les reçus des paiements validés (lecture seule)
+    canViewReceipts: isDirecteurGeneral || isGestionnaire || isCaissiere || isAccountant || isReceptionist,
+
     isDirecteurGeneral,
     isGestionnaire,
-    isCaissiere
+    isCaissiere,
   };
 }
