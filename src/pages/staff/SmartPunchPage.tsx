@@ -4,6 +4,7 @@ import { PunchButton } from '../../components/smart-punch/PunchButton';
 import { GeofenceStatus } from '../../components/smart-punch/GeofenceStatus';
 import { TodayTimeline } from '../../components/smart-punch/TodayTimeline';
 import { SelfieCapture } from '../../components/smart-punch/SelfieCapture';
+import { GpsBlockingModal } from '../../components/smart-punch/GpsBlockingModal';
 import { useGeofencing } from '../../hooks/useGeofencing';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTodayPunches, computeTodayStatus, createPunchRecord, type PunchRecord, type TodayStatus } from '../../services/smartPunchService';
@@ -24,6 +25,12 @@ export default function SmartPunchPage() {
   const geo = useGeofencing();
 
   const staffId = profile?.id || '';
+
+  const showBlockingModal = !geo.isExemptRole
+    && !geo.isLoading
+    && geo.errorType !== null
+    && geo.errorType !== 'position_unavailable'
+    && geo.signalQuality === null;
 
   const loadTodayData = useCallback(async () => {
     if (!staffId) return;
@@ -71,7 +78,7 @@ export default function SmartPunchPage() {
             <Clock className="w-7 h-7 text-blue-600" />
             Smart Punch
           </h1>
-          <p className="text-gray-500 mt-1">Pointage intelligent avec geolocalisation</p>
+          <p className="text-gray-500 mt-1">Pointage intelligent avec géolocalisation</p>
         </div>
       </div>
 
@@ -88,6 +95,7 @@ export default function SmartPunchPage() {
               isExemptRole={geo.isExemptRole}
               isLoading={isLoading}
               breakElapsedMinutes={todayStatus.breakElapsedMinutes}
+              signalQuality={geo.signalQuality}
               onPunch={handlePunch}
             />
           </div>
@@ -105,7 +113,7 @@ export default function SmartPunchPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <MapPin className="w-5 h-5 text-green-600" />
-              Geolocalisation
+              Géolocalisation
             </h2>
             <GeofenceStatus geo={geo} onRefresh={geo.refresh} />
           </div>
@@ -113,13 +121,13 @@ export default function SmartPunchPage() {
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
             <h2 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
               <Camera className="w-5 h-5 text-blue-600" />
-              Verification
+              Vérification
             </h2>
             <button
               onClick={() => setShowSelfie(true)}
               className="w-full py-2.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors font-medium text-sm"
             >
-              Prendre un selfie de verification
+              Prendre un selfie de vérification
             </button>
           </div>
         </div>
@@ -131,6 +139,10 @@ export default function SmartPunchPage() {
             <SelfieCapture onCapture={() => setShowSelfie(false)} onCancel={() => setShowSelfie(false)} />
           </div>
         </div>
+      )}
+
+      {showBlockingModal && (
+        <GpsBlockingModal errorType={geo.errorType} onRetry={geo.refresh} />
       )}
     </div>
   );

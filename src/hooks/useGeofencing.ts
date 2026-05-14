@@ -3,9 +3,14 @@ import { useAuth } from '../contexts/AuthContext';
 
 const CLINIC_LAT = -4.3716655824942405;
 const CLINIC_LNG = 15.253661517603327;
-const GEOFENCE_RADIUS_METERS = 250;
-const MIN_GPS_ACCURACY_METERS = 125;
+const GEOFENCE_RADIUS_METERS = 100;
+const WEAK_SIGNAL_THRESHOLD = 50;
+const INSUFFICIENT_SIGNAL_THRESHOLD = 150;
 const EXEMPT_ROLES = ['super_admin', 'hospital_admin', 'directeur_general'];
+
+export type SignalQuality = 'good' | 'weak' | 'insufficient' | null;
+
+export type GpsErrorType = 'permission_denied' | 'position_unavailable' | 'timeout' | 'not_supported' | null;
 
 export interface GeofencingState {
   latitude: number | null;
@@ -17,6 +22,8 @@ export interface GeofencingState {
   canPunch: boolean;
   isLoading: boolean;
   error: string | null;
+  errorType: GpsErrorType;
+  signalQuality: SignalQuality;
   lastUpdated: Date | null;
 }
 
@@ -31,6 +38,12 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
     Math.cos(phi1) * Math.cos(phi2) * Math.sin(dLambda / 2) ** 2;
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
+}
+
+function getSignalQuality(accuracy: number): SignalQuality {
+  if (accuracy <= WEAK_SIGNAL_THRESHOLD) return 'good';
+  if (accuracy <= INSUFFICIENT_SIGNAL_THRESHOLD) return 'weak';
+  return 'insufficient';
 }
 
 export function useGeofencing() {
@@ -50,6 +63,8 @@ export function useGeofencing() {
     canPunch: isExemptRole,
     isLoading: !isExemptRole,
     error: null,
+    errorType: null,
+    signalQuality: null,
     lastUpdated: null,
   });
 
@@ -57,8 +72,9 @@ export function useGeofencing() {
     (position: GeolocationPosition) => {
       const { latitude, longitude, accuracy } = position.coords;
       const distance = haversineDistance(latitude, longitude, CLINIC_LAT, CLINIC_LNG);
-      const accuracyOk = accuracy <= MIN_GPS_ACCURACY_METERS;
-      const withinZone = distance <= GEOFENCE_RADIUS_METERS && accuracyOk;
+      const quality = getSignalQuality(accuracy);
+      const withinZone = distance <= GEOFENCE_RADIUS_METERS;
+      const canPunchByLocation = quality !== 'insufficient' && withinZone;
 
       setState(prev => ({
         ...prev,
@@ -68,9 +84,13 @@ export function useGeofencing() {
         distanceFromOffice: Math.round(distance),
         isWithinZone: withinZone,
         isExemptRole,
-        canPunch: withinZone || isExemptRole,
+        canPunch: canPunchByLocation || isExemptRole,
         isLoading: false,
-        error: null,
+        error: quality === 'insufficient'
+          ? 'Signal GPS faible, veuillez vous rapprocher d\'une fenêtre.'
+          : null,
+        errorType: quality === 'insufficient' ? 'position_unavailable' : null,
+        signalQuality: quality,
         lastUpdated: new Date(),
       }));
     },
@@ -80,17 +100,23 @@ export function useGeofencing() {
   const handleError = useCallback(
     (error: GeolocationPositionError) => {
       let message: string;
+      let errorType: GpsErrorType;
+
       switch (error.code) {
         case error.PERMISSION_DENIED:
+          errorType = 'permission_denied';
           message = 'Accès GPS refusé. Veuillez autoriser la géolocalisation dans les paramètres de votre appareil.';
           break;
         case error.POSITION_UNAVAILABLE:
-          message = 'Position GPS indisponible. Vérifiez que le GPS est activé sur votre appareil.';
+          errorType = 'position_unavailable';
+          message = 'Position GPS indisponible. Le signal est souvent faible en intérieur — rapprochez-vous d\'une fenêtre ou sortez brièvement.';
           break;
         case error.TIMEOUT:
-          message = 'Délai GPS dépassé. Veuillez réessayer.';
+          errorType = 'timeout';
+          message = 'Délai GPS dépassé. Le capteur n\'a pas répondu à temps. Veuillez réessayer.';
           break;
         default:
+          errorType = 'position_unavailable';
           message = 'Erreur GPS inconnue.';
       }
 
@@ -98,6 +124,8 @@ export function useGeofencing() {
         ...prev,
         isLoading: false,
         error: message,
+        errorType,
+        signalQuality: null,
         canPunch: isExemptRole,
         isExemptRole,
       }));
@@ -111,6 +139,8 @@ export function useGeofencing() {
         ...prev,
         isLoading: false,
         error: 'La géolocalisation n\'est pas supportée par ce navigateur.',
+        errorType: 'not_supported' as GpsErrorType,
+        signalQuality: null,
         canPunch: isExemptRole,
         isExemptRole,
       }));
@@ -122,20 +152,17 @@ export function useGeofencing() {
       return;
     }
 
-    setState(prev => ({ ...prev, isLoading: true, error: null }));
+    setState(prev => ({ ...prev, isLoading: true, error: null, errorType: null }));
 
     const options: PositionOptions = {
       enableHighAccuracy: true,
-      timeout: 15000,
-      maximumAge: 10000,
+      timeout: 10000,
+      maximumAge: 0,
     };
 
     navigator.geolocation.getCurrentPosition(handlePosition, handleError, options);
 
-    watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, {
-      ...options,
-      maximumAge: 5000,
-    });
+    watchIdRef.current = navigator.geolocation.watchPosition(handlePosition, handleError, options);
   }, [isExemptRole, handlePosition, handleError]);
 
   const stopWatching = useCallback(() => {

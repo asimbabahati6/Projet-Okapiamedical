@@ -1,5 +1,6 @@
-import { LogIn, LogOut, Coffee, ArrowRight, Loader2, Lock } from 'lucide-react';
+import { LogIn, LogOut, Coffee, ArrowRight, Loader2, Lock, SignalZero } from 'lucide-react';
 import type { TodayStatus } from '../../services/smartPunchService';
+import type { SignalQuality } from '../../hooks/useGeofencing';
 
 interface Props {
   todayStatus: TodayStatus;
@@ -7,13 +8,14 @@ interface Props {
   isExemptRole: boolean;
   isLoading: boolean;
   breakElapsedMinutes: number | null;
+  signalQuality: SignalQuality;
   onPunch: (type: 'check_in' | 'check_out' | 'break_start' | 'break_end') => void;
 }
 
 const BREAK_LIMIT = 60;
 const BREAK_WARNING = 55;
 
-export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, breakElapsedMinutes, onPunch }: Props) {
+export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, breakElapsedMinutes, signalQuality, onPunch }: Props) {
   const { currentStatus } = todayStatus;
 
   const isBreakWarning = breakElapsedMinutes !== null && breakElapsedMinutes >= BREAK_WARNING;
@@ -130,9 +132,16 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
             <Loader2 className="w-10 h-10 animate-spin" />
           ) : isDisabled && !isExemptRole && currentStatus !== 'departed' ? (
             <>
-              <Lock className="w-8 h-8 text-gray-400" />
+              {signalQuality === 'insufficient' ? (
+                <SignalZero className="w-8 h-8 text-gray-400" />
+              ) : (
+                <Lock className="w-8 h-8 text-gray-400" />
+              )}
               <span className="text-xs text-gray-500 text-center px-4 leading-tight">
-                Hors zone de pointage
+                {signalQuality === 'insufficient'
+                  ? 'Signal GPS insuffisant'
+                  : 'Hors zone de pointage'
+                }
               </span>
             </>
           ) : (
@@ -148,7 +157,9 @@ export function PunchButton({ todayStatus, canPunch, isExemptRole, isLoading, br
         isDisabled && currentStatus !== 'departed' ? 'text-gray-400' : 'text-gray-600'
       }`}>
         {isDisabled && !isExemptRole && currentStatus !== 'departed'
-          ? 'Rapprochez-vous du bureau OKAPIA Medical pour activer le pointage.'
+          ? signalQuality === 'insufficient'
+            ? 'Signal GPS faible, veuillez vous rapprocher d\'une fenêtre.'
+            : 'Rapprochez-vous du bureau OKAPIA Medical pour activer le pointage.'
           : buttonConfig.sublabel
         }
       </p>

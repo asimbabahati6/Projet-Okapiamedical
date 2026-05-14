@@ -110,7 +110,7 @@ export async function getCurrentPosition(
 
 export function isRoleExemptFromProximity(userRole?: string): boolean {
   if (!userRole) return false;
-  const exemptRoles = ['super_admin', 'hospital_admin'];
+  const exemptRoles = ['super_admin', 'hospital_admin', 'directeur_general'];
   return exemptRoles.includes(userRole);
 }
 
@@ -139,7 +139,7 @@ export function validatePosition(
     clinicLon
   );
 
-  const privilegedRoles = ['super_admin', 'hospital_admin'];
+  const privilegedRoles = ['super_admin', 'hospital_admin', 'directeur_general'];
   const isPrivilegedUser = userRole && privilegedRoles.includes(userRole);
 
   if (distance > maxDistanceMeters && !isPrivilegedUser) {
