@@ -144,7 +144,7 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
   };
 
   const methodLabels: Record<string, string> = {
-    cash: 'Especes', mobile_money: 'Mobile Money', bank_transfer: 'Virement bancaire',
+    cash: 'Espèces', mobile_money: 'Mobile Money', bank_transfer: 'Virement bancaire',
     card: 'Carte bancaire', insurance: 'Assurance',
   };
 
@@ -228,7 +228,7 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
                   <h3 className="text-[11px] uppercase text-gray-400 tracking-wider mb-1 font-semibold">Patient</h3>
                   <p className="text-sm font-medium text-gray-900">{patient.last_name} {patient.first_name}</p>
                   {patient.patient_number && <p className="text-xs text-gray-500">N Dossier: {patient.patient_number}</p>}
-                  {patient.phone && <p className="text-xs text-gray-500">Tel: {patient.phone}</p>}
+                  {patient.phone && <p className="text-xs text-gray-500">Tél. {patient.phone}</p>}
                 </div>
               )}
             </div>
@@ -289,9 +289,9 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
             {/* Footer */}
             <div className="mt-10 pt-4 border-t border-gray-200 text-center">
               <p className="text-xs italic text-gray-500 mb-2">Merci pour votre confiance. Ce document fait foi de facture.</p>
-              <p className="text-[10px] text-gray-400">OKAPIA Medical - Avenue du Commerce, Kinshasa - Tel: +243 815 000 000</p>
+              <p className="text-[10px] text-gray-400">OKAPIA Medical - Chaussée Mzée Kabila n°16.881, Kinshasa-Ngaliema - Tél. +243 817 659 057</p>
               <p className="text-[10px] text-gray-400 mt-1">
-                Genere le {new Date().toLocaleDateString('fr-FR')} a {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                Générée le {new Date().toLocaleDateString('fr-FR')} à {new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
               </p>
             </div>
           </div>

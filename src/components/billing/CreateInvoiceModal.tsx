@@ -34,7 +34,7 @@ const ITEM_TYPES = [
 ];
 
 const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Especes' },
+  { value: 'cash', label: 'Espèces' },
   { value: 'mobile_money', label: 'Mobile Money' },
   { value: 'bank_transfer', label: 'Virement bancaire' },
   { value: 'card', label: 'Carte bancaire' },
@@ -383,7 +383,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 )}
                 <div className="border-t border-gray-200 pt-2 mt-2">
                   <div className="flex justify-between">
-                    <span className="font-bold text-gray-900">Net a payer</span>
+                    <span className="font-bold text-gray-900">Net à payer</span>
                     <span className="text-xl font-bold text-blue-600">{netToPay.toFixed(2)} USD</span>
                   </div>
                 </div>
