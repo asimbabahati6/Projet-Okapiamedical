@@ -203,11 +203,13 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
                 <span className="text-2xl font-bold text-blue-700">OKAPIA Medical</span>
               </div>
               <div className="text-right text-xs text-gray-500 leading-relaxed">
-                <p>Avenue du Commerce, Kinshasa</p>
-                <p>Kinshasa, Republique Democratique du Congo</p>
-                <p>Tel: +243 815 000 000</p>
-                <p>Email: contact@okapia-medical.cd</p>
-                <p>RCCM: CD/KIN/RCCM/25-B-00412</p>
+                <p>Chaussée Mzée Kabila n°16.881</p>
+                <p>Galerie Manfield, Kinshasa-Ngaliema</p>
+                <p>Kinshasa, République Démocratique du Congo</p>
+                <p>Direction : +243 817 659 057</p>
+                <p>Réception : +243 823 800 104</p>
+                <p>Email : info@okapiahospital.com</p>
+                <p>RCCM : CD/KIN/RCCM/25-B-00412</p>
               </div>
             </div>
 

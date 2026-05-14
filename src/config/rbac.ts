@@ -126,9 +126,15 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'payroll', label: 'Paie', icon: 'DollarSign', path: '/staff/payroll', roles: ['admin', 'hr_admin', 'accountant', 'directeur_general'] },
       { id: 'contracts', label: 'Contrats', icon: 'FileSignature', path: '/staff/contracts', roles: ['admin', 'hr_admin', 'directeur_general'] },
       { id: 'shifts', label: 'Planning', icon: 'CalendarClock', path: '/staff/shift-scheduling', roles: HR_ROLES },
-      { id: 'smart-punch', label: 'Pointage', icon: 'Fingerprint', path: '/staff/smart-punch', roles: ALL_ROLES },
       { id: 'smart-punch-dashboard', label: 'Tableau pointage', icon: 'BarChart3', path: '/staff/smart-punch-dashboard', roles: ['admin', 'hr_admin', 'directeur_general'] },
     ],
+  },
+  {
+    id: 'smart-punch',
+    label: 'Pointage',
+    icon: 'Fingerprint',
+    path: '/staff/smart-punch',
+    roles: ALL_ROLES,
   },
   {
     id: 'logistics',
