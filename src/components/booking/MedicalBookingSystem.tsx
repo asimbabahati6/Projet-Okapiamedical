@@ -25,7 +25,11 @@ interface BookingEntry {
   video_link: string | null;
 }
 
-export function MedicalBookingSystem() {
+interface MedicalBookingSystemProps {
+  onAppointmentCreated?: () => void;
+}
+
+export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSystemProps = {}) {
   const [step, setStep] = useState(1);
   const [booking, setBooking] = useState<BookingEntry | null>(null);
   const [submitting, setSubmitting] = useState(false);
