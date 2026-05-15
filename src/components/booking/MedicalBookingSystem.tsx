@@ -138,6 +138,7 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
       });
       setTotalInQueue(position);
       setStep(2);
+onAppointmentCreated?.(); // ← ajoute cette ligne
     } catch (err: unknown) {
       console.error('Error creating booking:', err);
       const message = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: string }).message) : 'Erreur inconnue';
