@@ -56,12 +56,17 @@ export function CaissePaymentView() {
 
   async function fetchEntries() {
     try {
-      const today = new Date().toISOString().split('T')[0];
-      const { data, error } = await supabase
-        .from('booking_queue')
-        .select('*')
-        .gte('created_at', `${today}T00:00:00`)
-        .order('created_at', { ascending: true });
+      const today = new Date();
+today.setHours(0, 0, 0, 0);
+const todayLocal = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+  .toISOString()
+  .split('T')[0];
+
+const { data, error } = await supabase
+  .from('booking_queue')
+  .select('*')
+  .gte('created_at', `${todayLocal}T00:00:00`)
+  .order('created_at', { ascending: true });
 
       if (error) throw error;
       setEntries(data || []);
