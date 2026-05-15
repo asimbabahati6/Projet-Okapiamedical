@@ -77,6 +77,8 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
   async function handleRegistration(data: {
     patientName: string;
     patientPhone: string;
+    patientEmail: string;
+    patientGender: string;
     consultationType: 'presentiel' | 'visioconference';
     specialty: string;
     departmentId: string;
@@ -84,19 +86,22 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
     doctorName: string;
     reason: string;
     consultationFee: number;
-    appointmentDate: string; // ✅ nouveau
-    appointmentTime: string; // ✅ nouveau
+    appointmentDate: string;
+    appointmentTime: string;
   }) {
     setSubmitting(true);
     setErrorMessage(null);
     try {
-      const { count } = await supabase
-        .from('booking_queue')
-        .select('*', { count: 'exact', head: true })
-        .eq('doctor_id', data.doctorId)
-        .in('patient_status', ['pending', 'paid']);
+      let position = 1;
+      if (data.doctorId) {
+        const { count } = await supabase
+          .from('booking_queue')
+          .select('*', { count: 'exact', head: true })
+          .eq('doctor_id', data.doctorId)
+          .in('patient_status', ['pending', 'paid']);
+        position = (count || 0) + 1;
+      }
 
-      const position = (count || 0) + 1;
       const ticketNumber = `T-${Date.now().toString(36).toUpperCase()}`;
 
       const { data: inserted, error } = await supabase
@@ -107,13 +112,13 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
           patient_phone: data.patientPhone,
           consultation_type: data.consultationType,
           specialty: data.specialty,
-          department_id: data.departmentId,
-          doctor_id: data.doctorId,
+          department_id: data.departmentId || null,
+          doctor_id: data.doctorId || null,
           doctor_name: data.doctorName,
           reason: data.reason,
           consultation_fee: data.consultationFee,
-          appointment_date: data.appointmentDate, // ✅ nouveau
-          appointment_time: data.appointmentTime, // ✅ nouveau
+          appointment_date: data.appointmentDate,
+          appointment_time: data.appointmentTime,
           payment_status: 'pending',
           patient_status: 'pending',
           queue_position: position,

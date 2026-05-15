@@ -2,13 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin, Video, User, Phone, FileText, Stethoscope,
-  ArrowRight, Loader2, CheckCircle, AlertCircle, Calendar, Clock,
+  ArrowRight, Loader2, CheckCircle, AlertCircle, Calendar, Clock, Mail,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface RegistrationData {
   patientName: string;
   patientPhone: string;
+  patientEmail: string;
+  patientGender: string;
   consultationType: 'presentiel' | 'visioconference';
   specialty: string;
   departmentId: string;
@@ -39,6 +41,8 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   const [consultationType, setConsultationType] = useState<'presentiel' | 'visioconference'>('presentiel');
   const [patientName, setPatientName] = useState('');
   const [patientPhone, setPatientPhone] = useState('');
+  const [patientEmail, setPatientEmail] = useState('');
+  const [patientGender, setPatientGender] = useState('');
   const [reason, setReason] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [doctorId, setDoctorId] = useState('');
@@ -58,8 +62,8 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   const today = new Date().toISOString().split('T')[0];
 
   const isFormValid = useMemo(
-    () => patientName.trim().length > 0 && isPhoneValid && departmentId !== '' && doctorId !== '' && appointmentDate !== '' && appointmentTime !== '',
-    [patientName, isPhoneValid, departmentId, doctorId, appointmentDate, appointmentTime]
+    () => patientName.trim().length > 0 && isPhoneValid && appointmentDate !== '' && appointmentTime !== '',
+    [patientName, isPhoneValid, appointmentDate, appointmentTime]
   );
 
   useEffect(() => { fetchDepartments(); }, []);
@@ -135,6 +139,8 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
     onSubmit({
       patientName: patientName.trim(),
       patientPhone: fullPhone,
+      patientEmail: patientEmail.trim(),
+      patientGender,
       consultationType,
       specialty: selectedDept?.name || '',
       departmentId,
@@ -238,6 +244,29 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         </div>
       </motion.div>
 
+      {/* Email & Gender */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <Mail className="w-4 h-4 text-blue-600" />Adresse email
+          </label>
+          <input type="email" value={patientEmail} onChange={(e) => setPatientEmail(e.target.value)}
+            placeholder="exemple@mail.com"
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80" />
+        </div>
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <User className="w-4 h-4 text-blue-600" />Sexe
+          </label>
+          <select value={patientGender} onChange={(e) => setPatientGender(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none">
+            <option value="">Selectionnez</option>
+            <option value="male">Masculin</option>
+            <option value="female">Feminin</option>
+          </select>
+        </div>
+      </motion.div>
+
       {/* Date & Heure */}
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
@@ -266,14 +295,14 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
-            <Stethoscope className="w-4 h-4 text-blue-600" />Specialite *
+            <Stethoscope className="w-4 h-4 text-blue-600" />Specialite
           </label>
           {loadingDepartments ? (
             <div className="flex items-center gap-2 py-3 text-gray-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" />Chargement...
             </div>
           ) : (
-            <select required value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
+            <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
               className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none">
               <option value="">Selectionnez une specialite</option>
               {departments.map((dept) => (
@@ -284,7 +313,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         </div>
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
-            <User className="w-4 h-4 text-blue-600" />Medecin *
+            <User className="w-4 h-4 text-blue-600" />Medecin
           </label>
           <AnimatePresence mode="wait">
             {loadingDoctors ? (
@@ -294,7 +323,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
               </motion.div>
             ) : (
               <motion.select key="select" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                required value={doctorId} onChange={(e) => setDoctorId(e.target.value)}
+                value={doctorId} onChange={(e) => setDoctorId(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none">
                 <option value="">
                   {departmentId ? (doctors.length === 0 ? 'Aucun medecin disponible' : 'Selectionnez un medecin')
