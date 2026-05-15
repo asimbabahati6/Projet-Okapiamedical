@@ -84,6 +84,8 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
     doctorName: string;
     reason: string;
     consultationFee: number;
+    appointmentDate: string; // ✅ nouveau
+    appointmentTime: string; // ✅ nouveau
   }) {
     setSubmitting(true);
     setErrorMessage(null);
@@ -110,6 +112,8 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
           doctor_name: data.doctorName,
           reason: data.reason,
           consultation_fee: data.consultationFee,
+          appointment_date: data.appointmentDate, // ✅ nouveau
+          appointment_time: data.appointmentTime, // ✅ nouveau
           payment_status: 'pending',
           patient_status: 'pending',
           queue_position: position,
@@ -138,7 +142,7 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
       });
       setTotalInQueue(position);
       setStep(2);
-onAppointmentCreated?.(); // ← ajoute cette ligne
+      onAppointmentCreated?.();
     } catch (err: unknown) {
       console.error('Error creating booking:', err);
       const message = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: string }).message) : 'Erreur inconnue';
