@@ -79,6 +79,7 @@ export function MedicalBookingSystem({ onAppointmentCreated }: MedicalBookingSys
     patientPhone: string;
     patientEmail: string;
     patientGender: string;
+    patientBloodType: string;
     consultationType: 'presentiel' | 'visioconference';
     specialty: string;
     departmentId: string;

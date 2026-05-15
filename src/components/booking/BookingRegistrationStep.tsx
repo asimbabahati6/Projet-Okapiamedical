@@ -11,6 +11,7 @@ interface RegistrationData {
   patientPhone: string;
   patientEmail: string;
   patientGender: string;
+  patientBloodType: string;
   consultationType: 'presentiel' | 'visioconference';
   specialty: string;
   departmentId: string;
@@ -43,6 +44,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
   const [patientPhone, setPatientPhone] = useState('');
   const [patientEmail, setPatientEmail] = useState('');
   const [patientGender, setPatientGender] = useState('');
+  const [patientBloodType, setPatientBloodType] = useState('');
   const [reason, setReason] = useState('');
   const [departmentId, setDepartmentId] = useState('');
   const [doctorId, setDoctorId] = useState('');
@@ -141,6 +143,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
       patientPhone: fullPhone,
       patientEmail: patientEmail.trim(),
       patientGender,
+      patientBloodType,
       consultationType,
       specialty: selectedDept?.name || '',
       departmentId,
@@ -244,8 +247,8 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
         </div>
       </motion.div>
 
-      {/* Email & Gender */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+      {/* Email, Gender & Blood Type */}
+      <motion.div variants={itemVariants} className="grid grid-cols-1 sm:grid-cols-3 gap-5">
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
             <Mail className="w-4 h-4 text-blue-600" />Adresse email
@@ -263,6 +266,23 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
             <option value="">Selectionnez</option>
             <option value="male">Masculin</option>
             <option value="female">Feminin</option>
+          </select>
+        </div>
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-gray-800 mb-2">
+            <Stethoscope className="w-4 h-4 text-blue-600" />Groupe sanguin
+          </label>
+          <select value={patientBloodType} onChange={(e) => setPatientBloodType(e.target.value)}
+            className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all bg-white/80 appearance-none">
+            <option value="">Selectionnez</option>
+            <option value="A+">A+</option>
+            <option value="A-">A-</option>
+            <option value="B+">B+</option>
+            <option value="B-">B-</option>
+            <option value="AB+">AB+</option>
+            <option value="AB-">AB-</option>
+            <option value="O+">O+</option>
+            <option value="O-">O-</option>
           </select>
         </div>
       </motion.div>
