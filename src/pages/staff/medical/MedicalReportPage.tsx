@@ -27,7 +27,12 @@ export default function MedicalReportPage() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-
+// ✅ Restriction : seul le médecin peut accéder au rapport médical
+useEffect(() => {
+  if (profile && profile.role !== 'doctor' && profile.role !== 'medecin' && profile.role !== 'admin' && profile.role !== 'medical_director') {
+    navigate('/staff/dashboard');
+  }
+}, [profile, navigate]);
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
   const [consultationNumber, setConsultationNumber] = useState('');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
