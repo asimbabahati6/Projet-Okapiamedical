@@ -2,20 +2,29 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Package, Search, ArrowUpRight, ArrowDownRight,
-  Activity, X, Pill, History
+  Activity, X, Pill, History, Trash2, AlertTriangle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { recordStockMovement, getStockMovements } from '../../services/pharmacyService';
 import type { PharmacyMedication, StockMovement, StockMovementType } from '../../types/pharmacy';
 import { useToast } from '../../hooks/useToast';
 
+const PURGE_ROLES = ['admin', 'medical_director', 'super_admin', 'hospital_admin', 'directeur_general'];
+
 export function PharmacyInventoryPage() {
   const { showToast } = useToast();
+  const { profile } = useAuth();
+  const userRole = profile?.role?.name || '';
+  const canPurge = PURGE_ROLES.includes(userRole);
+
   const [medications, setMedications] = useState<PharmacyMedication[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showMovementModal, setShowMovementModal] = useState(false);
+  const [showPurgeModal, setShowPurgeModal] = useState(false);
+  const [purging, setPurging] = useState(false);
   const [selectedMed, setSelectedMed] = useState<PharmacyMedication | null>(null);
   const [movementForm, setMovementForm] = useState({
     type: 'reception' as StockMovementType,
@@ -71,6 +80,25 @@ export function PharmacyInventoryPage() {
     }
   }
 
+  async function handlePurge() {
+    setPurging(true);
+    try {
+      await supabase.from('pharmacy_dispensation_records').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('pharmacy_prescriptions_queue').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('pharmacy_stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('pharmacy_medications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('medications').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      showToast('Toutes les donnees de demonstration ont ete supprimees', 'success');
+      setShowPurgeModal(false);
+      fetchData();
+    } catch (error: any) {
+      showToast(error.message || 'Erreur lors de la suppression', 'error');
+    } finally {
+      setPurging(false);
+    }
+  }
+
   const filtered = medications.filter(m => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -89,14 +117,25 @@ export function PharmacyInventoryPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
-            <Package className="w-5 h-5 text-white" />
-          </div>
-          Gestion des Stocks
-        </h1>
-        <p className="text-gray-500 mt-1">Mouvements de stock et ajustements</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center">
+              <Package className="w-5 h-5 text-white" />
+            </div>
+            Gestion des Stocks
+          </h1>
+          <p className="text-gray-500 mt-1">Mouvements de stock et ajustements</p>
+        </div>
+        {canPurge && (
+          <button
+            onClick={() => setShowPurgeModal(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors text-sm font-medium"
+          >
+            <Trash2 className="w-4 h-4" />
+            Vider les donnees de demonstration
+          </button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -203,6 +242,46 @@ export function PharmacyInventoryPage() {
           </div>
         </div>
       </div>
+
+      {/* Purge confirmation modal */}
+      <AnimatePresence>
+        {showPurgeModal && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full"
+            >
+              <div className="p-6 text-center">
+                <div className="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <AlertTriangle className="w-7 h-7 text-red-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">Confirmer la suppression</h3>
+                <p className="text-sm text-gray-600 mb-6">
+                  Cette action supprimera tous les medicaments et mouvements de stock. Continuer ?
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowPurgeModal(false)}
+                    disabled={purging}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handlePurge}
+                    disabled={purging}
+                    className="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {purging ? 'Suppression...' : 'Confirmer la suppression'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showMovementModal && selectedMed && (
