@@ -4,6 +4,7 @@ import {
   Users, Phone, MapPin, X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { logActivity } from '../../utils/activityLogger';
 import { FlowPatientCard, type PatientAdmission } from '../../components/patient-flow/FlowPatientCard';
 import { ReportStatusBadge } from '../../components/patient-flow/ReportStatusBadge';
 import { AdmissionFormModal } from '../../components/patient-flow/AdmissionFormModal';
@@ -158,6 +159,7 @@ export default function PatientFlowDashboard() {
 
       if (error) throw error;
 
+      logActivity('create', 'patients', `Nouveau patient: ${patientForm.first_name} ${patientForm.last_name}`);
       setShowPatientModal(false);
       setPatientForm({ first_name: '', last_name: '', gender: 'M', date_of_birth: '', phone: '', email: '', city: '', address: '', blood_group: '', emergency_contact_name: '', emergency_contact_phone: '' });
       loadPatients();

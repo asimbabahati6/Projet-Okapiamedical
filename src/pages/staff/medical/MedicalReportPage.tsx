@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { logActivity } from '../../../utils/activityLogger';
 import { downloadMedicalReportPDF, type MedicalReportData } from '../../../utils/generateMedicalReportPDF';
 
 interface PatientOption {
@@ -202,12 +203,17 @@ export default function MedicalReportPage() {
 
   const handleDownloadPdf = () => {
     const data = buildReportData();
-    if (data) downloadMedicalReportPDF(data);
+    if (data) {
+      downloadMedicalReportPDF(data);
+      logActivity('generate', 'reports', `Rapport medical genere pour: ${selectedPatient?.last_name} ${selectedPatient?.first_name}`);
+    }
   };
 
   const handlePrint = () => {
     const content = printRef.current;
     if (!content) return;
+
+    logActivity('print', 'reports', `Rapport medical imprime pour: ${selectedPatient?.last_name} ${selectedPatient?.first_name}`);
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;

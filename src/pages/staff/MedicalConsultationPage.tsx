@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { logActivity } from '../../utils/activityLogger';
 import { ConsultationProgressBar, type WorkflowStatus } from '../../components/medical-consultation/ConsultationProgressBar';
 import { NursePreConsultation, type VitalSigns } from '../../components/medical-consultation/NursePreConsultation';
 import { DoctorExamination } from '../../components/medical-consultation/DoctorExamination';
@@ -424,6 +425,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
         nurse_id: userId,
         updated_at: new Date().toISOString(),
       }).eq('id', consultation.id);
+      logActivity('transfer', 'consultations', `Fiche transferee au medecin: ${consultation.consultation_number || consultation.id}`);
       setNurseLocked(true);
       onRefresh();
     } finally {
@@ -469,6 +471,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
         doctor_completed_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq('id', consultation.id);
+      logActivity('close', 'consultations', `Consultation cloturee: ${consultation.consultation_number || consultation.id}`);
       onRefresh();
     } finally {
       setSaving(false);

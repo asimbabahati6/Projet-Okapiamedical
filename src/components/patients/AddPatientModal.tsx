@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
+import { logActivity } from '../../utils/activityLogger';
 
 interface AddPatientModalProps {
   onClose: () => void;
@@ -66,6 +67,7 @@ export function AddPatientModal({ onClose, onSuccess }: AddPatientModalProps) {
 
       if (error) throw error;
 
+      logActivity('create', 'patients', `Nouveau patient: ${data.first_name} ${data.last_name}`);
       showToast(`Patient ${data.first_name} ${data.last_name} ajouté avec succès`, 'success');
       reset();
       onSuccess();

@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { logActivity } from '../utils/activityLogger';
 
 export type AccountStatus = 'pending' | 'active' | 'disabled';
 
@@ -99,6 +100,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
       });
+      if (!error) {
+        logActivity('login', 'auth', 'Connexion reussie');
+      }
       return { error };
     } catch (error) {
       return { error: error as Error };
@@ -140,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signOut() {
+    logActivity('logout', 'auth', 'Deconnexion');
     await supabase.auth.signOut();
     setProfile(null);
   }

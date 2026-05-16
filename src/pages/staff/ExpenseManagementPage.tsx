@@ -3,6 +3,7 @@ import { DollarSign, Plus, Calendar, TrendingUp, TrendingDown, Filter, Download,
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { logActivity } from '../../utils/activityLogger';
 import AddExpenseModal from '../../components/expenses/AddExpenseModal';
 import ExpenseDetailsModal from '../../components/expenses/ExpenseDetailsModal';
 
@@ -233,6 +234,7 @@ export default function ExpenseManagementPage() {
 
       if (error) throw error;
 
+      logActivity('create', 'expenses', `Demande creee: ${requestForm.amount} USD`);
       success('Demande de depense soumise pour approbation');
       setRequestForm({ amount: '', description: '', category: '', justification_documents: '' });
       setShowRequestModal(false);
@@ -259,6 +261,12 @@ export default function ExpenseManagementPage() {
         .eq('id', expenseId);
 
       if (error) throw error;
+
+      const expense = pendingRequests.find(r => r.id === expenseId);
+      const amount = expense ? `${expense.amount} USD` : expenseId;
+      if (action === 'approved') logActivity('approve', 'expenses', `Demande validee: ${amount}`);
+      else if (action === 'returned') logActivity('return', 'expenses', `Demande retournee: ${comment || amount}`);
+      else if (action === 'cancelled') logActivity('cancel', 'expenses', `Demande annulee: ${amount}`);
 
       const actionLabels = { approved: 'approuvee', returned: 'retournee pour etude', cancelled: 'annulee' };
       success(`Demande ${actionLabels[action]}`);

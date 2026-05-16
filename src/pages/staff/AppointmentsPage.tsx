@@ -3,6 +3,7 @@ import { Calendar, Plus, Search, Clock, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { logActivity } from '../../utils/activityLogger';
 import { ToastContainer } from '../../components/Toast';
 
 interface Appointment {
@@ -143,6 +144,7 @@ export function AppointmentsPage() {
 
       if (error) throw error;
 
+      logActivity('create', 'appointments', `Nouveau rendez-vous cree: ${appointmentNumber}`);
       setShowModal(false);
       setForm({ patient_id: '', department_id: '', appointment_date: '', appointment_time: '', reason: '', appointment_type: 'consultation' });
       showSuccess('Rendez-vous créé avec succès');

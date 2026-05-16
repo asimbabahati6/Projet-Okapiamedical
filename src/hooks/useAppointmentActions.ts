@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { Appointment } from '../types/database';
+import { logActivity } from '../utils/activityLogger';
 
 export function useAppointmentActions() {
   const [loading, setLoading] = useState(false);
@@ -30,6 +31,8 @@ export function useAppointmentActions() {
           reason: reason,
           modified_at: new Date().toISOString(),
         }]);
+
+      logActivity('cancel', 'appointments', `Rendez-vous annule: ${appointmentId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Échec de l\'annulation du rendez-vous';
       setError(message);
@@ -50,6 +53,8 @@ export function useAppointmentActions() {
         .eq('id', appointmentId);
 
       if (deleteError) throw deleteError;
+
+      logActivity('delete', 'appointments', `Rendez-vous supprime: ${appointmentId}`);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Échec de la suppression du rendez-vous';
       setError(message);

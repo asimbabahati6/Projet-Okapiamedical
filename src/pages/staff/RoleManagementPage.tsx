@@ -7,6 +7,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+import { logActivity } from '../../utils/activityLogger';
 
 const ADMIN_ROLES = ['admin', 'medical_director', 'super_admin', 'hospital_admin'];
 const SYSTEM_ROLES = ['admin', 'medical_director', 'super_admin', 'hospital_admin'];
@@ -193,6 +194,11 @@ export function RoleManagementPage() {
         if (insertErr) throw insertErr;
       }
 
+      if (editingRole) {
+        logActivity('update', 'roles', `Role modifie: ${formData.name}`);
+      } else {
+        logActivity('create', 'roles', `Nouveau role cree: ${formData.name}`);
+      }
       success(editingRole ? 'Role mis a jour' : 'Role cree avec succes');
       setShowFormModal(false);
       fetchData();
@@ -211,6 +217,7 @@ export function RoleManagementPage() {
         .update({ is_active: !role.is_active })
         .eq('id', role.id);
       if (error) throw error;
+      logActivity(role.is_active ? 'update' : 'update', 'roles', `Role ${role.is_active ? 'archive' : 'restaure'}: ${role.name}`);
       success(role.is_active ? 'Role archive' : 'Role restaure');
       fetchData();
     } catch (err) {
@@ -225,6 +232,7 @@ export function RoleManagementPage() {
     try {
       const { error } = await supabase.from('roles').delete().eq('id', showDeleteModal.id);
       if (error) throw error;
+      logActivity('delete', 'roles', `Role supprime: ${showDeleteModal.name}`);
       success('Role supprime definitivement');
       setShowDeleteModal(null);
       setDeleteConfirmText('');
