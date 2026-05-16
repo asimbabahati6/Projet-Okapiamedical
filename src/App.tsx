@@ -72,6 +72,8 @@ import MedicalConsultationPage from './pages/staff/MedicalConsultationPage';
 import MedicalReportPage from './pages/staff/medical/MedicalReportPage';
 import StaffProfilePage from './pages/staff/StaffProfilePage';
 import ExchangeRatesPage from './pages/staff/ExchangeRatesPage';
+import ActivityLogPage from './pages/staff/ActivityLogPage';
+import StaffAccessDashboard from './pages/staff/StaffAccessDashboard';
 
 function App() {
   return (
@@ -202,6 +204,8 @@ function App() {
                   <Route path="medical-report" element={<MedicalReportPage />} />
                   <Route path="medical-report/:consultationId" element={<MedicalReportPage />} />
                   <Route path="exchange-rates" element={<ExchangeRatesPage />} />
+                  <Route path="activity-log" element={<ActivityLogPage />} />
+                  <Route path="staff-access" element={<StaffAccessDashboard />} />
                   <Route path="profile" element={<StaffProfilePage />} />
                 </Route>
 

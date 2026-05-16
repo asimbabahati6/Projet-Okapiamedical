@@ -164,6 +164,8 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'role-management', label: 'Gestion des rôles', icon: 'UserCog', path: '/staff/role-management', roles: ['admin', 'medical_director', 'directeur_general'] },
       { id: 'pending-registrations', label: 'Inscriptions en attente', icon: 'UserCheck', path: '/staff/pending-registrations', roles: ['admin', 'directeur_general'] },
       { id: 'permission-management', label: 'Permissions', icon: 'Shield', path: '/staff/permission-management', roles: ['admin', 'directeur_general'] },
+      { id: 'activity-log', label: "Journal d'activité", icon: 'ClipboardList', path: '/staff/activity-log', roles: ['admin', 'medical_director', 'directeur_general'] },
+      { id: 'staff-access', label: 'Accès Staff', icon: 'BarChart3', path: '/staff/staff-access', roles: ['admin', 'medical_director', 'directeur_general'] },
     ],
   },
   {
