@@ -64,6 +64,7 @@ import AdminSetupPage from './pages/AdminSetupPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
 import { PostsManagementPage } from './pages/staff/PostsManagementPage';
 import CaissePage from './pages/staff/CaissePage';
+import MedicalActsPricingPage from './pages/staff/MedicalActsPricingPage';
 import DoctorQueuePage from './pages/staff/DoctorQueuePage';
 import PendingRegistrationsPage from './pages/staff/PendingRegistrationsPage';
 import PermissionManagementPage from './pages/staff/PermissionManagementPage';
@@ -196,6 +197,7 @@ function App() {
                   <Route path="messaging" element={<MessagingPage />} />
                   <Route path="feedback" element={<FeedbackDashboard />} />
                   <Route path="caisse" element={<CaissePage />} />
+                  <Route path="medical-acts-pricing" element={<MedicalActsPricingPage />} />
                   <Route path="doctor-queue" element={<DoctorQueuePage />} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />
                   <Route path="permission-management" element={<PermissionManagementPage />} />

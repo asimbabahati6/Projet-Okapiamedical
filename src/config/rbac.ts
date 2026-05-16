@@ -116,6 +116,7 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'financial-analytics', label: 'Rapports financiers', icon: 'BarChart3', path: '/staff/financial-analytics', roles: ['admin', 'accountant', 'directeur_general'] },
       { id: 'expenses', label: 'Dépenses', icon: 'Wallet', path: '/staff/expenses', roles: FINANCE_ROLES },
       { id: 'caisse', label: 'Caisse', icon: 'Store', path: '/staff/caisse', roles: ['admin', 'caissiere', 'accountant', 'gestionnaire'] },
+      { id: 'medical-acts-pricing', label: 'Tarification actes', icon: 'DollarSign', path: '/staff/medical-acts-pricing', roles: ['admin', 'medical_director', 'caissiere', 'accountant', 'directeur_general'] },
     ],
   },
   {

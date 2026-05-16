@@ -152,9 +152,9 @@ export function BookingTicketStep({ ticket, onSimulatePayment, simulatingPayment
             <div className="space-y-1">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium uppercase tracking-wide">
                 <CreditCard className="w-3 h-3" />
-                Montant
+                Paiement
               </div>
-              <p className="font-bold text-navy-800 text-sm">{ticket.consultationFee} USD</p>
+              <p className="font-bold text-navy-800 text-sm">A la caisse</p>
             </div>
           </div>
 
@@ -236,7 +236,7 @@ export function BookingTicketStep({ ticket, onSimulatePayment, simulatingPayment
                     ) : (
                       <>
                         <Banknote className="w-4 h-4" />
-                        Payer maintenant ({ticket.consultationFee} USD)
+                        Payer a la caisse
                       </>
                     )}
                   </motion.button>

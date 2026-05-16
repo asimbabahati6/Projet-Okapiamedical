@@ -351,7 +351,7 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                 </option>
                 {doctors.map((doc) => (
                   <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} - {doc.specialization || 'Generaliste'} ({doc.consultationFee} USD)
+                    Dr. {doc.name} - {doc.specialization || 'Generaliste'}
                   </option>
                 ))}
               </motion.select>
