@@ -13,6 +13,7 @@ interface Appointment {
   status: string;
   reason: string | null;
   doctor_name?: string;
+  patient_name?: string;
 }
 
 interface Patient {
@@ -25,6 +26,12 @@ interface Patient {
 interface Department {
   id: string;
   name: string;
+}
+
+// ✅ Correction doublon "Dr. Dr."
+function formatDoctorName(name?: string): string {
+  if (!name) return '—';
+  return name.startsWith('Dr') ? name : `Dr. ${name}`;
 }
 
 export function AppointmentsPage() {
@@ -53,28 +60,49 @@ export function AppointmentsPage() {
 
   async function fetchAppointments() {
     try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select('id, appointment_number, appointment_date, appointment_time, status, reason')
-        .order('appointment_date', { ascending: false })
-        .limit(50);
+      // ✅ Deux requêtes en parallèle
+      const [{ data: apts, error: e1 }, { data: queue, error: e2 }] = await Promise.all([
+        supabase
+          .from('appointments')
+          .select('id, appointment_number, appointment_date, appointment_time, status, reason')
+          .order('appointment_date', { ascending: false })
+          .limit(50),
+        supabase
+          .from('booking_queue')
+          .select('id, ticket_number, appointment_date, appointment_time, patient_status, reason, doctor_name, patient_name')
+          .order('created_at', { ascending: false })
+          .limit(50),
+      ]);
 
-      if (error) {
-        console.error('Error fetching appointments:', error);
-        showError('Impossible de charger les rendez-vous. Veuillez rafraichir la page.');
-        return;
-      }
+      if (e1) { showError('Erreur chargement rendez-vous.'); return; }
+      if (e2) { showError("Erreur chargement file d'attente."); return; }
 
-      if (data) {
-        setAppointments(data.map((a: Record<string, unknown>) => ({
-          id: a.id as string,
-          appointment_number: a.appointment_number as string,
-          appointment_date: a.appointment_date as string,
-          appointment_time: a.appointment_time as string,
-          status: (a.status as string) || 'pending',
-          reason: a.reason as string | null,
-        })));
-      }
+      const fromAppointments: Appointment[] = (apts || []).map((a: Record<string, unknown>) => ({
+        id: a.id as string,
+        appointment_number: a.appointment_number as string,
+        appointment_date: (a.appointment_date as string) || '—',
+        appointment_time: (a.appointment_time as string) || '—',
+        status: (a.status as string) || 'pending',
+        reason: a.reason as string | null,
+        doctor_name: undefined,
+        patient_name: undefined,
+      }));
+
+      const fromQueue: Appointment[] = (queue || []).map((q: Record<string, unknown>) => ({
+        id: q.id as string,
+        appointment_number: q.ticket_number as string,
+        appointment_date: (q.appointment_date as string) || '—',
+        appointment_time: (q.appointment_time as string) || '—',
+        status:
+          q.patient_status === 'called' ? 'confirmed'
+          : q.patient_status === 'paid' ? 'confirmed'
+          : 'pending',
+        reason: q.reason as string | null,
+        doctor_name: q.doctor_name as string | undefined,
+        patient_name: q.patient_name as string | undefined,
+      }));
+
+      setAppointments([...fromQueue, ...fromAppointments]);
     } catch (error) {
       console.error('Error:', error);
       showError('Erreur de connexion au serveur.');
@@ -117,20 +145,23 @@ export function AppointmentsPage() {
 
       setShowModal(false);
       setForm({ patient_id: '', department_id: '', appointment_date: '', appointment_time: '', reason: '', appointment_type: 'consultation' });
-      showSuccess('Rendez-vous cree avec succes');
+      showSuccess('Rendez-vous créé avec succès');
       await fetchAppointments();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err: unknown) {
       console.error('Error creating appointment:', err);
       const message = (err && typeof err === 'object' && 'message' in err) ? String((err as { message: string }).message) : 'Erreur inconnue';
-      showError(`Echec de la creation du rendez-vous: ${message}`);
+      showError(`Échec de la création du rendez-vous: ${message}`);
     } finally {
       setSaving(false);
     }
   }
 
   const filtered = appointments.filter(a => {
-    const matchesSearch = a.appointment_number.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch =
+      a.appointment_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.patient_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (a.doctor_name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || a.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -174,12 +205,13 @@ export function AppointmentsPage() {
         </button>
       </div>
 
+      {/* Statistiques */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {[
-          { label: "Aujourd'hui", count: appointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0]).length, color: 'blue' },
-          { label: 'En attente', count: appointments.filter(a => a.status === 'pending').length, color: 'yellow' },
-          { label: 'Confirmés', count: appointments.filter(a => a.status === 'confirmed').length, color: 'green' },
-          { label: 'Total', count: appointments.length, color: 'gray' },
+          { label: "Aujourd'hui", count: appointments.filter(a => a.appointment_date === new Date().toISOString().split('T')[0]).length },
+          { label: 'En attente', count: appointments.filter(a => a.status === 'pending').length },
+          { label: 'Confirmés', count: appointments.filter(a => a.status === 'confirmed').length },
+          { label: 'Total', count: appointments.length },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-xl p-4 border border-gray-200 shadow-sm">
             <p className="text-sm text-gray-500">{stat.label}</p>
@@ -188,13 +220,14 @@ export function AppointmentsPage() {
         ))}
       </div>
 
+      {/* Tableau */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
         <div className="p-4 border-b border-gray-200 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Rechercher..."
+              placeholder="Rechercher par N°, patient ou médecin..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -226,6 +259,8 @@ export function AppointmentsPage() {
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">N°</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
+                  <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Médecin</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Heure</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Motif</th>
@@ -236,12 +271,16 @@ export function AppointmentsPage() {
                 {filtered.map((apt) => (
                   <tr key={apt.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono text-sm text-gray-700">{apt.appointment_number}</td>
+                    <td className="px-4 py-3 text-gray-600 text-sm">{apt.patient_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 text-sm">{formatDoctorName(apt.doctor_name)}</td>
                     <td className="px-4 py-3 text-gray-600">{apt.appointment_date}</td>
-                    <td className="px-4 py-3 text-gray-600 flex items-center gap-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      {apt.appointment_time}
+                    <td className="px-4 py-3 text-gray-600">
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5" />
+                        {apt.appointment_time}
+                      </span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{apt.reason || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600">{apt.reason || '—'}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${statusBadge(apt.status)}`}>
                         {statusLabel(apt.status)}
@@ -255,6 +294,7 @@ export function AppointmentsPage() {
         )}
       </div>
 
+      {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
@@ -267,93 +307,61 @@ export function AppointmentsPage() {
             <form onSubmit={handleCreateAppointment} className="p-5 space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Patient</label>
-                <select
-                  value={form.patient_id}
-                  onChange={(e) => setForm({ ...form, patient_id: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                >
-                  <option value="">-- Selectionner un patient --</option>
+                <select value={form.patient_id} onChange={(e) => setForm({ ...form, patient_id: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                  <option value="">-- Sélectionner un patient --</option>
                   {patients.map(p => (
                     <option key={p.id} value={p.id}>{p.last_name} {p.first_name} {p.phone ? `(${p.phone})` : ''}</option>
                   ))}
                 </select>
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Departement</label>
-                <select
-                  value={form.department_id}
-                  onChange={(e) => setForm({ ...form, department_id: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                >
-                  <option value="">-- Selectionner un departement --</option>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Département</label>
+                <select value={form.department_id} onChange={(e) => setForm({ ...form, department_id: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
+                  <option value="">-- Sélectionner un département --</option>
                   {departments.map(d => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
               </div>
-
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-                  <input
-                    type="date"
-                    required
-                    value={form.appointment_date}
+                  <input type="date" required value={form.appointment_date}
                     onChange={(e) => setForm({ ...form, appointment_date: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                  />
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Heure *</label>
-                  <input
-                    type="time"
-                    required
-                    value={form.appointment_time}
+                  <input type="time" required value={form.appointment_time}
                     onChange={(e) => setForm({ ...form, appointment_time: e.target.value })}
-                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                  />
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm" />
                 </div>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
-                <select
-                  value={form.appointment_type}
-                  onChange={(e) => setForm({ ...form, appointment_type: e.target.value })}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                >
+                <select value={form.appointment_type} onChange={(e) => setForm({ ...form, appointment_type: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm">
                   <option value="consultation">Consultation</option>
                   <option value="follow_up">Suivi</option>
                   <option value="emergency">Urgence</option>
-                  <option value="telemedicine">Teleconsultation</option>
+                  <option value="telemedicine">Téléconsultation</option>
                 </select>
               </div>
-
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Motif</label>
-                <textarea
-                  value={form.reason}
-                  onChange={(e) => setForm({ ...form, reason: e.target.value })}
-                  rows={2}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-                  placeholder="Motif de la consultation..."
-                />
+                <textarea value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                  rows={2} placeholder="Motif de la consultation..."
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none" />
               </div>
-
               <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm"
-                >
+                <button type="button" onClick={() => setShowModal(false)}
+                  className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors text-sm">
                   Annuler
                 </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm"
-                >
+                <button type="submit" disabled={saving}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 text-sm">
                   {saving ? 'Enregistrement...' : 'Enregistrer'}
                 </button>
               </div>
