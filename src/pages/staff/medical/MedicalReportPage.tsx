@@ -27,12 +27,14 @@ export default function MedicalReportPage() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-// ✅ Restriction : seul le médecin peut accéder au rapport médical
-useEffect(() => {
-  if (profile && profile.role !== 'doctor' && profile.role !== 'medecin' && profile.role !== 'admin' && profile.role !== 'medical_director') {
-    navigate('/staff/dashboard');
-  }
-}, [profile, navigate]);
+  const DOCTOR_ROLES = ['doctor', 'medecin', 'admin', 'medical_director', 'medecin_chef_staff'];
+  const isDoctorRole = DOCTOR_ROLES.includes(profile?.role?.name || '');
+
+  useEffect(() => {
+    if (profile && !DOCTOR_ROLES.includes(profile.role?.name || '')) {
+      navigate('/staff/dashboard');
+    }
+  }, [profile, navigate]);
   const [selectedPatient, setSelectedPatient] = useState<PatientOption | null>(null);
   const [consultationNumber, setConsultationNumber] = useState('');
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0]);
@@ -281,24 +283,26 @@ body{font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;color:#1a1a1a;paddi
             <p className="text-sm text-gray-500">Formulaire de compte-rendu de consultation</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handlePrint}
-            disabled={!selectedPatient}
-            className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Printer className="w-4 h-4" />
-            Imprimer
-          </button>
-          <button
-            onClick={handleDownloadPdf}
-            disabled={!selectedPatient}
-            className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Download className="w-4 h-4" />
-            PDF
-          </button>
-        </div>
+        {isDoctorRole && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrint}
+              disabled={!selectedPatient}
+              className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Printer className="w-4 h-4" />
+              Imprimer
+            </button>
+            <button
+              onClick={handleDownloadPdf}
+              disabled={!selectedPatient}
+              className="flex items-center gap-2 px-4 py-2.5 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" />
+              PDF
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">

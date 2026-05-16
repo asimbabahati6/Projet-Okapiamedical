@@ -4,6 +4,9 @@ import {
   FlaskConical, Pill, AlertTriangle, Heart, Thermometer,
   Activity, Weight, CheckCircle2, AlertCircle,
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
+const DOCTOR_ROLES = ['doctor', 'medecin', 'admin', 'medical_director', 'medecin_chef_staff'];
 
 interface ParaclinicalExam {
   id: string;
@@ -111,6 +114,10 @@ export function DoctorExamination({
   onParaclinicalChange,
   onComplete,
 }: DoctorExaminationProps) {
+  const { profile } = useAuth();
+  const isDoctorRole = DOCTOR_ROLES.includes(profile?.role?.name || '');
+  const isFieldDisabled = disabled || !isDoctorRole;
+
   const [newExam, setNewExam] = useState('');
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [validationError, setValidationError] = useState('');
@@ -269,7 +276,7 @@ export function DoctorExamination({
               onChange={(e) => onFieldChange('medicalHistory', e.target.value)}
               placeholder="Antécédents médicaux, chirurgicaux, familiaux..."
               rows={2}
-              disabled={disabled}
+              disabled={isFieldDisabled}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
           </div>
@@ -281,7 +288,7 @@ export function DoctorExamination({
               onChange={(e) => onFieldChange('illnessHistory', e.target.value)}
               placeholder="Début, circonstances d'apparition, évolution..."
               rows={3}
-              disabled={disabled}
+              disabled={isFieldDisabled}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
           </div>
@@ -293,7 +300,7 @@ export function DoctorExamination({
               onChange={(e) => onFieldChange('additionalAnamnesis', e.target.value)}
               placeholder="Informations complémentaires..."
               rows={2}
-              disabled={disabled}
+              disabled={isFieldDisabled}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
             />
           </div>
@@ -310,7 +317,7 @@ export function DoctorExamination({
             onChange={(e) => onFieldChange('physicalExamination', e.target.value)}
             placeholder="Description de l'examen physique: inspection, palpation, percussion, auscultation..."
             rows={4}
-            disabled={disabled}
+            disabled={isFieldDisabled}
             className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed"
           />
         </div>
@@ -328,7 +335,7 @@ export function DoctorExamination({
             onChange={(e) => { onFieldChange('diagnosis', e.target.value); setValidationError(''); }}
             placeholder="Diagnostic principal, hypothèses diagnostiques..."
             rows={2}
-            disabled={disabled}
+            disabled={isFieldDisabled}
             className={`w-full px-4 py-2.5 border rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed ${
               validationError.includes('diagnostic') ? 'border-red-400 bg-red-50' : 'border-gray-300'
             }`}
@@ -348,7 +355,7 @@ export function DoctorExamination({
               <FlaskConical className="w-3.5 h-3.5 text-blue-500" />
               <label className="text-xs font-medium text-gray-600">Examens Paracliniques</label>
             </div>
-            {!disabled && (
+            {!isFieldDisabled && (
               <div className="flex gap-2 mb-2">
                 <input
                   type="text"
@@ -375,13 +382,13 @@ export function DoctorExamination({
                       type="checkbox"
                       checked={exam.completed}
                       onChange={() => toggleExam(exam.id)}
-                      disabled={disabled}
+                      disabled={isFieldDisabled}
                       className="w-4 h-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
                     />
                     <span className={`flex-1 text-sm ${exam.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
                       {exam.name}
                     </span>
-                    {!disabled && (
+                    {!isFieldDisabled && (
                       <button onClick={() => removeExam(exam.id)} className="text-gray-400 hover:text-red-500 transition-colors">
                         <X className="w-3.5 h-3.5" />
                       </button>
@@ -407,7 +414,7 @@ export function DoctorExamination({
               onChange={(e) => { onFieldChange('treatmentPlan', e.target.value); setValidationError(''); }}
               placeholder="Prescriptions, recommandations, conduite à tenir..."
               rows={3}
-              disabled={disabled}
+              disabled={isFieldDisabled}
               className={`w-full px-4 py-2.5 border rounded-lg text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-transparent disabled:bg-gray-50 disabled:cursor-not-allowed ${
                 validationError.includes('traitement') ? 'border-red-400 bg-red-50' : 'border-gray-300'
               }`}
@@ -448,7 +455,7 @@ export function DoctorExamination({
         )}
 
         {/* Complete Button */}
-        {!disabled && !showCloseConfirm && (
+        {!disabled && isDoctorRole && !showCloseConfirm && (
           <button
             onClick={handleCompleteClick}
             className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors font-medium text-sm shadow-sm"
