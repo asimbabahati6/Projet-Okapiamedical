@@ -643,8 +643,8 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
     : 'Patient';
 
   const isCompleted = consultation.workflow_status === 'completed';
-  const nurseCanEdit = (isNurseRole || isDoctorRole) && !nurseLocked;
-  const doctorCanEdit = isDoctorRole && !isCompleted;
+  const nurseCanEdit = isNurseRole && !nurseLocked;
+const doctorCanEdit = isDoctorRole && nurseLocked && !isCompleted;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
