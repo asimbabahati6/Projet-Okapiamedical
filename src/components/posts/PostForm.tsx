@@ -118,6 +118,27 @@ export function PostForm({ post, onClose, onSuccess, onError }: PostFormProps) {
     });
   }
 
+  function fireWebhook(title: string, content: string, imageUrl: string, postId: string) {
+    const webhookUrl = import.meta.env.VITE_MAKE_WEBHOOK_URL;
+    if (!webhookUrl) return;
+    const plain = content.replace(/<[^>]+>/g, '');
+    const summary = plain.length > 280 ? plain.substring(0, 280) : plain;
+    const payload = {
+      title,
+      summary,
+      image_url: imageUrl || null,
+      article_url: `https://www.okapiamedical.com/#news/${postId}`,
+      category: categories.find(c => c.id === formData.category_id)?.name || '',
+      published_at: new Date().toISOString(),
+      networks: ['facebook', 'x', 'linkedin', 'whatsapp', 'instagram', 'tiktok', 'youtube'],
+    };
+    fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).catch(() => {});
+  }
+
   async function handleSubmit(e: React.FormEvent, publishNow: boolean = false) {
     e.preventDefault();
 
@@ -163,6 +184,10 @@ export function PostForm({ post, onClose, onSuccess, onError }: PostFormProps) {
           .insert(postData);
 
         if (error) throw error;
+      }
+
+      if (publishNow) {
+        fireWebhook(formData.title, formData.content, formData.image_url, post?.id || '');
       }
 
       onSuccess();

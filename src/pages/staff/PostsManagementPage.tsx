@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   Plus, RefreshCw, Edit, Trash2, Search, Filter,
-  Image as ImageIcon, Calendar, User, Tag, FileText, Upload
+  Image as ImageIcon, Calendar, User, Tag, FileText, Upload,
+  Share2, CheckCircle, Globe
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -27,6 +28,7 @@ interface Post {
   };
   status: 'brouillon' | 'publié' | 'archivé';
   published_at: string | null;
+  shared_networks?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +37,29 @@ interface Category {
   id: string;
   name: string;
   description: string;
+}
+
+function fireWebhook(post: Post, categories: Category[]) {
+  const webhookUrl = import.meta.env.VITE_MAKE_WEBHOOK_URL;
+  if (!webhookUrl) return Promise.resolve(false);
+
+  const plain = post.content.replace(/<[^>]+>/g, '');
+  const summary = plain.length > 280 ? plain.substring(0, 280) : plain;
+  const payload = {
+    title: post.title,
+    summary,
+    image_url: post.image_url || null,
+    article_url: `https://www.okapiamedical.com/#news/${post.id}`,
+    category: categories.find(c => c.id === post.category_id)?.name || '',
+    published_at: new Date().toISOString(),
+    networks: ['facebook', 'x', 'linkedin', 'whatsapp', 'instagram', 'tiktok', 'youtube'],
+  };
+
+  return fetch(webhookUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }).then(() => true).catch(() => false);
 }
 
 export function PostsManagementPage() {
@@ -54,6 +79,7 @@ export function PostsManagementPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+  const [sharingId, setSharingId] = useState<string | null>(null);
 
   const postsPerPage = 20;
 
@@ -73,7 +99,7 @@ export function PostsManagementPage() {
       setCategories(data || []);
     } catch (err) {
       console.error('Error fetching categories:', err);
-      showError('Erreur lors du chargement des catégories');
+      showError('Erreur lors du chargement des categories');
     }
   }
 
@@ -118,7 +144,7 @@ export function PostsManagementPage() {
     setRefreshing(true);
     await fetchPosts();
     setRefreshing(false);
-    success('Publications actualisées');
+    success('Publications actualisees');
   }
 
   async function handleDelete(postId: string) {
@@ -130,13 +156,55 @@ export function PostsManagementPage() {
 
       if (error) throw error;
 
-      success('Publication supprimée avec succès');
+      success('Publication supprimee avec succes');
       setShowDeleteModal(false);
       setSelectedPost(null);
       fetchPosts();
     } catch (err) {
       console.error('Error deleting post:', err);
       showError('Erreur lors de la suppression de la publication');
+    }
+  }
+
+  async function handleStatusChange(post: Post, newStatus: string) {
+    try {
+      const updateData: Record<string, unknown> = { status: newStatus };
+      if (newStatus === 'publié' && !post.published_at) {
+        updateData.published_at = new Date().toISOString();
+      }
+
+      const { error } = await supabase
+        .from('posts')
+        .update(updateData)
+        .eq('id', post.id);
+
+      if (error) throw error;
+
+      if (newStatus === 'publié') {
+        await fireWebhook(post, categories);
+        success('Article publie et partage sur les reseaux sociaux');
+      } else {
+        success(`Statut change en "${newStatus}"`);
+      }
+      fetchPosts();
+    } catch (err) {
+      showError('Erreur lors du changement de statut');
+    }
+  }
+
+  async function handleRepublish(post: Post) {
+    setSharingId(post.id);
+    try {
+      const sent = await fireWebhook(post, categories);
+      if (sent) {
+        success('Article repartage sur les reseaux sociaux');
+      } else {
+        showError('Webhook non configure (VITE_MAKE_WEBHOOK_URL manquant)');
+      }
+    } catch {
+      showError('Erreur lors du partage');
+    } finally {
+      setSharingId(null);
     }
   }
 
@@ -149,21 +217,10 @@ export function PostsManagementPage() {
   const getStatusBadge = (status: string) => {
     const styles = {
       brouillon: 'bg-gray-100 text-gray-700',
-      publié: 'bg-green-100 text-green-700',
-      archivé: 'bg-orange-100 text-orange-700',
+      'publié': 'bg-green-100 text-green-700',
+      'archivé': 'bg-orange-100 text-orange-700',
     };
     return styles[status as keyof typeof styles] || styles.brouillon;
-  };
-
-  const getCategoryName = (categoryName: string) => {
-    const names: { [key: string]: string } = {
-      innovation: 'Innovation',
-      événement: 'Événement',
-      produit: 'Produit',
-      actualité: 'Actualité',
-      santé: 'Santé',
-    };
-    return names[categoryName] || categoryName;
   };
 
   return (
@@ -172,7 +229,7 @@ export function PostsManagementPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Gestion des Publications</h1>
-            <p className="text-gray-600">Créez et gérez les publications du site web</p>
+            <p className="text-gray-600">Creez et gerez les publications du site web</p>
           </div>
           <div className="flex gap-3">
             <button
@@ -213,9 +270,7 @@ export function PostsManagementPage() {
                   setCurrentPage(1);
                 }}
                 onKeyUp={(e) => {
-                  if (e.key === 'Enter') {
-                    fetchPosts();
-                  }
+                  if (e.key === 'Enter') fetchPosts();
                 }}
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
@@ -232,8 +287,8 @@ export function PostsManagementPage() {
             >
               <option value="all">Tous les statuts</option>
               <option value="brouillon">Brouillon</option>
-              <option value="publié">Publié</option>
-              <option value="archivé">Archivé</option>
+              <option value="publié">Publie</option>
+              <option value="archivé">Archive</option>
             </select>
 
             <select
@@ -245,10 +300,10 @@ export function PostsManagementPage() {
               }}
               className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             >
-              <option value="all">Toutes les catégories</option>
+              <option value="all">Toutes les categories</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
-                  {getCategoryName(category.name)}
+                  {category.name}
                 </option>
               ))}
             </select>
@@ -276,14 +331,14 @@ export function PostsManagementPage() {
           <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
           <h3 className="text-xl font-semibold text-gray-900 mb-2">Aucune publication</h3>
           <p className="text-gray-600 mb-6">
-            Commencez par créer votre première publication
+            Commencez par creer votre premiere publication
           </p>
           <button
             onClick={() => setShowAddModal(true)}
             className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5" />
-            <span>Créer une publication</span>
+            <span>Creer une publication</span>
           </button>
         </div>
       ) : (
@@ -308,9 +363,21 @@ export function PostsManagementPage() {
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1">
                         <h3 className="text-lg font-semibold text-gray-900 mb-1">{post.title}</h3>
-                        <p className="text-sm text-gray-600 line-clamp-2">{post.content}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">
+                          {post.content.replace(/<[^>]+>/g, '').substring(0, 150)}
+                        </p>
                       </div>
                       <div className="flex gap-2 ml-4">
+                        {post.status === 'publié' && (
+                          <button
+                            onClick={() => handleRepublish(post)}
+                            disabled={sharingId === post.id}
+                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-50"
+                            title="Republier sur les reseaux"
+                          >
+                            <Share2 className={`w-5 h-5 ${sharingId === post.id ? 'animate-spin' : ''}`} />
+                          </button>
+                        )}
                         <button
                           onClick={() => {
                             setSelectedPost(post);
@@ -334,15 +401,37 @@ export function PostsManagementPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 mt-3">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusBadge(post.status)}`}>
-                        {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
-                      </span>
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600 mt-3">
+                      {/* Status with change dropdown */}
+                      <div className="relative group">
+                        <span className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer ${getStatusBadge(post.status)}`}>
+                          {post.status === 'publié' && <CheckCircle className="w-3 h-3 inline mr-1" />}
+                          {post.status.charAt(0).toUpperCase() + post.status.slice(1)}
+                        </span>
+                        <div className="absolute left-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10 hidden group-hover:block min-w-[140px]">
+                          {['brouillon', 'publié', 'archivé'].filter(s => s !== post.status).map(status => (
+                            <button
+                              key={status}
+                              onClick={() => handleStatusChange(post, status)}
+                              className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                            >
+                              {status === 'publié' ? 'Publier' : status === 'archivé' ? 'Archiver' : 'Brouillon'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {post.status === 'publié' && (
+                        <span className="flex items-center gap-1 text-green-600 text-xs">
+                          <Globe className="w-3.5 h-3.5" />
+                          Partage
+                        </span>
+                      )}
 
                       {post.category && (
                         <span className="flex items-center gap-1">
                           <Tag className="w-4 h-4" />
-                          {getCategoryName(post.category.name)}
+                          {post.category.name}
                         </span>
                       )}
 
@@ -357,13 +446,6 @@ export function PostsManagementPage() {
                         <Calendar className="w-4 h-4" />
                         {new Date(post.created_at).toLocaleDateString('fr-FR')}
                       </span>
-
-                      {post.tags && post.tags.length > 0 && (
-                        <span className="flex items-center gap-1">
-                          <Tag className="w-4 h-4" />
-                          {post.tags.join(', ')}
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -378,7 +460,7 @@ export function PostsManagementPage() {
                 disabled={currentPage === 1}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Précédent
+                Precedent
               </button>
 
               <span className="px-4 py-2 text-gray-700">
@@ -402,7 +484,7 @@ export function PostsManagementPage() {
           onClose={() => setShowAddModal(false)}
           onSuccess={() => {
             setShowAddModal(false);
-            success('Publication créée avec succès');
+            success('Publication creee avec succes');
             fetchPosts();
           }}
           onError={showError}
@@ -419,7 +501,7 @@ export function PostsManagementPage() {
           onSuccess={() => {
             setShowEditModal(false);
             setSelectedPost(null);
-            success('Publication modifiée avec succès');
+            success('Publication modifiee avec succes');
             fetchPosts();
           }}
           onError={showError}
@@ -431,8 +513,8 @@ export function PostsManagementPage() {
           <div className="bg-white rounded-xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold text-gray-900 mb-4">Confirmer la suppression</h3>
             <p className="text-gray-600 mb-6">
-              Êtes-vous sûr de vouloir supprimer la publication "{selectedPost.title}"?
-              Cette action est irréversible.
+              Etes-vous sur de vouloir supprimer la publication "{selectedPost.title}"?
+              Cette action est irreversible.
             </p>
             <div className="flex gap-3">
               <button
@@ -448,7 +530,7 @@ export function PostsManagementPage() {
                 onClick={() => handleDelete(selectedPost.id)}
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >
-                Supprimer définitivement
+                Supprimer definitivement
               </button>
             </div>
           </div>
@@ -460,7 +542,7 @@ export function PostsManagementPage() {
           onClose={() => setShowImportModal(false)}
           onSuccess={() => {
             setShowImportModal(false);
-            success('Contenu importé avec succès comme brouillon');
+            success('Contenu importe avec succes comme brouillon');
             fetchPosts();
           }}
           onError={showError}

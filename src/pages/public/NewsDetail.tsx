@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, Clock, Eye, Tag, User } from 'lucide-react';
 import { useLanguage } from '../../contexts/LanguageContext';
 import { supabase } from '../../lib/supabase';
 import { Post } from '../../types/database';
+import { SocialShareButtons } from '../../components/posts/SocialShareButtons';
 
 interface NewsDetailProps {
   slug: string;
@@ -16,6 +17,40 @@ function resolveImageUrl(url: string | null | undefined): string | null {
   return data?.publicUrl || null;
 }
 
+function calculateReadingTime(content: string): number {
+  const text = content.replace(/<[^>]+>/g, '');
+  const words = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(words / 200));
+}
+
+function updateMetaTags(title: string, description: string, image: string | null, url: string) {
+  document.title = `${title} | OKAPIA Medical`;
+
+  function setMeta(property: string, content: string) {
+    let el = document.querySelector(`meta[property="${property}"]`) || document.querySelector(`meta[name="${property}"]`);
+    if (!el) {
+      el = document.createElement('meta');
+      if (property.startsWith('og:') || property.startsWith('twitter:')) {
+        el.setAttribute('property', property);
+      } else {
+        el.setAttribute('name', property);
+      }
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', content);
+  }
+
+  setMeta('og:title', title);
+  setMeta('og:description', description);
+  setMeta('og:url', url);
+  setMeta('og:type', 'article');
+  if (image) setMeta('og:image', image);
+  setMeta('twitter:card', 'summary_large_image');
+  setMeta('twitter:title', title);
+  setMeta('twitter:description', description);
+  if (image) setMeta('twitter:image', image);
+}
+
 export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
   const { language } = useLanguage();
   const [post, setPost] = useState<Post | null>(null);
@@ -24,6 +59,10 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
   useEffect(() => {
     fetchPost();
   }, [slug]);
+
+  useEffect(() => {
+    return () => { document.title = 'OKAPIA Medical'; };
+  }, []);
 
   async function fetchPost() {
     setLoading(true);
@@ -53,6 +92,13 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
           .update({ view_count: (data.view_count || 0) + 1 })
           .eq('id', data.id)
           .then();
+
+        const title = getLocalizedText(data as unknown as Record<string, unknown>, 'title');
+        const content = getLocalizedText(data as unknown as Record<string, unknown>, 'content');
+        const excerpt = content.replace(/<[^>]+>/g, '').substring(0, 160);
+        const imageUrl = resolveImageUrl(data.featured_image_url) || resolveImageUrl(data.image_url);
+        const articleUrl = `${window.location.origin}/#news/${data.slug || data.id}`;
+        updateMetaTags(title, excerpt, imageUrl, articleUrl);
       }
     } catch (error) {
       console.error('Error fetching post:', error);
@@ -102,6 +148,8 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
   const imageUrl = resolveImageUrl(post.featured_image_url) || resolveImageUrl(post.image_url);
   const title = getLocalizedText(post as unknown as Record<string, unknown>, 'title');
   const content = getLocalizedText(post as unknown as Record<string, unknown>, 'content');
+  const readingTime = post.reading_time || calculateReadingTime(content);
+  const articleUrl = `${window.location.origin}/#news/${post.slug || post.id}`;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -134,10 +182,14 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
 
             <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{title}</h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-8 pb-8 border-b border-gray-200">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6 pb-6 border-b border-gray-200">
               {post.author && (
                 <div className="flex items-center gap-2">
-                  <User className="w-4 h-4" />
+                  {post.author.avatar_url ? (
+                    <img src={post.author.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <User className="w-4 h-4" />
+                  )}
                   {post.author.full_name}
                 </div>
               )}
@@ -145,16 +197,20 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
                 <Calendar className="w-4 h-4" />
                 {formatDate(post.published_at || post.created_at)}
               </div>
-              {post.reading_time > 0 && (
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4" />
-                  {post.reading_time} min
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4" />
+                {readingTime} min
+              </div>
               <div className="flex items-center gap-2">
                 <Eye className="w-4 h-4" />
-                {post.view_count} vues
+                {post.view_count || 0} vues
               </div>
+            </div>
+
+            {/* Social sharing */}
+            <div className="mb-8 pb-8 border-b border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Partager cet article</p>
+              <SocialShareButtons url={articleUrl} title={title} size="md" />
             </div>
 
             <div
@@ -174,6 +230,12 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
                 </div>
               </div>
             )}
+
+            {/* Bottom sharing */}
+            <div className="mt-8 pt-8 border-t border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3">Vous avez aime cet article ? Partagez-le !</p>
+              <SocialShareButtons url={articleUrl} title={title} size="md" />
+            </div>
           </div>
         </article>
       </div>
