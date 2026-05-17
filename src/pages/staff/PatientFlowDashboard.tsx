@@ -4,6 +4,7 @@ import {
   Users, Phone, MapPin, X
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 import { logActivity } from '../../utils/activityLogger';
 import { FlowPatientCard, type PatientAdmission } from '../../components/patient-flow/FlowPatientCard';
 import { ReportStatusBadge } from '../../components/patient-flow/ReportStatusBadge';
@@ -21,7 +22,13 @@ interface Patient {
   created_at: string;
 }
 
+const LAB_ROLES = ['laboratory', 'lab_technician', 'biologiste', 'biologist'];
+
 export default function PatientFlowDashboard() {
+  const { profile } = useAuth();
+  const userRole = profile?.role?.name || '';
+  const canAdmit = !LAB_ROLES.includes(userRole);
+
   const [activeTab, setActiveTab] = useState<TabView>('admissions');
 
   // Admissions state
@@ -212,13 +219,15 @@ export default function PatientFlowDashboard() {
             Gestion des admissions et registre des patients
           </p>
         </div>
-        <button
-          onClick={() => activeTab === 'admissions' ? setShowAdmissionModal(true) : setShowPatientModal(true)}
-          className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium shadow-sm"
-        >
-          <Plus className="w-4 h-4" />
-          {activeTab === 'admissions' ? 'Nouvelle admission' : 'Nouveau patient'}
-        </button>
+        {canAdmit && (
+          <button
+            onClick={() => activeTab === 'admissions' ? setShowAdmissionModal(true) : setShowPatientModal(true)}
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium shadow-sm"
+          >
+            <Plus className="w-4 h-4" />
+            {activeTab === 'admissions' ? 'Nouvelle admission' : 'Nouveau patient'}
+          </button>
+        )}
       </div>
 
       {/* Tab Navigation */}
