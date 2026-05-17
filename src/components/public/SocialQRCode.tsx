@@ -14,8 +14,8 @@ export function SocialQRCode({
   size = 'medium',
   showTitle = true,
   className = '',
-  socialLink = 'https://facebook.com/okapiamedical',
-  siteUrl = 'https://www.okapiamedical.com',
+  socialLink = 'https://scanned.page/',
+  siteUrl = 'https://scanned.page/',
 }: SocialQRCodeProps) {
   const [copied, setCopied] = useState(false);
 
@@ -61,7 +61,7 @@ export function SocialQRCode({
         >
           <div className="bg-white p-3 rounded-xl shadow-inner ring-2 ring-white/20 transition-transform duration-300 group-hover:scale-105">
             <img
-              src="/WhatsApp_Image_2026-02-15_at_13.30.08.jpeg"
+              src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://scanned.page/"
               alt="QR Code Okapia Medical"
               style={{ width: qrSize, height: qrSize }}
               className="object-contain block"
