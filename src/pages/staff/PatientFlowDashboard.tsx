@@ -9,6 +9,7 @@ import { logActivity } from '../../utils/activityLogger';
 import { FlowPatientCard, type PatientAdmission } from '../../components/patient-flow/FlowPatientCard';
 import { ReportStatusBadge } from '../../components/patient-flow/ReportStatusBadge';
 import { AdmissionFormModal } from '../../components/patient-flow/AdmissionFormModal';
+import { ExamAssignmentModal } from '../../components/patient-flow/ExamAssignmentModal';
 
 type TabView = 'admissions' | 'registry';
 
@@ -44,6 +45,8 @@ export default function PatientFlowDashboard() {
   const [patientsLoading, setPatientsLoading] = useState(false);
   const [patientSearch, setPatientSearch] = useState('');
   const [showPatientModal, setShowPatientModal] = useState(false);
+  const [showExamAssignmentModal, setShowExamAssignmentModal] = useState(false);
+  const [newlyCreatedPatient, setNewlyCreatedPatient] = useState<{ id: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const [patientForm, setPatientForm] = useState({
     first_name: '',
@@ -149,7 +152,7 @@ export default function PatientFlowDashboard() {
       const now = new Date();
       const patientNumber = `PAT-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
 
-      const { error } = await supabase.from('patients').insert({
+      const { data: insertedPatient, error } = await supabase.from('patients').insert({
         patient_number: patientNumber,
         first_name: patientForm.first_name,
         last_name: patientForm.last_name,
@@ -162,14 +165,23 @@ export default function PatientFlowDashboard() {
         blood_group: patientForm.blood_group || null,
         emergency_contact_name: patientForm.emergency_contact_name || null,
         emergency_contact_phone: patientForm.emergency_contact_phone || null,
-      });
+      }).select('id').maybeSingle();
 
       if (error) throw error;
 
       logActivity('create', 'patients', `Nouveau patient: ${patientForm.first_name} ${patientForm.last_name}`);
+
+      const createdName = `${patientForm.last_name} ${patientForm.first_name}`;
+      const createdId = insertedPatient?.id;
+
       setShowPatientModal(false);
       setPatientForm({ first_name: '', last_name: '', gender: 'M', date_of_birth: '', phone: '', email: '', city: '', address: '', blood_group: '', emergency_contact_name: '', emergency_contact_phone: '' });
       loadPatients();
+
+      if (createdId) {
+        setNewlyCreatedPatient({ id: createdId, name: createdName });
+        setShowExamAssignmentModal(true);
+      }
     } catch (error) {
       console.error('Error creating patient:', error);
     } finally {
@@ -667,6 +679,21 @@ export default function PatientFlowDashboard() {
             </form>
           </div>
         </div>
+      )}
+
+      {showExamAssignmentModal && newlyCreatedPatient && (
+        <ExamAssignmentModal
+          isOpen={showExamAssignmentModal}
+          onClose={() => {
+            setShowExamAssignmentModal(false);
+            setNewlyCreatedPatient(null);
+          }}
+          onSuccess={() => {
+            loadAdmissions();
+          }}
+          patientId={newlyCreatedPatient.id}
+          patientName={newlyCreatedPatient.name}
+        />
       )}
     </div>
   );

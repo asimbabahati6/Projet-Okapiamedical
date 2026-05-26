@@ -101,7 +101,7 @@ export function FlowPatientCard({ admission, onStatusChange, onMarkReportSent }:
                 </span>
               )}
               {admission.exam_type && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 font-medium">
                   <FileText className="w-3 h-3" />
                   {admission.exam_type}
                 </span>
