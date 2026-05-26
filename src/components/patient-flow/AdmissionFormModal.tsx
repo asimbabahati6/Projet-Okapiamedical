@@ -147,6 +147,8 @@ export function AdmissionFormModal({ isOpen, onClose, onSuccess }: AdmissionForm
         .map(a => a.trim())
         .filter(Boolean);
 
+      const selectedExamType = formData.exam_type || null;
+
       const { error: insertError } = await supabase.from('patient_admissions').insert({
         patient_id: formData.patient_id,
         flow_type: flowType,
@@ -156,7 +158,7 @@ export function AdmissionFormModal({ isOpen, onClose, onSuccess }: AdmissionForm
         prescribing_doctor_name: flowType === 'exam_only' ? formData.prescribing_doctor_name || null : null,
         prescribing_doctor_phone: flowType === 'exam_only' ? formData.prescribing_doctor_phone || null : null,
         prescribing_institution: flowType === 'exam_only' ? formData.prescribing_institution || null : null,
-        exam_type: flowType === 'exam_only' ? formData.exam_type || null : null,
+        exam_type: selectedExamType,
         exam_acts: flowType === 'exam_only' ? examActs : [],
         reason: formData.reason || null,
         notes: formData.notes || null,
@@ -164,6 +166,18 @@ export function AdmissionFormModal({ isOpen, onClose, onSuccess }: AdmissionForm
       });
 
       if (insertError) throw insertError;
+
+      if (selectedExamType) {
+        await supabase.from('exam_requests').insert({
+          patient_id: formData.patient_id,
+          exam_type: selectedExamType,
+          status: 'en_attente',
+          notes: formData.notes || null,
+          department_id: formData.department_id || null,
+          created_by: user?.id || null,
+        });
+      }
+
       onSuccess();
       onClose();
     } catch (err: any) {
@@ -382,7 +396,7 @@ export function AdmissionFormModal({ isOpen, onClose, onSuccess }: AdmissionForm
 
               {/* New patient specific fields */}
               {flowType === 'new_patient' && (
-                <div className="space-y-3 p-4 bg-green-50/30 border border-green-100 rounded-xl">
+                <div className="space-y-4 p-4 bg-green-50/30 border border-green-100 rounded-xl">
                   <h3 className="text-sm font-semibold text-green-900 flex items-center gap-2">
                     <UserPlus className="w-4 h-4" />
                     Parcours de soins
@@ -396,6 +410,22 @@ export function AdmissionFormModal({ isOpen, onClose, onSuccess }: AdmissionForm
                       rows={2}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
                     />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">
+                      <Stethoscope className="w-3.5 h-3.5 inline mr-1" />
+                      Orientation / Examen requis
+                    </label>
+                    <select
+                      value={formData.exam_type}
+                      onChange={(e) => setFormData(prev => ({ ...prev, exam_type: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="">Aucun examen (consultation simple)</option>
+                      {EXAM_TYPES.map(t => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
               )}

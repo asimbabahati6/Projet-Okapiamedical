@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   GitBranch, Plus, Search, Calendar, FileSearch, UserPlus, RefreshCw, Filter,
-  Users, Phone, MapPin, X
+  Users, Phone, MapPin, X, CheckCircle
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
@@ -47,6 +47,7 @@ export default function PatientFlowDashboard() {
   const [showPatientModal, setShowPatientModal] = useState(false);
   const [showExamAssignmentModal, setShowExamAssignmentModal] = useState(false);
   const [newlyCreatedPatient, setNewlyCreatedPatient] = useState<{ id: string; name: string } | null>(null);
+  const [successMessage, setSuccessMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [patientForm, setPatientForm] = useState({
     first_name: '',
@@ -241,6 +242,20 @@ export default function PatientFlowDashboard() {
           </button>
         )}
       </div>
+
+      {/* Success notification */}
+      {successMessage && (
+        <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-xl animate-pulse">
+          <CheckCircle className="w-5 h-5 text-green-600 shrink-0" />
+          <p className="text-sm font-medium text-green-800">{successMessage}</p>
+          <button
+            onClick={() => setSuccessMessage('')}
+            className="ml-auto text-green-600 hover:text-green-800"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Tab Navigation */}
       <div className="border-b border-gray-200">
@@ -493,6 +508,17 @@ export default function PatientFlowDashboard() {
                         )}
                       </div>
                     </div>
+                    {canAdmit && (
+                      <button
+                        onClick={() => {
+                          setNewlyCreatedPatient({ id: patient.id, name: patient.full_name });
+                          setShowExamAssignmentModal(true);
+                        }}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors shrink-0"
+                      >
+                        Orienter
+                      </button>
+                    )}
                     <span className="text-xs text-gray-400 flex-shrink-0">
                       {new Date(patient.created_at).toLocaleDateString('fr-FR')}
                     </span>
@@ -690,6 +716,8 @@ export default function PatientFlowDashboard() {
           }}
           onSuccess={() => {
             loadAdmissions();
+            setSuccessMessage('Patient enregistre et oriente avec succes');
+            setTimeout(() => setSuccessMessage(''), 5000);
           }}
           patientId={newlyCreatedPatient.id}
           patientName={newlyCreatedPatient.name}
