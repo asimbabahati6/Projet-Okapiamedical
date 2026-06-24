@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -23,6 +23,18 @@ interface InvoiceItem {
   unit_price: number;
 }
 
+interface ItemErrors {
+  description?: string;
+  unit_price?: string;
+  quantity?: string;
+}
+
+interface FieldErrors {
+  patient?: string;
+  items?: Record<string, ItemErrors>;
+  general?: string;
+}
+
 const ITEM_TYPES = [
   { value: 'consultation', label: 'Consultation' },
   { value: 'laboratory', label: 'Analyse de laboratoire' },
@@ -34,95 +46,200 @@ const ITEM_TYPES = [
 ];
 
 const PAYMENT_METHODS = [
-  { value: 'cash', label: 'Espèces' },
+  { value: 'cash', label: 'Especes' },
   { value: 'mobile_money', label: 'Mobile Money' },
   { value: 'bank_transfer', label: 'Virement bancaire' },
-  { value: 'card', label: 'Carte bancaire' },
+  { value: 'card', label: 'Carte de credit' },
   { value: 'insurance', label: 'Assurance' },
 ];
 
 const TVA_RATE = 16;
 
+function makeItem(): InvoiceItem {
+  return { id: crypto.randomUUID(), description: '', item_type: 'consultation', quantity: 1, unit_price: 0 };
+}
+
 export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalProps) {
-  const [patients, setPatients] = useState<Patient[]>([]);
+  const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [patientSearch, setPatientSearch] = useState('');
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-  const [items, setItems] = useState<InvoiceItem[]>([
-    { id: crypto.randomUUID(), description: '', item_type: 'consultation', quantity: 1, unit_price: 0 },
-  ]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [items, setItems] = useState<InvoiceItem[]>([makeItem()]);
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [notes, setNotes] = useState('');
   const [applyTva, setApplyTva] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    loadPatients();
+    function handleClickOutside(e: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setShowPatientDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  async function loadPatients() {
-    const { data } = await supabase
-      .from('patients')
-      .select('id, first_name, last_name, patient_number, phone')
-      .order('last_name')
-      .limit(300);
-    if (data) setPatients(data);
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
+  const searchPatients = useCallback(async (term: string) => {
+    if (term.length < 2) {
+      setSearchResults([]);
+      setShowPatientDropdown(false);
+      return;
+    }
+    setSearchLoading(true);
+    try {
+      const pattern = `%${term}%`;
+      const { data } = await supabase
+        .from('patients')
+        .select('id, first_name, last_name, patient_number, phone')
+        .or(`first_name.ilike.${pattern},last_name.ilike.${pattern},patient_number.ilike.${pattern},phone.ilike.${pattern}`)
+        .order('last_name')
+        .limit(20);
+      setSearchResults(data || []);
+      setShowPatientDropdown(true);
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchLoading(false);
+    }
+  }, []);
+
+  function handlePatientSearchChange(value: string) {
+    setPatientSearch(value);
+    setFieldErrors(prev => ({ ...prev, patient: undefined }));
+
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+    if (value.length < 2) {
+      setSearchResults([]);
+      setShowPatientDropdown(false);
+      return;
+    }
+
+    searchTimerRef.current = setTimeout(() => {
+      searchPatients(value);
+    }, 300);
   }
 
-  const filteredPatients = patients.filter((p) => {
-    if (!patientSearch) return true;
-    const term = patientSearch.toLowerCase();
-    return (
-      p.first_name.toLowerCase().includes(term) ||
-      p.last_name.toLowerCase().includes(term) ||
-      p.patient_number?.toLowerCase().includes(term) ||
-      p.phone?.toLowerCase().includes(term)
-    );
-  });
+  function selectPatient(p: Patient) {
+    setSelectedPatient(p);
+    setShowPatientDropdown(false);
+    setPatientSearch('');
+    setFieldErrors(prev => ({ ...prev, patient: undefined }));
+  }
+
+  function clearPatient() {
+    setSelectedPatient(null);
+    setPatientSearch('');
+    setSearchResults([]);
+  }
 
   function addItem() {
-    setItems([...items, { id: crypto.randomUUID(), description: '', item_type: 'other', quantity: 1, unit_price: 0 }]);
+    setItems(prev => [...prev, makeItem()]);
   }
 
   function removeItem(id: string) {
     if (items.length <= 1) return;
-    setItems(items.filter((i) => i.id !== id));
+    setItems(prev => prev.filter(i => i.id !== id));
+    setFieldErrors(prev => {
+      if (!prev.items) return prev;
+      const next = { ...prev.items };
+      delete next[id];
+      return { ...prev, items: Object.keys(next).length ? next : undefined };
+    });
   }
 
   function updateItem(id: string, field: keyof InvoiceItem, value: string | number) {
-    setItems(items.map((i) => (i.id === id ? { ...i, [field]: value } : i)));
+    setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
+    setFieldErrors(prev => {
+      if (!prev.items?.[id]) return prev;
+      const itemErrs = { ...prev.items[id] };
+      if (field === 'description') delete itemErrs.description;
+      if (field === 'unit_price') delete itemErrs.unit_price;
+      if (field === 'quantity') delete itemErrs.quantity;
+      const nextItems = { ...prev.items, [id]: itemErrs };
+      if (!Object.keys(itemErrs).length) delete nextItems[id];
+      return { ...prev, items: Object.keys(nextItems).length ? nextItems : undefined };
+    });
   }
 
   const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-  const tvaAmount = applyTva ? Math.round(subtotal * TVA_RATE) / 100 : 0;
-  const netToPay = subtotal + tvaAmount;
+  const tvaAmount = applyTva ? parseFloat((subtotal * TVA_RATE / 100).toFixed(2)) : 0;
+  const netToPay = parseFloat((subtotal + tvaAmount).toFixed(2));
+  const validItemCount = items.filter(i => i.description.trim() && i.unit_price > 0).length;
+
+  function validate(): boolean {
+    const errors: FieldErrors = {};
+    let valid = true;
+
+    if (!selectedPatient) {
+      errors.patient = 'Veuillez selectionner un patient.';
+      valid = false;
+    }
+
+    const itemErrors: Record<string, ItemErrors> = {};
+    let hasValidItem = false;
+
+    for (const item of items) {
+      const ie: ItemErrors = {};
+      if (!item.description.trim()) {
+        ie.description = 'La description est requise.';
+        valid = false;
+      }
+      if (item.quantity < 1) {
+        ie.quantity = 'Minimum 1.';
+        valid = false;
+      }
+      if (item.unit_price <= 0) {
+        ie.unit_price = 'Le prix doit etre superieur a 0.';
+        valid = false;
+      }
+      if (Object.keys(ie).length) {
+        itemErrors[item.id] = ie;
+      } else {
+        hasValidItem = true;
+      }
+    }
+
+    if (!hasValidItem && !Object.keys(itemErrors).length) {
+      errors.general = 'Ajoutez au moins un article valide.';
+      valid = false;
+    }
+
+    if (Object.keys(itemErrors).length) {
+      errors.items = itemErrors;
+    }
+
+    setFieldErrors(errors);
+    return valid;
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
 
-    if (!selectedPatient) {
-      setError('Veuillez selectionner un patient.');
-      return;
-    }
-
-    const validItems = items.filter((i) => i.description.trim() && i.unit_price > 0);
-    if (validItems.length === 0) {
-      setError('Ajoutez au moins un article avec une description et un prix.');
-      return;
-    }
+    if (!validate()) return;
 
     setSaving(true);
+    setFieldErrors({});
+
     try {
-      const now = new Date();
-      const invoiceNumber = `FAC-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const validItems = items.filter(i => i.description.trim() && i.unit_price > 0 && i.quantity >= 1);
 
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
-          invoice_number: invoiceNumber,
-          patient_id: selectedPatient.id,
+          patient_id: selectedPatient!.id,
           total_amount: subtotal,
           paid_amount: 0,
           balance: netToPay,
@@ -138,13 +255,13 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
 
       if (invoiceError) throw invoiceError;
 
-      const itemRows = validItems.map((item) => ({
+      const itemRows = validItems.map(item => ({
         invoice_id: invoice.id,
         description: item.description.trim(),
         item_type: item.item_type,
         quantity: item.quantity,
         unit_price: item.unit_price,
-        total_price: item.quantity * item.unit_price,
+        total_price: parseFloat((item.quantity * item.unit_price).toFixed(2)),
       }));
 
       const { error: itemsError } = await supabase.from('invoice_items').insert(itemRows);
@@ -152,9 +269,8 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
 
       onSuccess();
     } catch (err: unknown) {
-      console.error('Error creating invoice:', err);
       const message = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Erreur inconnue';
-      setError(`Echec de la creation: ${message}`);
+      setFieldErrors({ general: `Echec de la creation: ${message}` });
     } finally {
       setSaving(false);
     }
@@ -169,246 +285,284 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
             <Receipt className="w-6 h-6 text-white" />
             <h2 className="text-lg font-bold text-white">Nouvelle Facture</h2>
           </div>
-          <button onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors">
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 rounded-lg transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6">
-            {error && (
-              <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
-                {error}
-              </div>
-            )}
-
-            {/* Patient Selection */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Patient *</label>
-              {selectedPatient ? (
-                <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      {selectedPatient.last_name} {selectedPatient.first_name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      {selectedPatient.patient_number} {selectedPatient.phone ? `- ${selectedPatient.phone}` : ''}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => { setSelectedPatient(null); setPatientSearch(''); }}
-                    className="text-gray-400 hover:text-red-500 p-1"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                </div>
-              ) : (
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher un patient par nom, numero ou telephone..."
-                    value={patientSearch}
-                    onChange={(e) => { setPatientSearch(e.target.value); setShowPatientDropdown(true); }}
-                    onFocus={() => setShowPatientDropdown(true)}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                  />
-                  {showPatientDropdown && (
-                    <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                      {filteredPatients.length === 0 ? (
-                        <div className="p-3 text-sm text-gray-400 text-center">Aucun patient trouve</div>
-                      ) : (
-                        filteredPatients.slice(0, 20).map((p) => (
-                          <button
-                            key={p.id}
-                            type="button"
-                            onClick={() => { setSelectedPatient(p); setShowPatientDropdown(false); setPatientSearch(''); }}
-                            className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
-                          >
-                            <span className="font-medium text-gray-900">{p.last_name} {p.first_name}</span>
-                            <span className="text-xs text-gray-400 ml-2">{p.patient_number}</span>
-                          </button>
-                        ))
-                      )}
-                    </div>
-                  )}
+        {/* Form wraps body + footer so submit button works */}
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6">
+              {fieldErrors.general && (
+                <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
+                  {fieldErrors.general}
                 </div>
               )}
-            </div>
 
-            {/* Invoice Items */}
-            <div>
-              <div className="flex items-center justify-between mb-3">
-                <label className="text-sm font-semibold text-gray-700">Articles *</label>
-                <button
-                  type="button"
-                  onClick={addItem}
-                  className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
-                >
-                  <Plus className="w-4 h-4" />
-                  Ajouter un article
-                </button>
-              </div>
-
-              <div className="space-y-3">
-                {items.map((item, idx) => (
-                  <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-gray-400 uppercase">Article {idx + 1}</span>
-                      {items.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeItem(item.id)}
-                          className="text-gray-400 hover:text-red-500 p-1 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+              {/* Patient Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Patient *</label>
+                {selectedPatient ? (
+                  <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {selectedPatient.last_name} {selectedPatient.first_name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {selectedPatient.patient_number} {selectedPatient.phone ? `- ${selectedPatient.phone}` : ''}
+                      </p>
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div className="md:col-span-2">
-                        <input
-                          type="text"
-                          placeholder="Description de l'article..."
-                          value={item.description}
-                          onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Type</label>
-                        <select
-                          value={item.item_type}
-                          onChange={(e) => updateItem(item.id, 'item_type', e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                        >
-                          {ITEM_TYPES.map((t) => (
-                            <option key={t.value} value={t.value}>{t.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Quantite</label>
-                          <input
-                            type="number"
-                            min="1"
-                            value={item.quantity}
-                            onChange={(e) => updateItem(item.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-xs text-gray-500 mb-1">Prix unitaire (USD)</label>
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={item.unit_price || ''}
-                            onChange={(e) => updateItem(item.id, 'unit_price', Math.max(0, parseFloat(e.target.value) || 0))}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                    {item.quantity > 0 && item.unit_price > 0 && (
-                      <div className="text-right">
-                        <span className="text-sm font-semibold text-gray-700">
-                          Sous-total: {(item.quantity * item.unit_price).toFixed(2)} USD
-                        </span>
+                    <button
+                      type="button"
+                      onClick={clearPatient}
+                      className="text-gray-400 hover:text-red-500 p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="relative" ref={dropdownRef}>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Rechercher un patient par nom, numero ou telephone..."
+                      value={patientSearch}
+                      onChange={(e) => handlePatientSearchChange(e.target.value)}
+                      onFocus={() => { if (searchResults.length > 0) setShowPatientDropdown(true); }}
+                      className={`w-full pl-10 pr-10 py-2.5 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        fieldErrors.patient ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
+                      }`}
+                    />
+                    {searchLoading && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-blue-500 animate-spin" />
+                    )}
+                    {showPatientDropdown && (
+                      <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                        {searchResults.length === 0 ? (
+                          <div className="p-3 text-sm text-gray-400 text-center">
+                            {searchLoading ? 'Recherche...' : 'Aucun patient trouve'}
+                          </div>
+                        ) : (
+                          searchResults.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => selectPatient(p)}
+                              className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                            >
+                              <span className="font-medium text-gray-900">{p.last_name} {p.first_name}</span>
+                              <span className="text-xs text-gray-400 ml-2">{p.patient_number}</span>
+                              {p.phone && <span className="text-xs text-gray-400 ml-2">{p.phone}</span>}
+                            </button>
+                          ))
+                        )}
                       </div>
                     )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Payment Method & Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Mode de paiement</label>
-                <select
-                  value={paymentMethod}
-                  onChange={(e) => setPaymentMethod(e.target.value)}
-                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                >
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={applyTva}
-                    onChange={(e) => setApplyTva(e.target.checked)}
-                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-700">Appliquer la TVA ({TVA_RATE}%)</span>
-                </label>
-              </div>
-            </div>
-
-            {/* Notes */}
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Notes (optionnel)</label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-                placeholder="Observations ou details supplementaires..."
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
-              />
-            </div>
-
-            {/* Totals Summary */}
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-4">
-                <Calculator className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-900">Resume de la facture</h3>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Sous-total ({items.filter(i => i.description && i.unit_price > 0).length} article(s))</span>
-                  <span className="font-medium text-gray-900">{subtotal.toFixed(2)} USD</span>
-                </div>
-                {applyTva && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">TVA ({TVA_RATE}%)</span>
-                    <span className="font-medium text-gray-900">{tvaAmount.toFixed(2)} USD</span>
+                    {fieldErrors.patient && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.patient}</p>
+                    )}
                   </div>
                 )}
-                <div className="border-t border-gray-200 pt-2 mt-2">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-gray-900">Net à payer</span>
-                    <span className="text-xl font-bold text-blue-600">{netToPay.toFixed(2)} USD</span>
+              </div>
+
+              {/* Invoice Items */}
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-sm font-semibold text-gray-700">Articles *</label>
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Ajouter un article
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  {items.map((item, idx) => {
+                    const ie = fieldErrors.items?.[item.id];
+                    const itemSubtotal = item.quantity * item.unit_price;
+
+                    return (
+                      <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-gray-400 uppercase">Article {idx + 1}</span>
+                          {items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeItem(item.id)}
+                              className="text-gray-400 hover:text-red-500 p-1 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                          <div className="md:col-span-2">
+                            <input
+                              type="text"
+                              placeholder="Description de l'article..."
+                              value={item.description}
+                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                                ie?.description ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
+                              }`}
+                            />
+                            {ie?.description && (
+                              <p className="text-red-500 text-xs mt-1">{ie.description}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="block text-xs text-gray-500 mb-1">Type</label>
+                            <select
+                              value={item.item_type}
+                              onChange={(e) => updateItem(item.id, 'item_type', e.target.value)}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                            >
+                              {ITEM_TYPES.map((t) => (
+                                <option key={t.value} value={t.value}>{t.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Quantite</label>
+                              <input
+                                type="number"
+                                min="1"
+                                value={item.quantity}
+                                onChange={(e) => updateItem(item.id, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                                  ie?.quantity ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
+                                }`}
+                              />
+                              {ie?.quantity && (
+                                <p className="text-red-500 text-xs mt-1">{ie.quantity}</p>
+                              )}
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Prix unitaire (USD)</label>
+                              <input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={item.unit_price || ''}
+                                onChange={(e) => updateItem(item.id, 'unit_price', Math.max(0, parseFloat(e.target.value) || 0))}
+                                className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                                  ie?.unit_price ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
+                                }`}
+                              />
+                              {ie?.unit_price && (
+                                <p className="text-red-500 text-xs mt-1">{ie.unit_price}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-sm font-semibold ${itemSubtotal > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
+                            Sous-total: {itemSubtotal.toFixed(2)} USD
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Payment Method & Options */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Mode de paiement</label>
+                  <select
+                    value={paymentMethod}
+                    onChange={(e) => setPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  >
+                    {PAYMENT_METHODS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex items-end">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={applyTva}
+                      onChange={(e) => setApplyTva(e.target.checked)}
+                      className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="text-sm text-gray-700">Appliquer la TVA ({TVA_RATE}%)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Notes (optionnel)</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  rows={2}
+                  placeholder="Observations ou details supplementaires..."
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm resize-none"
+                />
+              </div>
+
+              {/* Totals Summary */}
+              <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-4">
+                  <Calculator className="w-5 h-5 text-blue-600" />
+                  <h3 className="font-semibold text-gray-900">Resume de la facture</h3>
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Sous-total ({validItemCount} article(s))</span>
+                    <span className="font-medium text-gray-900">{subtotal.toFixed(2)} USD</span>
+                  </div>
+                  {applyTva && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">TVA ({TVA_RATE}%)</span>
+                      <span className="font-medium text-gray-900">{tvaAmount.toFixed(2)} USD</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-200 pt-2 mt-2">
+                    <div className="flex justify-between">
+                      <span className="font-bold text-gray-900">Net a payer</span>
+                      <span className="text-xl font-bold text-blue-600">{netToPay.toFixed(2)} USD</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </form>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-colors text-sm"
-          >
-            Annuler
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={saving || !selectedPatient || items.every(i => !i.description || i.unit_price <= 0)}
-            className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          >
-            {saving ? 'Enregistrement...' : 'Creer la facture'}
-          </button>
-        </div>
+          {/* Footer inside form */}
+          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 px-4 py-2.5 border border-gray-300 text-gray-700 rounded-xl font-medium hover:bg-gray-100 transition-colors text-sm"
+            >
+              Annuler
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm flex items-center justify-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Enregistrement...
+                </>
+              ) : (
+                'Creer la facture'
+              )}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
