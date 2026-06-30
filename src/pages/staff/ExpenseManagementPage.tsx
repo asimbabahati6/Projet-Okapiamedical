@@ -71,17 +71,11 @@ const EXPENSE_CATEGORIES = [
   { value: 'autres_services', label: 'Autres services Consommes', icon: '📋' },
   { value: 'communication', label: 'Communication', icon: '📡' },
   { value: 'autres_depenses', label: 'Autres Depenses', icon: '📝' },
-  // Legacy English categories for backward compatibility
   { value: 'utilities', label: 'Services Publics', icon: '⚡' },
-  { value: 'rent', label: 'Loyer (ancien)', icon: '🏢' },
   { value: 'maintenance', label: 'Maintenance', icon: '🔧' },
   { value: 'supplies', label: 'Fournitures', icon: '📦' },
-  { value: 'salaries', label: 'Salaires (ancien)', icon: '💰' },
   { value: 'equipment', label: 'Equipement', icon: '🖥️' },
   { value: 'marketing', label: 'Marketing', icon: '📢' },
-  { value: 'insurance', label: 'Assurances (ancien)', icon: '🛡️' },
-  { value: 'transportation', label: 'Transport (ancien)', icon: '🚗' },
-  { value: 'other', label: 'Autres (ancien)', icon: '📋' },
 ];
 
 const APPROVAL_ROLES = ['admin', 'medical_director', 'directeur_general', 'medecin_chef_staff'];
