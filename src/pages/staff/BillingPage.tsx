@@ -90,8 +90,8 @@ export function BillingPage() {
     inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0);
-  const totalPending = invoices.filter(i => i.status === 'pending').reduce((sum, i) => sum + i.net_to_pay, 0);
+  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.paid_amount, 0);
+  const totalPending = invoices.filter(i => i.status !== 'paid' && i.status !== 'cancelled').reduce((sum, i) => sum + i.balance, 0);
 
   return (
     <div className="p-6 space-y-6">
@@ -199,6 +199,7 @@ export function BillingPage() {
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Patient</th>
                   <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Montant</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Paiement</th>
+                  <th className="text-right px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Reste a payer</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Statut</th>
                   <th className="text-left px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Date</th>
                   <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase">Actions</th>
@@ -211,14 +212,23 @@ export function BillingPage() {
                     <td className="px-4 py-3 font-medium text-gray-900">{inv.patient_name}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{(inv.net_to_pay || inv.amount).toLocaleString('fr-FR')} USD</td>
                     <td className="px-4 py-3 text-sm text-gray-600 capitalize">{inv.payment_method?.replace('_', ' ') || '-'}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={`font-semibold text-sm ${
+                        inv.balance <= 0 ? 'text-green-600' : 'text-orange-600'
+                      }`}>
+                        {inv.balance > 0 ? `${inv.balance.toLocaleString('fr-FR')} USD` : '0 USD'}
+                      </span>
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-medium ${
-                        inv.status === 'paid' ? 'bg-green-100 text-green-800' :
-                        inv.status === 'partial' ? 'bg-blue-100 text-blue-800' :
+                        inv.status === 'paid' || inv.balance <= 0 && inv.paid_amount > 0 ? 'bg-green-100 text-green-800' :
+                        inv.status === 'partial' || (inv.paid_amount > 0 && inv.balance > 0) ? 'bg-blue-100 text-blue-800' :
                         inv.status === 'cancelled' ? 'bg-red-100 text-red-800' :
                         'bg-yellow-100 text-yellow-800'
                       }`}>
-                        {inv.status === 'paid' ? 'Payee' : inv.status === 'partial' ? 'Partiel' : inv.status === 'cancelled' ? 'Annulee' : 'En attente'}
+                        {inv.status === 'paid' || (inv.balance <= 0 && inv.paid_amount > 0) ? 'Payee' :
+                         inv.status === 'partial' || (inv.paid_amount > 0 && inv.balance > 0) ? 'Partiellement payee' :
+                         inv.status === 'cancelled' ? 'Annulee' : 'En attente'}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-sm">

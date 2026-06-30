@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CreditCard, CheckCircle, MessageCircle, Mail, DollarSign, User, FileText } from 'lucide-react';
+import { X, CreditCard, CheckCircle, MessageCircle, Mail, DollarSign, User, FileText, Tag } from 'lucide-react';
 import { Invoice } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { getWhatsAppLink, getEmailLink } from '../../utils/invoiceCommunication';
@@ -15,6 +15,13 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
   const subtotal = invoice.total_amount;
   const tvaRate = (invoice as any).tva_rate ?? 16;
   const tvaAmount = (invoice as any).tva_amount ?? subtotal * (tvaRate / 100);
+  const discountValue = Number((invoice as any).discount_value || 0);
+  const discountType: string = (invoice as any).discount_type || 'fixed';
+  const discountReason: string | null = (invoice as any).discount_reason || null;
+  const discountApplied = discountType === 'percentage'
+    ? parseFloat((subtotal * Math.min(discountValue, 100) / 100).toFixed(2))
+    : parseFloat(Math.min(discountValue, subtotal).toFixed(2));
+  const hasDiscount = discountApplied > 0;
 
   const [paymentMethod, setPaymentMethod] = useState('Espèces');
   const [amount, setAmount] = useState(invoice.balance.toString());
@@ -45,7 +52,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
 
     try {
       const newPaid = invoice.paid_amount + paidAmount;
-      const newBalance = Math.max(0, invoice.total_amount - newPaid);
+      const newBalance = Math.max(0, netToPay - newPaid);
       const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 
       const { error: updateError } = await supabase
@@ -168,6 +175,16 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
                     <p className="text-xs text-gray-500 mb-0.5">Sous-total HT</p>
                     <p className="font-medium text-gray-800">{subtotal.toFixed(2)} USD</p>
                   </div>
+                  {hasDiscount && (
+                    <div>
+                      <p className="text-xs text-gray-500 mb-0.5 flex items-center gap-1">
+                        <Tag className="w-3 h-3" />
+                        Remise{discountType === 'percentage' ? ` (${discountValue}%)` : ''}
+                        {discountReason ? ` - ${discountReason.charAt(0).toUpperCase() + discountReason.slice(1)}` : ''}
+                      </p>
+                      <p className="font-medium text-orange-600">-{discountApplied.toFixed(2)} USD</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5">TVA {tvaRate}%</p>
                     <p className="font-medium text-gray-800">{tvaAmount.toFixed(2)} USD</p>

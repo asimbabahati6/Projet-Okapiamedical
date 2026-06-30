@@ -23,12 +23,18 @@ interface Expense {
   approved_by?: string;
   approved_at?: string;
   justification_documents?: string;
+  beneficiaire_type?: string;
+  beneficiaire_id?: string;
+  beneficiaire_nom?: string;
   created_by: string;
   created_at: string;
   created_by_user?: {
     full_name: string;
   };
   approved_by_user?: {
+    full_name: string;
+  };
+  beneficiaire_user?: {
     full_name: string;
   };
 }
@@ -42,16 +48,40 @@ interface ExpenseStats {
 }
 
 const EXPENSE_CATEGORIES = [
+  { value: 'logiciel', label: 'Logiciel', icon: '💻' },
+  { value: 'frais_generaux', label: 'Frais generaux', icon: '📊' },
+  { value: 'salaires_charges', label: 'Salaires et charges sociales', icon: '💰' },
+  { value: 'avance_salaire', label: 'Avance sur salaire', icon: '💵' },
+  { value: 'soins_medicaux', label: 'Soins medicaux', icon: '🏥' },
+  { value: 'autres_charges_personnel', label: 'Autres charges du Personnel', icon: '👥' },
+  { value: 'frais_mission', label: 'Frais de mission', icon: '✈️' },
+  { value: 'primes', label: 'Primes', icon: '🏆' },
+  { value: 'frais_transport', label: 'Frais de transport', icon: '🚗' },
+  { value: 'achat_marchandises', label: 'Achat de Marchandises et Matieres Premieres', icon: '📦' },
+  { value: 'import_taxes', label: 'Import et Taxes', icon: '🏛️' },
+  { value: 'materiels_bureau', label: 'Materiels de Bureau', icon: '🖊️' },
+  { value: 'assurances', label: 'Assurances', icon: '🛡️' },
+  { value: 'depenses_informatiques', label: 'Depenses informatiques', icon: '🖥️' },
+  { value: 'frais_juridiques', label: 'Frais juridiques et Administratifs', icon: '⚖️' },
+  { value: 'dons_rse', label: 'Dons et Responsabilite Societale', icon: '🤝' },
+  { value: 'marchandises', label: 'Marchandises', icon: '🏪' },
+  { value: 'materiels_fournitures', label: 'Materiels et fournitures Consommees', icon: '🔧' },
+  { value: 'energie_courant_carburant', label: 'Energie - Courant - Carburant', icon: '⚡' },
+  { value: 'loyer', label: 'Loyer', icon: '🏢' },
+  { value: 'autres_services', label: 'Autres services Consommes', icon: '📋' },
+  { value: 'communication', label: 'Communication', icon: '📡' },
+  { value: 'autres_depenses', label: 'Autres Depenses', icon: '📝' },
+  // Legacy English categories for backward compatibility
   { value: 'utilities', label: 'Services Publics', icon: '⚡' },
-  { value: 'rent', label: 'Loyer', icon: '🏢' },
+  { value: 'rent', label: 'Loyer (ancien)', icon: '🏢' },
   { value: 'maintenance', label: 'Maintenance', icon: '🔧' },
   { value: 'supplies', label: 'Fournitures', icon: '📦' },
-  { value: 'salaries', label: 'Salaires', icon: '💰' },
+  { value: 'salaries', label: 'Salaires (ancien)', icon: '💰' },
   { value: 'equipment', label: 'Equipement', icon: '🖥️' },
   { value: 'marketing', label: 'Marketing', icon: '📢' },
-  { value: 'insurance', label: 'Assurances', icon: '🛡️' },
-  { value: 'transportation', label: 'Transport', icon: '🚗' },
-  { value: 'other', label: 'Autres', icon: '📋' },
+  { value: 'insurance', label: 'Assurances (ancien)', icon: '🛡️' },
+  { value: 'transportation', label: 'Transport (ancien)', icon: '🚗' },
+  { value: 'other', label: 'Autres (ancien)', icon: '📋' },
 ];
 
 const APPROVAL_ROLES = ['admin', 'medical_director', 'directeur_general', 'medecin_chef_staff'];
@@ -111,7 +141,8 @@ export default function ExpenseManagementPage() {
         .select(`
           *,
           created_by_user:user_profiles!expenses_created_by_fkey(full_name),
-          approved_by_user:user_profiles!expenses_approved_by_fkey(full_name)
+          approved_by_user:user_profiles!expenses_approved_by_fkey(full_name),
+          beneficiaire_user:user_profiles!expenses_beneficiaire_id_fkey(full_name)
         `)
         .order('expense_date', { ascending: false });
 
@@ -622,6 +653,9 @@ export default function ExpenseManagementPage() {
                   Description
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Beneficiaire
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Fournisseur
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -635,13 +669,16 @@ export default function ExpenseManagementPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     Aucune depense trouvee
                   </td>
                 </tr>
               ) : (
                 filteredExpenses.map((expense) => {
                   const catInfo = getCategoryInfo(expense.category);
+                  const benefName = expense.beneficiaire_type === 'interne'
+                    ? expense.beneficiaire_user?.full_name || '-'
+                    : expense.beneficiaire_nom || '-';
                   return (
                     <tr
                       key={expense.id}
@@ -656,8 +693,11 @@ export default function ExpenseManagementPage() {
                           {catInfo.icon} {catInfo.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900">
+                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
                         {expense.description}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {benefName}
                       </td>
                       <td className="px-6 py-4 text-sm text-gray-600">
                         {expense.vendor || '-'}

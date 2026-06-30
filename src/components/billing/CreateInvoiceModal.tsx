@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2 } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -69,6 +69,10 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [notes, setNotes] = useState('');
   const [applyTva, setApplyTva] = useState(false);
+  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
+  const [discountValue, setDiscountValue] = useState<number>(0);
+  const [discountReason, setDiscountReason] = useState<string>('');
+  const [discountReasonDetail, setDiscountReasonDetail] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
@@ -175,8 +179,12 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   }
 
   const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-  const tvaAmount = applyTva ? parseFloat((subtotal * TVA_RATE / 100).toFixed(2)) : 0;
-  const netToPay = parseFloat((subtotal + tvaAmount).toFixed(2));
+  const discountApplied = discountType === 'percentage'
+    ? parseFloat((subtotal * Math.min(discountValue, 100) / 100).toFixed(2))
+    : parseFloat(Math.min(discountValue, subtotal).toFixed(2));
+  const afterDiscount = parseFloat((subtotal - discountApplied).toFixed(2));
+  const tvaAmount = applyTva ? parseFloat((afterDiscount * TVA_RATE / 100).toFixed(2)) : 0;
+  const netToPay = parseFloat((afterDiscount + tvaAmount).toFixed(2));
   const validItemCount = items.filter(i => i.description.trim() && i.unit_price > 0).length;
 
   function validate(): boolean {
@@ -249,6 +257,10 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           tva_rate: applyTva ? TVA_RATE : 0,
           tva_amount: tvaAmount,
           net_to_pay: netToPay,
+          discount_value: discountValue > 0 ? discountValue : 0,
+          discount_type: discountType,
+          discount_reason: discountReason || null,
+          discount_reason_detail: discountReason === 'autre' ? (discountReasonDetail || null) : null,
         })
         .select('id')
         .single();
@@ -510,6 +522,84 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 />
               </div>
 
+              {/* Discount / Remise */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-orange-500" />
+                  <h3 className="text-sm font-semibold text-gray-800">Remise / Reduction</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Type de remise</label>
+                    <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('fixed')}
+                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                          discountType === 'fixed' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        Montant fixe
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDiscountType('percentage')}
+                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
+                          discountType === 'percentage' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Percent className="w-3.5 h-3.5" />
+                        Pourcentage
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">
+                      Valeur {discountType === 'percentage' ? '(%)' : '(USD)'}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={discountType === 'percentage' ? 100 : subtotal}
+                      step="0.01"
+                      value={discountValue || ''}
+                      onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      placeholder="0"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Motif de reduction</label>
+                    <select
+                      value={discountReason}
+                      onChange={(e) => setDiscountReason(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    >
+                      <option value="">Aucun motif</option>
+                      <option value="personnel">Personnel</option>
+                      <option value="partenaire">Partenaire</option>
+                      <option value="indigence">Indigence</option>
+                      <option value="autre">Autre</option>
+                    </select>
+                  </div>
+                </div>
+                {discountReason === 'autre' && (
+                  <input
+                    type="text"
+                    value={discountReasonDetail}
+                    onChange={(e) => setDiscountReasonDetail(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                    placeholder="Precisez le motif de la reduction..."
+                  />
+                )}
+                {discountApplied > 0 && (
+                  <p className="text-sm text-orange-600 font-medium">
+                    Remise appliquee : -{discountApplied.toFixed(2)} USD
+                    {discountType === 'percentage' && ` (${discountValue}%)`}
+                  </p>
+                )}
+              </div>
+
               {/* Totals Summary */}
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-4">
@@ -521,6 +611,16 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                     <span className="text-gray-600">Sous-total ({validItemCount} article(s))</span>
                     <span className="font-medium text-gray-900">{subtotal.toFixed(2)} USD</span>
                   </div>
+                  {discountApplied > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-orange-600">
+                        Remise {discountType === 'percentage' ? `(${discountValue}%)` : ''}
+                        {discountReason && discountReason !== 'autre' ? ` - ${discountReason.charAt(0).toUpperCase() + discountReason.slice(1)}` : ''}
+                        {discountReason === 'autre' && discountReasonDetail ? ` - ${discountReasonDetail}` : ''}
+                      </span>
+                      <span className="font-medium text-orange-600">-{discountApplied.toFixed(2)} USD</span>
+                    </div>
+                  )}
                   {applyTva && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">TVA ({TVA_RATE}%)</span>
