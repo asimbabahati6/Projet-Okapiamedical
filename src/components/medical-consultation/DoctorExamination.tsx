@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Stethoscope, BookOpen, ClipboardList, PlusCircle, X,
   FlaskConical, Pill, AlertTriangle, Heart, Thermometer,
-  Activity, Weight, CheckCircle2, AlertCircle,
+  Activity, Weight, CheckCircle2, AlertCircle, Ruler,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -20,6 +20,7 @@ interface VitalSigns {
   heart_rate?: string;
   temperature?: string;
   weight?: string;
+  height?: string;
   oxygen_saturation?: string;
 }
 
@@ -204,7 +205,7 @@ export function DoctorExamination({
               </h4>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
               {vitalSigns.blood_pressure_systolic && (
                 <VitalChip
                   icon={<Heart className="w-3 h-3 text-red-400" />}
@@ -248,6 +249,15 @@ export function DoctorExamination({
                   value={vitalSigns.weight}
                   unit="kg"
                   colorClass={colorForValue(vitalSigns.weight, 'weight')}
+                />
+              )}
+              {vitalSigns.height && (
+                <VitalChip
+                  icon={<Ruler className="w-3 h-3 text-emerald-400" />}
+                  label="Taille"
+                  value={vitalSigns.height}
+                  unit="cm"
+                  colorClass="text-gray-800 font-semibold"
                 />
               )}
             </div>

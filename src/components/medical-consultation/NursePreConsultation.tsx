@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Heart, Thermometer, Weight, Activity, Lock, Unlock, AlertTriangle, CheckCircle, Clock } from 'lucide-react';
+import { Heart, Thermometer, Weight, Activity, Lock, Unlock, AlertTriangle, CheckCircle, Clock, Ruler } from 'lucide-react';
 
 export interface VitalSigns {
   blood_pressure_systolic: string;
@@ -7,6 +7,7 @@ export interface VitalSigns {
   heart_rate: string;
   temperature: string;
   weight: string;
+  height: string;
   oxygen_saturation: string;
 }
 
@@ -222,6 +223,15 @@ export function NursePreConsultation({
               placeholder="70"
               value={vitalSigns.weight}
               onChange={(val) => onVitalSignChange('weight', val)}
+              disabled={isReadOnly}
+            />
+            <VitalSignInput
+              icon={<Ruler className="w-4 h-4 text-emerald-500" />}
+              label="Taille"
+              unit="cm"
+              placeholder="170"
+              value={vitalSigns.height}
+              onChange={(val) => onVitalSignChange('height', val)}
               disabled={isReadOnly}
             />
             <VitalSignInput

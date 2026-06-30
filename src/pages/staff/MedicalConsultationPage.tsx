@@ -382,6 +382,7 @@ function ConsultationDetail({ consultation, isNurseRole, isDoctorRole, userId, o
       heart_rate: vs.heart_rate || '',
       temperature: vs.temperature || '',
       weight: vs.weight || '',
+      height: vs.height || '',
       oxygen_saturation: vs.oxygen_saturation || '',
     };
   });
