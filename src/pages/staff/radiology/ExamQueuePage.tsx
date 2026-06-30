@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, AlertCircle, Activity, CheckCircle, Eye, Filter } from 'lucide-react';
+import { ArrowLeft, Clock, AlertCircle, Activity, CheckCircle, Eye, Filter, Play, Loader2 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useRadiologyPermissions } from '../../../hooks/useRadiologyPermissions';
+import { useAuth } from '../../../contexts/AuthContext';
 
 interface RadiologyExam {
   id: string;
@@ -24,24 +25,34 @@ interface RadiologyExam {
   };
 }
 
-const STATUS_CONFIG = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   prescribed: { label: 'Prescrit', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   in_progress: { label: 'En cours', color: 'bg-blue-100 text-blue-800', icon: Activity },
-  completed: { label: 'Terminé', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  validated: { label: 'Validé', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle }
+  completed: { label: 'Termine', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  validated: { label: 'Valide', color: 'bg-emerald-100 text-emerald-800', icon: CheckCircle }
 };
 
-const URGENCY_CONFIG = {
-  routine: { label: 'Routine', color: 'bg-gray-100 text-gray-800' },
-  urgent: { label: 'Urgent', color: 'bg-orange-100 text-orange-800' },
-  emergency: { label: 'Urgence', color: 'bg-red-100 text-red-800' }
+const URGENCY_CONFIG: Record<string, { label: string; color: string; priority: number }> = {
+  emergency: { label: 'Urgence', color: 'bg-red-100 text-red-800', priority: 0 },
+  urgent: { label: 'Urgent', color: 'bg-orange-100 text-orange-800', priority: 1 },
+  routine: { label: 'Routine', color: 'bg-gray-100 text-gray-800', priority: 2 }
+};
+
+const EXAM_TYPE_LABELS: Record<string, string> = {
+  radiography: 'Radiographie',
+  ct_scan: 'Scanner',
+  mri: 'IRM',
+  ultrasound: 'Echographie',
+  mammography: 'Mammographie'
 };
 
 export default function ExamQueuePage() {
   const navigate = useNavigate();
   const permissions = useRadiologyPermissions();
+  const { profile } = useAuth();
   const [exams, setExams] = useState<RadiologyExam[]>([]);
   const [loading, setLoading] = useState(true);
+  const [startingExamId, setStartingExamId] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [urgencyFilter, setUrgencyFilter] = useState<string>('all');
 
@@ -59,10 +70,12 @@ export default function ExamQueuePage() {
           patient:patients(first_name, last_name, patient_number),
           prescriber:user_profiles!radiology_exams_prescribed_by_fkey(full_name)
         `)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: true });
 
       if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
+      } else {
+        query = query.in('status', ['prescribed', 'in_progress']);
       }
 
       if (urgencyFilter !== 'all') {
@@ -70,13 +83,39 @@ export default function ExamQueuePage() {
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
-      setExams(data || []);
+
+      const sorted = (data || []).sort((a, b) => {
+        const pa = URGENCY_CONFIG[a.urgency_level]?.priority ?? 2;
+        const pb = URGENCY_CONFIG[b.urgency_level]?.priority ?? 2;
+        if (pa !== pb) return pa - pb;
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      });
+
+      setExams(sorted);
     } catch (error) {
       console.error('Error fetching exams:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleStartExam = async (e: React.MouseEvent, examId: string) => {
+    e.stopPropagation();
+    if (!profile?.id) return;
+    setStartingExamId(examId);
+    try {
+      const { error } = await supabase
+        .from('radiology_exams')
+        .update({ status: 'in_progress', performed_at: new Date().toISOString() })
+        .eq('id', examId)
+        .eq('status', 'prescribed');
+
+      if (error) throw error;
+      navigate(`/staff/radiology/workspace/${examId}`);
+    } catch (error) {
+      console.error('Error starting exam:', error);
+      setStartingExamId(null);
     }
   };
 
@@ -87,19 +126,6 @@ export default function ExamQueuePage() {
       navigate(`/staff/radiology/viewer/${examId}`);
     }
   };
-
-  const getExamTypeLabel = (type: string) => {
-    const types: Record<string, string> = {
-      radiography: 'Radiographie',
-      ct_scan: 'Scanner',
-      mri: 'IRM',
-      ultrasound: 'Échographie',
-      mammography: 'Mammographie'
-    };
-    return types[type] || type;
-  };
-
-  const filteredExams = exams;
 
   return (
     <div className="p-8">
@@ -115,11 +141,11 @@ export default function ExamQueuePage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">File d'Attente</h1>
-            <p className="text-gray-600 mt-1">Examens radiologiques en attente</p>
+            <p className="text-gray-600 mt-1">Examens radiologiques tries par urgence</p>
           </div>
           <div className="flex items-center gap-2">
             <Filter className="w-5 h-5 text-gray-400" />
-            <span className="text-sm text-gray-600">{filteredExams.length} examen(s)</span>
+            <span className="text-sm text-gray-600">{exams.length} examen(s)</span>
           </div>
         </div>
 
@@ -131,11 +157,11 @@ export default function ExamQueuePage() {
               onChange={(e) => setStatusFilter(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
             >
-              <option value="all">Tous les statuts</option>
-              <option value="prescribed">Prescrits</option>
-              <option value="in_progress">En cours</option>
-              <option value="completed">Terminés</option>
-              <option value="validated">Validés</option>
+              <option value="all">En attente + En cours</option>
+              <option value="prescribed">Prescrits uniquement</option>
+              <option value="in_progress">En cours uniquement</option>
+              <option value="completed">Termines</option>
+              <option value="validated">Valides</option>
             </select>
           </div>
 
@@ -147,9 +173,9 @@ export default function ExamQueuePage() {
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500"
             >
               <option value="all">Toutes les urgences</option>
-              <option value="routine">Routine</option>
-              <option value="urgent">Urgent</option>
               <option value="emergency">Urgence</option>
+              <option value="urgent">Urgent</option>
+              <option value="routine">Routine</option>
             </select>
           </div>
         </div>
@@ -159,23 +185,29 @@ export default function ExamQueuePage() {
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-600"></div>
             <p className="text-gray-600 mt-4">Chargement des examens...</p>
           </div>
-        ) : filteredExams.length === 0 ? (
+        ) : exams.length === 0 ? (
           <div className="text-center py-12">
             <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Aucun examen trouvé</p>
+            <p className="text-gray-600">Aucun examen trouve</p>
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredExams.map((exam) => {
-              const statusConfig = STATUS_CONFIG[exam.status as keyof typeof STATUS_CONFIG];
-              const urgencyConfig = URGENCY_CONFIG[exam.urgency_level as keyof typeof URGENCY_CONFIG];
+            {exams.map((exam) => {
+              const statusConfig = STATUS_CONFIG[exam.status] || STATUS_CONFIG.prescribed;
+              const urgencyConfig = URGENCY_CONFIG[exam.urgency_level] || URGENCY_CONFIG.routine;
               const StatusIcon = statusConfig.icon;
+              const isUrgent = exam.urgency_level === 'urgent' || exam.urgency_level === 'emergency';
+              const canStart = permissions.canPerformExams && exam.status === 'prescribed';
 
               return (
                 <div
                   key={exam.id}
                   onClick={() => handleExamClick(exam.id)}
-                  className="p-6 bg-gray-50 rounded-lg border-2 border-gray-200 hover:border-cyan-300 hover:bg-cyan-50 transition-all cursor-pointer"
+                  className={`p-6 rounded-lg border-2 transition-all cursor-pointer ${
+                    isUrgent
+                      ? 'bg-red-50 border-red-200 hover:border-red-400'
+                      : 'bg-gray-50 border-gray-200 hover:border-cyan-300 hover:bg-cyan-50'
+                  }`}
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
@@ -184,9 +216,9 @@ export default function ExamQueuePage() {
                           {exam.patient.first_name} {exam.patient.last_name}
                         </h3>
                         <span className="text-sm text-gray-500">
-                          N° {exam.patient.patient_number}
+                          N. {exam.patient.patient_number}
                         </span>
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${urgencyConfig.color}`}>
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${urgencyConfig.color}`}>
                           {urgencyConfig.label}
                         </span>
                       </div>
@@ -195,7 +227,7 @@ export default function ExamQueuePage() {
                         <div>
                           <p className="text-sm text-gray-600">Type d'examen</p>
                           <p className="font-semibold text-gray-900">
-                            {getExamTypeLabel(exam.exam_type)} ({exam.modality})
+                            {EXAM_TYPE_LABELS[exam.exam_type] || exam.exam_type} ({exam.modality})
                           </p>
                         </div>
                         <div>
@@ -204,26 +236,48 @@ export default function ExamQueuePage() {
                         </div>
                       </div>
 
-                      <div className="mb-3">
-                        <p className="text-sm text-gray-600 mb-1">Renseignements cliniques</p>
-                        <p className="text-sm text-gray-900">{exam.clinical_info}</p>
-                      </div>
+                      {exam.clinical_info && (
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-600 mb-1">Renseignements cliniques</p>
+                          <p className="text-sm text-gray-900 line-clamp-2">{exam.clinical_info}</p>
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-4 text-sm text-gray-600">
-                        <span>Prescrit par: {exam.prescriber.full_name}</span>
-                        <span>•</span>
-                        <span>Le {new Date(exam.created_at).toLocaleDateString('fr-FR')} à {new Date(exam.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>Prescrit par: {exam.prescriber?.full_name || 'N/A'}</span>
+                        <span>Le {new Date(exam.created_at).toLocaleDateString('fr-FR')} a {new Date(exam.created_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end gap-3">
+                    <div className="flex flex-col items-end gap-3 ml-4">
                       <span className={`px-3 py-1 rounded-full text-sm font-medium flex items-center gap-2 ${statusConfig.color}`}>
                         <StatusIcon className="w-4 h-4" />
                         {statusConfig.label}
                       </span>
-                      <button className="p-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors">
-                        <Eye className="w-5 h-5" />
-                      </button>
+
+                      {canStart && (
+                        <button
+                          onClick={(e) => handleStartExam(e, exam.id)}
+                          disabled={startingExamId === exam.id}
+                          className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-colors text-sm font-medium disabled:opacity-50"
+                        >
+                          {startingExamId === exam.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Play className="w-4 h-4" />
+                          )}
+                          Demarrer l'examen
+                        </button>
+                      )}
+
+                      {!canStart && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleExamClick(exam.id); }}
+                          className="p-2 bg-cyan-600 text-white rounded-lg hover:bg-cyan-700 transition-colors"
+                        >
+                          <Eye className="w-5 h-5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

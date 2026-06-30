@@ -41,7 +41,7 @@ export default function RadiologyDashboard() {
           inProgress: data.filter(e => e.status === 'in_progress').length,
           completed: data.filter(e => e.status === 'completed').length,
           validated: data.filter(e => e.status === 'validated').length,
-          urgent: data.filter(e => e.urgency_level === 'urgent').length
+          urgent: data.filter(e => (e.urgency_level === 'urgent' || e.urgency_level === 'emergency') && e.status !== 'validated').length
         };
         setStats(newStats);
       }

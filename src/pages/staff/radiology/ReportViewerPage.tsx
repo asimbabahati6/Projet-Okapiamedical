@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, User, Calendar, CheckCircle, Download, Printer, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileText, User, Calendar, CheckCircle, Download, Printer, Save, Loader2, ShieldCheck } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { useAuth } from '../../../contexts/AuthContext';
+import { useRadiologyPermissions } from '../../../hooks/useRadiologyPermissions';
 import { downloadRadiologyReportPDF, type RadiologyReportData } from '../../../utils/generateRadiologyReportPDF';
 
 const EDITOR_ROLES = ['doctor', 'medecin', 'radiologist', 'admin', 'medical_director', 'radio_chef', 'radio_tech', 'medecin_chef_staff'];
@@ -47,11 +48,13 @@ export default function ReportViewerPage() {
   const { examId } = useParams<{ examId: string }>();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const permissions = useRadiologyPermissions();
   const canEdit = EDITOR_ROLES.includes(profile?.role?.name || '');
 
   const [report, setReport] = useState<ReportDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [validating, setValidating] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [clinicalInfo, setClinicalInfo] = useState('');
@@ -136,6 +139,38 @@ export default function ReportViewerPage() {
       console.error('Error saving report:', error);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleValidate = async () => {
+    if (!report || !profile?.id) return;
+    setValidating(true);
+    try {
+      const now = new Date().toISOString();
+      const { error: reportError } = await supabase
+        .from('radiology_reports')
+        .update({
+          status: 'validated',
+          validated_by: profile.id,
+          validated_at: now,
+          is_locked: true,
+        })
+        .eq('id', report.id);
+
+      if (reportError) throw reportError;
+
+      if (report.exam_id) {
+        await supabase
+          .from('radiology_exams')
+          .update({ status: 'validated' })
+          .eq('id', report.exam_id);
+      }
+
+      await fetchReport();
+    } catch (error) {
+      console.error('Error validating report:', error);
+    } finally {
+      setValidating(false);
     }
   };
 
@@ -224,10 +259,12 @@ export default function ReportViewerPage() {
 
   const exam = report.exam;
   const patient = exam.patient;
-  const inputClass = canEdit
+  const isLocked = report.status === 'validated';
+  const canEditFields = canEdit && !isLocked;
+  const inputClass = canEditFields
     ? 'w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all'
     : 'w-full px-4 py-2.5 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed';
-  const textareaClass = canEdit
+  const textareaClass = canEditFields
     ? 'w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all resize-none'
     : 'w-full px-4 py-3 border border-gray-200 rounded-lg text-sm bg-gray-50 text-gray-700 cursor-not-allowed resize-none';
 
@@ -263,7 +300,7 @@ export default function ReportViewerPage() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {canEdit && (
+            {canEdit && report.status !== 'validated' && (
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -275,6 +312,20 @@ export default function ReportViewerPage() {
                   <Save className="w-4 h-4" />
                 )}
                 Sauvegarder
+              </button>
+            )}
+            {permissions.canValidateReports && report.status !== 'validated' && (
+              <button
+                onClick={handleValidate}
+                disabled={validating}
+                className="flex items-center gap-2 px-4 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50"
+              >
+                {validating ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <ShieldCheck className="w-4 h-4" />
+                )}
+                Valider le rapport
               </button>
             )}
             <button
@@ -302,7 +353,13 @@ export default function ReportViewerPage() {
           </div>
         )}
 
-        {!canEdit && (
+        {isLocked && (
+          <div className="mx-6 mt-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2 text-green-700 text-sm">
+            <ShieldCheck className="w-4 h-4" />
+            Ce rapport a ete valide et ne peut plus etre modifie.
+          </div>
+        )}
+        {!canEdit && !isLocked && (
           <div className="mx-6 mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-700 text-sm">
             Mode lecture seule. Vous n'avez pas les droits pour modifier ce rapport.
           </div>
@@ -332,7 +389,7 @@ export default function ReportViewerPage() {
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Type d'examen</label>
-                  {canEdit ? (
+                  {canEditFields ? (
                     <select value={examType} onChange={(e) => setExamType(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
                       <option value="radiography">Radiographie</option>
@@ -348,11 +405,11 @@ export default function ReportViewerPage() {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Region anatomique</label>
                   <input type="text" value={bodyPart} onChange={(e) => setBodyPart(e.target.value)}
-                    disabled={!canEdit} className={inputClass} />
+                    disabled={!canEditFields} className={inputClass} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1">Urgence</label>
-                  {canEdit ? (
+                  {canEditFields ? (
                     <select value={urgencyLevel} onChange={(e) => setUrgencyLevel(e.target.value)}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent">
                       <option value="routine">Routine</option>
@@ -372,17 +429,17 @@ export default function ReportViewerPage() {
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Prescrit le</label>
               <input type="date" value={prescribedDate} onChange={(e) => setPrescribedDate(e.target.value)}
-                disabled={!canEdit} className={inputClass} />
+                disabled={!canEditFields} className={inputClass} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Prescripteur</label>
               <input type="text" value={prescriberName} onChange={(e) => setPrescriberName(e.target.value)}
-                disabled={!canEdit} className={inputClass} />
+                disabled={!canEditFields} className={inputClass} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">Realise par</label>
               <input type="text" value={performerName} onChange={(e) => setPerformerName(e.target.value)}
-                disabled={!canEdit} className={inputClass} />
+                disabled={!canEditFields} className={inputClass} />
             </div>
           </div>
 
@@ -390,7 +447,7 @@ export default function ReportViewerPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Indication clinique</label>
             <textarea value={clinicalInfo} onChange={(e) => setClinicalInfo(e.target.value)}
-              disabled={!canEdit} rows={3} className={textareaClass}
+              disabled={!canEditFields} rows={3} className={textareaClass}
               placeholder="Renseignements cliniques et indication de l'examen..." />
           </div>
 
@@ -398,7 +455,7 @@ export default function ReportViewerPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Technique</label>
             <textarea value={technique} onChange={(e) => setTechnique(e.target.value)}
-              disabled={!canEdit} rows={3} className={textareaClass}
+              disabled={!canEditFields} rows={3} className={textareaClass}
               placeholder="Protocole et technique d'acquisition..." />
           </div>
 
@@ -406,7 +463,7 @@ export default function ReportViewerPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Observations / Constatations</label>
             <textarea value={findings} onChange={(e) => setFindings(e.target.value)}
-              disabled={!canEdit} rows={6} className={textareaClass}
+              disabled={!canEditFields} rows={6} className={textareaClass}
               placeholder="Description detaillee des constatations radiologiques..." />
           </div>
 
@@ -414,7 +471,7 @@ export default function ReportViewerPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Conclusion</label>
             <textarea value={impression} onChange={(e) => setImpression(e.target.value)}
-              disabled={!canEdit} rows={4} className={textareaClass}
+              disabled={!canEditFields} rows={4} className={textareaClass}
               placeholder="Conclusion diagnostique..." />
           </div>
 
@@ -422,7 +479,7 @@ export default function ReportViewerPage() {
           <div>
             <label className="block text-sm font-semibold text-gray-800 mb-2">Recommandations</label>
             <textarea value={recommendations} onChange={(e) => setRecommendations(e.target.value)}
-              disabled={!canEdit} rows={3} className={textareaClass}
+              disabled={!canEditFields} rows={3} className={textareaClass}
               placeholder="Recommandations et suivi suggere..." />
           </div>
 
