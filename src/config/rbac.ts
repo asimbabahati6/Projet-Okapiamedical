@@ -33,6 +33,7 @@ export const ROLE_LABELS: Record<RBACRole, string> = {
   caissiere: 'Caissière',
   technique: 'Technicien',
   hygiene: "Agent d'Hygiène",
+  patient: 'Patient',
 };
 
 const ALL_ROLES: RBACRole[] = Object.keys(ROLE_LABELS) as RBACRole[];

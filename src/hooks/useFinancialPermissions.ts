@@ -16,9 +16,12 @@ export interface FinancialPermissions {
   canViewCashFlow: boolean;
   canAccessCashRegister: boolean;
   canViewReceipts: boolean;
+  canMarkConventionPaid: boolean;
+  canMarkHonorairesPaid: boolean;
   isDirecteurGeneral: boolean;
   isGestionnaire: boolean;
   isCaissiere: boolean;
+  isAccountant: boolean;
 }
 
 export function useFinancialPermissions(): FinancialPermissions {
@@ -35,7 +38,7 @@ export function useFinancialPermissions(): FinancialPermissions {
   return {
     canViewInvoices: isDirecteurGeneral || isGestionnaire || isCaissiere || isAccountant,
 
-    canCreateInvoices: isDirecteurGeneral || isGestionnaire || isCaissiere || isAccountant,
+    canCreateInvoices: isDirecteurGeneral || isGestionnaire || isCaissiere,
 
     canModifyPaidInvoices: isDirecteurGeneral,
 
@@ -43,11 +46,11 @@ export function useFinancialPermissions(): FinancialPermissions {
 
     canCancelInvoices: isDirecteurGeneral,
 
-    canViewTreasury: isDirecteurGeneral || isGestionnaire,
+    canViewTreasury: isDirecteurGeneral || isGestionnaire || isAccountant,
 
     canModifyTreasury: isDirecteurGeneral,
 
-    canViewGlobalFinancials: isDirecteurGeneral || isGestionnaire,
+    canViewGlobalFinancials: isDirecteurGeneral || isGestionnaire || isAccountant,
 
     canModifyGlobalFinancials: isDirecteurGeneral,
 
@@ -57,15 +60,19 @@ export function useFinancialPermissions(): FinancialPermissions {
 
     canApproveSupplyOrders: isDirecteurGeneral || isGestionnaire,
 
-    canViewCashFlow: isDirecteurGeneral || isGestionnaire,
+    canViewCashFlow: isDirecteurGeneral || isGestionnaire || isAccountant,
 
     canAccessCashRegister: isDirecteurGeneral || isCaissiere,
 
-    // Réceptionniste : voir les reçus des paiements validés (lecture seule)
     canViewReceipts: isDirecteurGeneral || isGestionnaire || isCaissiere || isAccountant || isReceptionist,
+
+    canMarkConventionPaid: isDirecteurGeneral || isAccountant,
+
+    canMarkHonorairesPaid: isDirecteurGeneral || isAccountant,
 
     isDirecteurGeneral,
     isGestionnaire,
     isCaissiere,
+    isAccountant,
   };
 }

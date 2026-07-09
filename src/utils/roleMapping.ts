@@ -18,7 +18,7 @@ export type DatabaseRole =
   | 'administrative_assistant' | 'receptionist' | 'lab_technician'
   | 'logistician' | 'patient' | 'directeur_general' | 'medecin_chef_staff'
   | 'gestionnaire' | 'radio_chef' | 'radio_tech' | 'caissiere'
-  | 'technique' | 'hygiene';
+  | 'technique' | 'hygiene' | 'accountant';
 
 export const RBAC_TO_ENUM_MAP: Record<RBACRole, UserRole> = {
   'admin':               UserRole.SUPER_ADMIN,
@@ -107,6 +107,7 @@ export const DB_TO_RBAC_MAP: Record<DatabaseRole, RBACRole> = {
   'caissiere':                      'caissiere',
   'technique':                      'technique',
   'hygiene':                        'hygiene',
+  'accountant':                     'accountant',
 };
 
 export const DB_TO_ENUM_MAP: Record<DatabaseRole, UserRole> = {
@@ -138,6 +139,7 @@ export const DB_TO_ENUM_MAP: Record<DatabaseRole, UserRole> = {
   'caissiere':                      UserRole.CAISSIERE,
   'technique':                      UserRole.TECHNIQUE,
   'hygiene':                        UserRole.HYGIENE,
+  'accountant':                     UserRole.FINANCE_MANAGER,
 };
 
 // Fonctions utilitaires

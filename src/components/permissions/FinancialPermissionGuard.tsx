@@ -95,7 +95,7 @@ export function ReadOnlyFinancialBadge() {
     return null;
   }
 
-  if (permissions.isGestionnaire) {
+  if (permissions.isGestionnaire || permissions.isAccountant) {
     return (
       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
         <Lock className="w-3 h-3" />
