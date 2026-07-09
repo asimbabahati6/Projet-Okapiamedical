@@ -15,6 +15,14 @@ interface Patient {
   phone: string;
 }
 
+interface MedicalActSuggestion {
+  id: string;
+  act_name: string;
+  category: string;
+  price_usd: number;
+  price_cdf: number;
+}
+
 interface InvoiceItem {
   id: string;
   description: string;
@@ -77,7 +85,88 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const actSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [actSuggestions, setActSuggestions] = useState<Record<string, MedicalActSuggestion[]>>({});
+  const [activeActDropdown, setActiveActDropdown] = useState<string | null>(null);
+  const [actSearchLoading, setActSearchLoading] = useState<string | null>(null);
+  const actDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  useEffect(() => {
+    function handleActClickOutside(e: MouseEvent) {
+      if (activeActDropdown) {
+        const ref = actDropdownRefs.current[activeActDropdown];
+        if (ref && !ref.contains(e.target as Node)) {
+          setActiveActDropdown(null);
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleActClickOutside);
+    return () => document.removeEventListener('mousedown', handleActClickOutside);
+  }, [activeActDropdown]);
+
+  useEffect(() => {
+    return () => {
+      if (actSearchTimerRef.current) clearTimeout(actSearchTimerRef.current);
+    };
+  }, []);
+
+  const searchMedicalActs = useCallback(async (term: string, itemId: string) => {
+    if (term.length < 2) {
+      setActSuggestions(prev => ({ ...prev, [itemId]: [] }));
+      setActiveActDropdown(null);
+      return;
+    }
+    setActSearchLoading(itemId);
+    try {
+      const pattern = `%${term}%`;
+      const { data } = await supabase
+        .from('medical_acts_pricing')
+        .select('id, act_name, category, price_usd, price_cdf')
+        .eq('is_active', true)
+        .or(`act_name.ilike.${pattern},category.ilike.${pattern}`)
+        .order('act_name')
+        .limit(15);
+      setActSuggestions(prev => ({ ...prev, [itemId]: data || [] }));
+      setActiveActDropdown(itemId);
+    } catch {
+      setActSuggestions(prev => ({ ...prev, [itemId]: [] }));
+    } finally {
+      setActSearchLoading(null);
+    }
+  }, []);
+
+  function handleActDescriptionChange(itemId: string, value: string) {
+    updateItem(itemId, 'description', value);
+    if (actSearchTimerRef.current) clearTimeout(actSearchTimerRef.current);
+    if (value.length < 2) {
+      setActSuggestions(prev => ({ ...prev, [itemId]: [] }));
+      setActiveActDropdown(null);
+      return;
+    }
+    actSearchTimerRef.current = setTimeout(() => {
+      searchMedicalActs(value, itemId);
+    }, 300);
+  }
+
+  function selectMedicalAct(itemId: string, act: MedicalActSuggestion) {
+    setItems(prev => prev.map(i =>
+      i.id === itemId
+        ? { ...i, description: act.act_name, unit_price: act.price_usd }
+        : i
+    ));
+    setActiveActDropdown(null);
+    setActSuggestions(prev => ({ ...prev, [itemId]: [] }));
+    setFieldErrors(prev => {
+      if (!prev.items?.[itemId]) return prev;
+      const itemErrs = { ...prev.items[itemId] };
+      delete itemErrs.description;
+      delete itemErrs.unit_price;
+      const nextItems = { ...prev.items, [itemId]: itemErrs };
+      if (!Object.keys(itemErrs).length) delete nextItems[itemId];
+      return { ...prev, items: Object.keys(nextItems).length ? nextItems : undefined };
+    });
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -412,16 +501,39 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                           )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                          <div className="md:col-span-2">
+                          <div className="md:col-span-2 relative" ref={el => { actDropdownRefs.current[item.id] = el; }}>
+                            <Search className="absolute left-3 top-[11px] w-4 h-4 text-gray-400 pointer-events-none" />
                             <input
                               type="text"
-                              placeholder="Description de l'article..."
+                              placeholder="Rechercher un acte medical ou saisir une description..."
                               value={item.description}
-                              onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                              onChange={(e) => handleActDescriptionChange(item.id, e.target.value)}
+                              onFocus={() => {
+                                if (actSuggestions[item.id]?.length) setActiveActDropdown(item.id);
+                              }}
+                              className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
                                 ie?.description ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
                               }`}
                             />
+                            {actSearchLoading === item.id && (
+                              <Loader2 className="absolute right-3 top-[11px] w-4 h-4 text-blue-500 animate-spin" />
+                            )}
+                            {activeActDropdown === item.id && actSuggestions[item.id]?.length > 0 && (
+                              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                                {actSuggestions[item.id].map(act => (
+                                  <button
+                                    key={act.id}
+                                    type="button"
+                                    onClick={() => selectMedicalAct(item.id, act)}
+                                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                                  >
+                                    <span className="font-medium text-gray-900 text-sm">{act.act_name}</span>
+                                    <span className="text-xs text-gray-400 ml-2">{act.category}</span>
+                                    <span className="float-right text-xs font-semibold text-blue-600">{act.price_usd.toFixed(2)} USD</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                             {ie?.description && (
                               <p className="text-red-500 text-xs mt-1">{ie.description}</p>
                             )}
