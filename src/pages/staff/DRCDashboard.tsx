@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, Package, ClipboardList } from 'lucide-react';
+import { Users, Briefcase, AlertTriangle, DollarSign, FileText, Calendar, TrendingUp, TrendingDown, Package, ClipboardList } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { DashboardKPIs } from '../../types/drcClinic';
 import { formatCDF, formatUSD } from '../../utils/payrollCalculations';
+import { useRBAC } from '../../contexts/RBACContext';
 
 export function DRCDashboard() {
   const navigate = useNavigate();
+  const { userRole } = useRBAC();
+  const isAccountant = userRole === 'accountant';
   const [kpis, setKpis] = useState<DashboardKPIs>({
     daily_patients: 0,
     staff_on_duty: 0,
@@ -147,30 +150,31 @@ export function DRCDashboard() {
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Daily Patients */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center">
-              <Users className="w-6 h-6 text-blue-600" />
+      <div className={`grid grid-cols-1 md:grid-cols-2 ${isAccountant ? 'lg:grid-cols-2' : 'lg:grid-cols-4'} gap-6`}>
+        {!isAccountant && (
+          <>
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600" />
+                </div>
+                <span className="text-3xl font-bold text-gray-900">{kpis.daily_patients}</span>
+              </div>
+              <p className="text-sm font-medium text-gray-600">Patients Aujourd'hui</p>
             </div>
-            <span className="text-3xl font-bold text-gray-900">{kpis.daily_patients}</span>
-          </div>
-          <p className="text-sm font-medium text-gray-600">Patients Aujourd'hui</p>
-        </div>
 
-        {/* Staff on Duty */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center">
-              <Briefcase className="w-6 h-6 text-green-600" />
+            <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
+              <div className="flex items-center justify-between mb-4">
+                <div className="bg-green-100 w-12 h-12 rounded-lg flex items-center justify-center">
+                  <Briefcase className="w-6 h-6 text-green-600" />
+                </div>
+                <span className="text-3xl font-bold text-gray-900">{kpis.staff_on_duty}</span>
+              </div>
+              <p className="text-sm font-medium text-gray-600">Personnel de Garde</p>
             </div>
-            <span className="text-3xl font-bold text-gray-900">{kpis.staff_on_duty}</span>
-          </div>
-          <p className="text-sm font-medium text-gray-600">Personnel de Garde</p>
-        </div>
+          </>
+        )}
 
-        {/* Monthly Revenue CDF */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-yellow-500">
           <div className="flex items-center justify-between mb-4">
             <div className="bg-yellow-100 w-12 h-12 rounded-lg flex items-center justify-center">
@@ -184,104 +188,140 @@ export function DRCDashboard() {
           <p className="text-sm font-medium text-gray-600">Revenu Mensuel</p>
         </div>
 
-        {/* Critical Alerts */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-red-100 w-12 h-12 rounded-lg flex items-center justify-center">
-              <AlertTriangle className="w-6 h-6 text-red-600" />
+        {!isAccountant && (
+          <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
+            <div className="flex items-center justify-between mb-4">
+              <div className="bg-red-100 w-12 h-12 rounded-lg flex items-center justify-center">
+                <AlertTriangle className="w-6 h-6 text-red-600" />
+              </div>
+              <span className="text-3xl font-bold text-gray-900">{kpis.critical_stock_alerts}</span>
             </div>
-            <span className="text-3xl font-bold text-gray-900">{kpis.critical_stock_alerts}</span>
+            <p className="text-sm font-medium text-gray-600">Alertes Critiques</p>
           </div>
-          <p className="text-sm font-medium text-gray-600">Alertes Critiques</p>
-        </div>
+        )}
       </div>
 
-      {/* HR Alerts Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Contracts Expiring */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-orange-100 w-10 h-10 rounded-lg flex items-center justify-center">
-              <FileText className="w-5 h-5 text-orange-600" />
+      {/* HR Alerts Section - hidden for accountant */}
+      {!isAccountant && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-orange-100 w-10 h-10 rounded-lg flex items-center justify-center">
+                <FileText className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Contrats a Echeance</h3>
+                <p className="text-sm text-gray-600">Expire dans les 30 prochains jours</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Contrats à Échoir</h3>
-              <p className="text-sm text-gray-600">Expire dans les 30 prochains jours</p>
+            <div className="flex items-center justify-between">
+              <span className="text-4xl font-bold text-orange-600">{kpis.contracts_expiring_30_days}</span>
+              <button
+                onClick={() => navigate('/tableau-de-bord/contracts')}
+                className="bg-orange-50 hover:bg-orange-100 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Voir les Contrats
+              </button>
             </div>
           </div>
-          <div className="flex items-center justify-between">
-            <span className="text-4xl font-bold text-orange-600">{kpis.contracts_expiring_30_days}</span>
-            <button
-              onClick={() => navigate('/tableau-de-bord/contracts')}
-              className="bg-orange-50 hover:bg-orange-100 text-orange-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Voir les Contrats
-            </button>
-          </div>
-        </div>
 
-        {/* Medications Expiring */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="bg-purple-100 w-10 h-10 rounded-lg flex items-center justify-center">
-              <Package className="w-5 h-5 text-purple-600" />
+          <div className="bg-white rounded-xl shadow-sm p-6">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="bg-purple-100 w-10 h-10 rounded-lg flex items-center justify-center">
+                <Package className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900">Medicaments a Peremption</h3>
+                <p className="text-sm text-gray-600">Expire dans les 30 prochains jours</p>
+              </div>
             </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Médicaments à Péremption</h3>
-              <p className="text-sm text-gray-600">Expire dans les 30 prochains jours</p>
+            <div className="flex items-center justify-between">
+              <span className="text-4xl font-bold text-purple-600">{kpis.medications_expiring_soon}</span>
+              <button
+                onClick={() => navigate('/tableau-de-bord/pharmacy-inventory')}
+                className="bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              >
+                Voir l'Inventaire
+              </button>
             </div>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-4xl font-bold text-purple-600">{kpis.medications_expiring_soon}</span>
-            <button
-              onClick={() => navigate('/tableau-de-bord/pharmacy-inventory')}
-              className="bg-purple-50 hover:bg-purple-100 text-purple-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-            >
-              Voir l'Inventaire
-            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Quick Actions */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions Rapides</h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <button
-            onClick={() => navigate('/tableau-de-bord/employees')}
-            className="p-4 bg-blue-50 rounded-lg text-left hover:bg-blue-100 transition-colors group"
-          >
-            <Users className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-gray-900">Employés</p>
-          </button>
-          <button
-            onClick={() => navigate('/tableau-de-bord/payroll')}
-            className="p-4 bg-green-50 rounded-lg text-left hover:bg-green-100 transition-colors group"
-          >
-            <DollarSign className="w-6 h-6 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-gray-900">Paie</p>
-          </button>
-          <button
-            onClick={() => navigate('/tableau-de-bord/shifts')}
-            className="p-4 bg-purple-50 rounded-lg text-left hover:bg-purple-100 transition-colors group"
-          >
-            <Calendar className="w-6 h-6 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-gray-900">Horaires</p>
-          </button>
-          <button
-            onClick={() => navigate('/tableau-de-bord/insurance')}
-            className="p-4 bg-orange-50 rounded-lg text-left hover:bg-orange-100 transition-colors group"
-          >
-            <FileText className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-gray-900">Assurances</p>
-          </button>
-          <button
-            onClick={() => navigate('/staff/medical-report')}
-            className="p-4 bg-teal-50 rounded-lg text-left hover:bg-teal-100 transition-colors group"
-          >
-            <ClipboardList className="w-6 h-6 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
-            <p className="text-sm font-medium text-gray-900">Rapport Médical</p>
-          </button>
+          {isAccountant ? (
+            <>
+              <button
+                onClick={() => navigate('/staff/billing')}
+                className="p-4 bg-yellow-50 rounded-lg text-left hover:bg-yellow-100 transition-colors group"
+              >
+                <DollarSign className="w-6 h-6 text-yellow-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Facturation</p>
+              </button>
+              <button
+                onClick={() => navigate('/staff/expenses')}
+                className="p-4 bg-green-50 rounded-lg text-left hover:bg-green-100 transition-colors group"
+              >
+                <TrendingDown className="w-6 h-6 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Depenses</p>
+              </button>
+              <button
+                onClick={() => navigate('/staff/caisse')}
+                className="p-4 bg-blue-50 rounded-lg text-left hover:bg-blue-100 transition-colors group"
+              >
+                <ClipboardList className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Caisse</p>
+              </button>
+              <button
+                onClick={() => navigate('/staff/billing-analytics')}
+                className="p-4 bg-orange-50 rounded-lg text-left hover:bg-orange-100 transition-colors group"
+              >
+                <TrendingUp className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Analyses</p>
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                onClick={() => navigate('/tableau-de-bord/employees')}
+                className="p-4 bg-blue-50 rounded-lg text-left hover:bg-blue-100 transition-colors group"
+              >
+                <Users className="w-6 h-6 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Employes</p>
+              </button>
+              <button
+                onClick={() => navigate('/tableau-de-bord/payroll')}
+                className="p-4 bg-green-50 rounded-lg text-left hover:bg-green-100 transition-colors group"
+              >
+                <DollarSign className="w-6 h-6 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Paie</p>
+              </button>
+              <button
+                onClick={() => navigate('/tableau-de-bord/shifts')}
+                className="p-4 bg-purple-50 rounded-lg text-left hover:bg-purple-100 transition-colors group"
+              >
+                <Calendar className="w-6 h-6 text-purple-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Horaires</p>
+              </button>
+              <button
+                onClick={() => navigate('/tableau-de-bord/insurance')}
+                className="p-4 bg-orange-50 rounded-lg text-left hover:bg-orange-100 transition-colors group"
+              >
+                <FileText className="w-6 h-6 text-orange-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Assurances</p>
+              </button>
+              <button
+                onClick={() => navigate('/staff/medical-report')}
+                className="p-4 bg-teal-50 rounded-lg text-left hover:bg-teal-100 transition-colors group"
+              >
+                <ClipboardList className="w-6 h-6 text-teal-600 mb-2 group-hover:scale-110 transition-transform" />
+                <p className="text-sm font-medium text-gray-900">Rapport Medical</p>
+              </button>
+            </>
+          )}
         </div>
       </div>
 

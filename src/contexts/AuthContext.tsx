@@ -198,7 +198,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       'caissiere',
       'technique',
       'hygiene',
-      'lab_technician'
+      'lab_technician',
+      'accountant'
     ];
     return allowedRoles.includes(profile.role.name);
   }

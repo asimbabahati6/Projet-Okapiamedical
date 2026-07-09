@@ -96,7 +96,8 @@ export function Dashboard() {
       'nurse': 'Infirmier(ère)',
       'pharmacist': 'Pharmacien(ne)',
       'receptionist': 'Réceptionniste',
-      'admin': 'Administrateur'
+      'admin': 'Administrateur',
+      'accountant': 'Comptable'
     };
     return roleMap[userRole] || userRole;
   };
