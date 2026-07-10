@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus, ChevronDown } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -32,10 +32,10 @@ interface Convention {
 
 interface MedecinPrestataire {
   id: string;
-  nom: string;
-  prenom: string;
+  nom_complet: string;
   specialite: string | null;
   type: string;
+  source: string;
 }
 
 interface InvoiceItem {
@@ -83,7 +83,6 @@ const PAYMENT_METHODS = [
 ];
 
 const TVA_RATE = 16;
-
 const COMMISSION_QUICK = [5, 10, 15, 20];
 const HONORAIRE_QUICK = [5, 10, 15, 20, 25, 30, 40, 50];
 
@@ -98,6 +97,108 @@ function makeItem(): InvoiceItem {
     mode_remuneration: null,
     valeur_remuneration: null,
   };
+}
+
+// Searchable select with grouped options
+function SearchableSelect({
+  value,
+  onChange,
+  placeholder,
+  groups,
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  placeholder: string;
+  groups: { label: string; options: { id: string; display: string; sub?: string }[] }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
+  const allOptions = groups.flatMap(g => g.options);
+  const selected = allOptions.find(o => o.id === value);
+  const term = search.toLowerCase();
+
+  const filteredGroups = groups
+    .map(g => ({
+      ...g,
+      options: g.options.filter(
+        o => o.display.toLowerCase().includes(term) || (o.sub && o.sub.toLowerCase().includes(term))
+      ),
+    }))
+    .filter(g => g.options.length > 0);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between px-3 py-2 border border-gray-300 rounded-lg text-sm text-left hover:border-gray-400 transition-colors bg-white"
+      >
+        <span className={selected ? 'text-gray-900' : 'text-gray-400'}>
+          {selected ? selected.display : placeholder}
+        </span>
+        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-hidden flex flex-col">
+          <div className="p-2 border-b border-gray-100">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Rechercher..."
+                className="w-full pl-8 pr-3 py-1.5 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="overflow-y-auto flex-1">
+            <button
+              type="button"
+              onClick={() => { onChange(''); setOpen(false); setSearch(''); }}
+              className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-50"
+            >
+              -- Aucun --
+            </button>
+            {filteredGroups.map(g => (
+              <div key={g.label}>
+                <div className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase bg-gray-50 sticky top-0">
+                  {g.label}
+                </div>
+                {g.options.map(o => (
+                  <button
+                    key={o.id}
+                    type="button"
+                    onClick={() => { onChange(o.id); setOpen(false); setSearch(''); }}
+                    className={`w-full text-left px-4 py-2 text-sm hover:bg-blue-50 transition-colors ${
+                      o.id === value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-900'
+                    }`}
+                  >
+                    {o.display}
+                    {o.sub && <span className="text-xs text-gray-400 ml-2">({o.sub})</span>}
+                  </button>
+                ))}
+              </div>
+            ))}
+            {filteredGroups.length === 0 && (
+              <div className="px-4 py-3 text-sm text-gray-400 text-center">Aucun resultat</div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalProps) {
@@ -117,18 +218,13 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
-  // Type de client
   const [clientType, setClientType] = useState<ClientType>('ordinaire');
   const [conventions, setConventions] = useState<Convention[]>([]);
   const [selectedConventionId, setSelectedConventionId] = useState<string>('');
 
-  // Medecin apporteur
-  const [apporteurs, setApporteurs] = useState<MedecinPrestataire[]>([]);
+  const [allMedecins, setAllMedecins] = useState<MedecinPrestataire[]>([]);
   const [medecinApporteurId, setMedecinApporteurId] = useState<string>('');
   const [pourcentageCommission, setPourcentageCommission] = useState<number>(0);
-
-  // Medecins prestataires (for line items)
-  const [prestataires, setPrestataires] = useState<MedecinPrestataire[]>([]);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -138,7 +234,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [actSearchLoading, setActSearchLoading] = useState<string | null>(null);
   const actDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Load conventions and medecins on mount
   useEffect(() => {
     async function load() {
       const [convRes, medRes] = await Promise.all([
@@ -149,17 +244,75 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           .order('nom'),
         supabase
           .from('medecins_prestataires')
-          .select('id, nom, prenom, specialite, type')
+          .select('id, nom_complet, specialite, type, source')
           .eq('actif', true)
-          .order('nom'),
+          .order('nom_complet'),
       ]);
       setConventions(convRes.data || []);
-      const allMedecins = medRes.data || [];
-      setPrestataires(allMedecins.filter(m => m.type === 'honoraire' || m.type === 'les_deux'));
-      setApporteurs(allMedecins.filter(m => m.type === 'apporteur' || m.type === 'les_deux'));
+      if (medRes.error) {
+        console.error('Erreur chargement medecins:', medRes.error);
+      }
+      setAllMedecins(medRes.data || []);
     }
     load();
   }, []);
+
+  // Build grouped options for prestataire dropdown (interne + externe)
+  const prestataireGroups = (() => {
+    const eligible = allMedecins.filter(m => m.type === 'prestataire' || m.type === 'les_deux');
+    const internes = eligible.filter(m => m.source === 'interne');
+    const externes = eligible.filter(m => m.source === 'externe');
+    const groups: { label: string; options: { id: string; display: string; sub?: string }[] }[] = [];
+    if (internes.length > 0) {
+      groups.push({
+        label: 'Medecins Okapia',
+        options: internes.map(m => ({
+          id: m.id,
+          display: m.nom_complet,
+          sub: m.specialite || undefined,
+        })),
+      });
+    }
+    if (externes.length > 0) {
+      groups.push({
+        label: 'Medecins externes',
+        options: externes.map(m => ({
+          id: m.id,
+          display: m.nom_complet,
+          sub: m.specialite || undefined,
+        })),
+      });
+    }
+    return groups;
+  })();
+
+  // Build grouped options for apporteur dropdown
+  const apporteurGroups = (() => {
+    const eligible = allMedecins.filter(m => m.type === 'apporteur' || m.type === 'les_deux');
+    const internes = eligible.filter(m => m.source === 'interne');
+    const externes = eligible.filter(m => m.source === 'externe');
+    const groups: { label: string; options: { id: string; display: string; sub?: string }[] }[] = [];
+    if (internes.length > 0) {
+      groups.push({
+        label: 'Medecins Okapia',
+        options: internes.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })),
+      });
+    }
+    if (externes.length > 0) {
+      groups.push({
+        label: 'Medecins externes',
+        options: externes.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })),
+      });
+    }
+    // If no apporteur-typed medecins, show all as fallback
+    if (groups.length === 0 && allMedecins.length > 0) {
+      const intAll = allMedecins.filter(m => m.source === 'interne');
+      const extAll = allMedecins.filter(m => m.source === 'externe');
+      if (intAll.length > 0) groups.push({ label: 'Medecins Okapia', options: intAll.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })) });
+      if (extAll.length > 0) groups.push({ label: 'Medecins externes', options: extAll.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })) });
+    }
+    return groups;
+  })();
 
   useEffect(() => {
     function handleActClickOutside(e: MouseEvent) {
@@ -280,15 +433,12 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   function handlePatientSearchChange(value: string) {
     setPatientSearch(value);
     setFieldErrors(prev => ({ ...prev, patient: undefined }));
-
     if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-
     if (value.length < 2) {
       setSearchResults([]);
       setShowPatientDropdown(false);
       return;
     }
-
     searchTimerRef.current = setTimeout(() => {
       searchPatients(value);
     }, 300);
@@ -355,7 +505,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const netToPay = parseFloat((afterDiscount + tvaAmount).toFixed(2));
   const validItemCount = items.filter(i => i.description.trim() && i.unit_price > 0).length;
 
-  // Compute honoraires per item for display
   function computeHonoraire(item: InvoiceItem): number {
     if (!item.medecin_prestataire_id || !item.valeur_remuneration) return 0;
     const lineTotal = item.quantity * item.unit_price;
@@ -423,7 +572,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
     if (!validate()) return;
 
     setSaving(true);
@@ -431,7 +579,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
 
     try {
       const validItems = items.filter(i => i.description.trim() && i.unit_price > 0 && i.quantity >= 1);
-
       const typeFacture = clientType === 'conventionne' ? 'conventionne' : 'cash';
 
       const { data: invoice, error: invoiceError } = await supabase
@@ -521,11 +668,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                         {selectedPatient.patient_number} {selectedPatient.phone ? `- ${selectedPatient.phone}` : ''}
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={clearPatient}
-                      className="text-gray-400 hover:text-red-500 p-1"
-                    >
+                    <button type="button" onClick={clearPatient} className="text-gray-400 hover:text-red-500 p-1">
                       <X className="w-4 h-4" />
                     </button>
                   </div>
@@ -730,9 +873,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                                   ie?.quantity ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
                                 }`}
                               />
-                              {ie?.quantity && (
-                                <p className="text-red-500 text-xs mt-1">{ie.quantity}</p>
-                              )}
+                              {ie?.quantity && <p className="text-red-500 text-xs mt-1">{ie.quantity}</p>}
                             </div>
                             <div>
                               <label className="block text-xs text-gray-500 mb-1">Prix unitaire (USD)</label>
@@ -746,9 +887,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                                   ie?.unit_price ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
                                 }`}
                               />
-                              {ie?.unit_price && (
-                                <p className="text-red-500 text-xs mt-1">{ie.unit_price}</p>
-                              )}
+                              {ie?.unit_price && <p className="text-red-500 text-xs mt-1">{ie.unit_price}</p>}
                             </div>
                           </div>
                         </div>
@@ -759,18 +898,12 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                             <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
                             <span className="text-xs font-semibold text-gray-500 uppercase">Medecin prestataire (optionnel)</span>
                           </div>
-                          <select
+                          <SearchableSelect
                             value={item.medecin_prestataire_id || ''}
-                            onChange={(e) => updateItemPrestataire(item.id, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                          >
-                            <option value="">-- Aucun --</option>
-                            {prestataires.map(m => (
-                              <option key={m.id} value={m.id}>
-                                Dr {m.nom} {m.prenom}{m.specialite ? ` (${m.specialite})` : ''}
-                              </option>
-                            ))}
-                          </select>
+                            onChange={(val) => updateItemPrestataire(item.id, val)}
+                            placeholder="-- Aucun --"
+                            groups={prestataireGroups}
+                          />
                           {item.medecin_prestataire_id && (
                             <div className="mt-2 space-y-2">
                               <div className="flex items-center gap-3">
@@ -853,24 +986,18 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
               {/* Medecin Apporteur */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <UserPlus className="w-5 h-5 text-indigo-600" />
+                  <UserPlus className="w-5 h-5 text-blue-700" />
                   <h3 className="text-sm font-semibold text-gray-800">Medecin apporteur (optionnel)</h3>
                 </div>
-                <select
+                <SearchableSelect
                   value={medecinApporteurId}
-                  onChange={(e) => {
-                    setMedecinApporteurId(e.target.value);
-                    if (!e.target.value) setPourcentageCommission(0);
+                  onChange={(val) => {
+                    setMedecinApporteurId(val);
+                    if (!val) setPourcentageCommission(0);
                   }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                >
-                  <option value="">-- Aucun --</option>
-                  {apporteurs.map(m => (
-                    <option key={m.id} value={m.id}>
-                      Dr {m.nom} {m.prenom}{m.specialite ? ` (${m.specialite})` : ''}
-                    </option>
-                  ))}
-                </select>
+                  placeholder="-- Aucun --"
+                  groups={apporteurGroups}
+                />
                 {medecinApporteurId && (
                   <div className="space-y-2">
                     <div>
@@ -1082,7 +1209,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
             </div>
           </div>
 
-          {/* Footer inside form */}
+          {/* Footer */}
           <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex gap-3 shrink-0">
             <button
               type="button"
