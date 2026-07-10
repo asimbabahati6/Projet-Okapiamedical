@@ -74,9 +74,9 @@ export function BillingAnalyticsPage({ onNavigateToInvoices }: BillingAnalyticsP
         monthStart.setDate(now.getDate() - 30);
 
         const [dayResult, weekResult, monthResult] = await Promise.all([
-          supabase.from('invoices').select('*').gte('created_at', dayStart.toISOString()).lte('created_at', dayEnd.toISOString()),
-          supabase.from('invoices').select('*').gte('created_at', weekStart.toISOString()).lte('created_at', now.toISOString()),
-          supabase.from('invoices').select('*').gte('created_at', monthStart.toISOString()).lte('created_at', now.toISOString())
+          supabase.from('invoices').select('*').neq('type_facture', 'conventionne').gte('created_at', dayStart.toISOString()).lte('created_at', dayEnd.toISOString()),
+          supabase.from('invoices').select('*').neq('type_facture', 'conventionne').gte('created_at', weekStart.toISOString()).lte('created_at', now.toISOString()),
+          supabase.from('invoices').select('*').neq('type_facture', 'conventionne').gte('created_at', monthStart.toISOString()).lte('created_at', now.toISOString())
         ]);
 
         if (!mounted) return;

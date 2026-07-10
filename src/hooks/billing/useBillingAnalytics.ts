@@ -96,6 +96,7 @@ export function useBillingAnalytics(initialFilters?: Partial<BillingAnalyticsFil
             email
           )
         `)
+        .neq('type_facture', 'conventionne')
         .gte('created_at', startDate.toISOString())
         .lte('created_at', endDate.toISOString())
         .order('created_at', { ascending: false });
@@ -115,6 +116,7 @@ export function useBillingAnalytics(initialFilters?: Partial<BillingAnalyticsFil
       const { data: prevData } = await supabase
         .from('invoices')
         .select('*')
+        .neq('type_facture', 'conventionne')
         .gte('created_at', previousStart.toISOString())
         .lte('created_at', previousEnd.toISOString());
 

@@ -38,9 +38,37 @@ export function CaissePaymentView() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'paid'>('all');
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const [conventionneTotal, setConventionneTotal] = useState(0);
+
+  async function fetchConventionneTotal() {
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const todayLocal = new Date(today.getTime() - today.getTimezoneOffset() * 60000)
+        .toISOString()
+        .split('T')[0];
+
+      const { data } = await supabase
+        .from('invoices')
+        .select('net_to_pay, total_amount')
+        .eq('type_facture', 'conventionne')
+        .gte('created_at', `${todayLocal}T00:00:00`)
+        .lte('created_at', `${todayLocal}T23:59:59`);
+
+      const total = (data || []).reduce(
+        (sum: number, inv: { net_to_pay?: number; total_amount?: number }) =>
+          sum + Number(inv.net_to_pay || inv.total_amount || 0),
+        0
+      );
+      setConventionneTotal(total);
+    } catch (err) {
+      console.error('Error fetching conventionne total:', err);
+    }
+  }
 
   useEffect(() => {
     fetchEntries();
+    fetchConventionneTotal();
 
     const channel = supabase
       .channel('caisse-realtime')
@@ -169,7 +197,7 @@ const { data, error } = await supabase
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between">
             <div>
@@ -200,6 +228,17 @@ const { data, error } = await supabase
             </div>
             <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center">
               <DollarSign className="w-6 h-6 text-blue-600" />
+            </div>
+          </div>
+        </div>
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Conventionne (non encaisse)</p>
+              <p className="text-3xl font-bold text-teal-700 mt-1">{conventionneTotal} <span className="text-base font-medium text-gray-500">USD</span></p>
+            </div>
+            <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
+              <CreditCard className="w-6 h-6 text-teal-600" />
             </div>
           </div>
         </div>

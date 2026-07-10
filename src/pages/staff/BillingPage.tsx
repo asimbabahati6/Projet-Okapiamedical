@@ -38,6 +38,7 @@ export function BillingPage() {
       const { data } = await supabase
         .from('invoices')
         .select('*, patients(first_name, last_name)')
+        .neq('type_facture', 'conventionne')
         .order('created_at', { ascending: false })
         .limit(50);
 
