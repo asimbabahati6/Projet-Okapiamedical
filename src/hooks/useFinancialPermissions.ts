@@ -21,6 +21,8 @@ export interface FinancialPermissions {
   canCloseCashRegister: boolean;
   canViewCaissePermanente: boolean;
   canViewClosureHistory: boolean;
+  canViewEncaissementQueue: boolean;
+  canEncaisser: boolean;
   isDirecteurGeneral: boolean;
   isGestionnaire: boolean;
   isCaissiere: boolean;
@@ -78,6 +80,10 @@ export function useFinancialPermissions(): FinancialPermissions {
     canViewCaissePermanente: isDirecteurGeneral || isAccountant,
 
     canViewClosureHistory: isDirecteurGeneral || isAccountant,
+
+    canViewEncaissementQueue: isDirecteurGeneral || isCaissiere || isAccountant,
+
+    canEncaisser: isDirecteurGeneral || isCaissiere,
 
     isDirecteurGeneral,
     isGestionnaire,

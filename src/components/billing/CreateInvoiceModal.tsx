@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus, ChevronDown, CheckCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -217,6 +217,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [discountReasonDetail, setDiscountReasonDetail] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [sentToCaisse, setSentToCaisse] = useState(false);
 
   const [clientType, setClientType] = useState<ClientType>('ordinaire');
   const [conventions, setConventions] = useState<Convention[]>([]);
@@ -623,7 +624,12 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
       const { error: itemsError } = await supabase.from('invoice_items').insert(itemRows);
       if (itemsError) throw itemsError;
 
-      onSuccess();
+      if (typeFacture === 'cash') {
+        setSentToCaisse(true);
+        setTimeout(() => { setSentToCaisse(false); onSuccess(); }, 2500);
+      } else {
+        onSuccess();
+      }
     } catch (err: unknown) {
       const message = err && typeof err === 'object' && 'message' in err ? String((err as { message: string }).message) : 'Erreur inconnue';
       setFieldErrors({ general: `Echec de la creation: ${message}` });
@@ -645,6 +651,18 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {sentToCaisse && (
+          <div className="absolute inset-0 bg-white/95 z-10 flex items-center justify-center rounded-2xl">
+            <div className="text-center animate-in fade-in">
+              <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="w-9 h-9 text-green-600" />
+              </div>
+              <p className="text-xl font-bold text-gray-900">Facture envoyee a la caisse</p>
+              <p className="text-sm text-gray-500 mt-1">La caissiere en est notifiee en temps reel.</p>
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto">

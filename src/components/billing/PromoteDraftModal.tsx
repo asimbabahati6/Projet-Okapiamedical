@@ -69,6 +69,12 @@ export function PromoteDraftModal({ invoice, onClose, onSuccess }: PromoteDraftM
               <div className="bg-blue-50 border border-blue-200 rounded-xl px-6 py-4 mb-6">
                 <p className="text-2xl font-bold text-blue-700">{newNumber}</p>
               </div>
+              {(invoice as any).type_facture !== 'conventionne' && (
+                <div className="flex items-center justify-center gap-2 px-4 py-2.5 bg-green-50 border border-green-200 rounded-xl mb-4 text-sm text-green-700 font-medium">
+                  <CheckCircle className="w-4 h-4" />
+                  Facture envoyee a la caisse
+                </div>
+              )}
               <p className="text-sm text-gray-500 mb-6">
                 La facture est maintenant en statut "En attente" et peut être envoyée au patient.
               </p>

@@ -4,6 +4,7 @@ import { LanguageProvider } from './contexts/LanguageContext';
 import { NotificationProvider } from './core/contexts/NotificationContext';
 import { WorkflowProvider } from './core/contexts/WorkflowContext';
 import { RBACProvider } from './contexts/RBACContext';
+import { PendingInvoicesProvider } from './contexts/PendingInvoicesContext';
 import { PublicLayout } from './pages/public/PublicLayout';
 import { StaffLogin } from './pages/staff/StaffLogin';
 import { StaffRegister } from './pages/staff/StaffRegister';
@@ -84,6 +85,7 @@ import CommissionsPage from './pages/staff/CommissionsPage';
 import ClotureCaissePage from './pages/staff/ClotureCaissePage';
 import CaissePermanentePage from './pages/staff/CaissePermanentePage';
 import HistoriqueCoturesPage from './pages/staff/HistoriqueCoturesPage';
+import FileEncaissementPage from './pages/staff/FileEncaissementPage';
 
 function App() {
   return (
@@ -92,6 +94,7 @@ function App() {
         <AuthProvider>
           <RBACProvider>
             <NotificationProvider>
+              <PendingInvoicesProvider>
               <WorkflowProvider>
                 <Routes>
                 <Route path="/" element={<PublicLayout />} />
@@ -215,6 +218,7 @@ function App() {
                   <Route path="cloture-caisse" element={<ClotureCaissePage />} />
                   <Route path="caisse-permanente" element={<CaissePermanentePage />} />
                   <Route path="historique-clotures" element={<HistoriqueCoturesPage />} />
+                  <Route path="file-encaissement" element={<FileEncaissementPage />} />
                   <Route path="medical-acts-pricing" element={<MedicalActsPricingPage />} />
                   <Route path="doctor-queue" element={<DoctorQueuePage />} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />
@@ -234,6 +238,7 @@ function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </WorkflowProvider>
+              </PendingInvoicesProvider>
           </NotificationProvider>
           </RBACProvider>
         </AuthProvider>

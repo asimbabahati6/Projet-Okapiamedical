@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Ligature as FileSignature, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store, FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3, ClipboardList, Calculator, Vault, History } from 'lucide-react';
 import { MENU_STRUCTURE, MenuItem, hasAccess, filterMenuByRole, ROLE_LABELS, UserRole } from '../../config/rbac';
+import { usePendingInvoices } from '../../contexts/PendingInvoicesContext';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles, getRoleDisplayName, isAdminRole } from '../../utils/roleMapping';
 
@@ -53,6 +54,18 @@ interface MenuItemComponentProps {
   userRole: UserRole;
   isSimulationMode: boolean;
   showAllItems: boolean;
+}
+
+function PendingBadge({ isActive }: { isActive: boolean }) {
+  const { count } = usePendingInvoices();
+  if (count === 0) return null;
+  return (
+    <span className={`ml-auto px-2 py-0.5 rounded-full text-[10px] font-bold leading-none ${
+      isActive ? 'bg-white/30 text-white' : 'bg-blue-600 text-white'
+    }`}>
+      {count > 99 ? '99+' : count}
+    </span>
+  );
 }
 
 function MenuItemComponent({ item, level, userRole, isSimulationMode, showAllItems }: MenuItemComponentProps) {
@@ -148,7 +161,8 @@ function MenuItemComponent({ item, level, userRole, isSimulationMode, showAllIte
         style={{ paddingLeft: `${level * 16 + 16}px` }}
       >
         <Icon className="w-4 h-4" />
-        <span>{item.label}</span>
+        <span className="flex-1">{item.label}</span>
+        {item.id === 'file-encaissement' && <PendingBadge isActive={isActive} />}
       </Link>
     );
   }

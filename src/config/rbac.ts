@@ -112,6 +112,7 @@ export const MENU_STRUCTURE: MenuItem[] = [
     icon: 'DollarSign',
     roles: FINANCE_ROLES,
     children: [
+      { id: 'file-encaissement', label: "File d'encaissement", icon: 'ClipboardList', path: '/staff/file-encaissement', roles: ['admin', 'caissiere', 'directeur_general', 'accountant'] },
       { id: 'billing', label: 'Facturation', icon: 'Receipt', path: '/staff/billing', roles: FINANCE_ROLES },
       { id: 'billing-analytics', label: 'Analyses', icon: 'TrendingUp', path: '/staff/billing-analytics', roles: ['admin', 'accountant', 'directeur_general'] },
       { id: 'financial-analytics', label: 'Rapports financiers', icon: 'BarChart3', path: '/staff/financial-analytics', roles: ['admin', 'accountant', 'directeur_general'] },
