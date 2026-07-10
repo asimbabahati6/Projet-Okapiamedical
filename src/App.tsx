@@ -42,6 +42,7 @@ import TransportManagementPage from './pages/staff/TransportManagementPage';
 import SuppliersPage from './pages/staff/SuppliersPage';
 import { PatientCheckInPage } from './pages/staff/PatientCheckInPage';
 import ExpenseManagementPage from './pages/staff/ExpenseManagementPage';
+import SortiesCaissePage from './pages/staff/SortiesCaissePage';
 import { BillingPage } from './pages/staff/BillingPage';
 import { BillingAnalyticsPage } from './pages/staff/BillingAnalyticsPage';
 import FinancialAnalytics from './pages/finance/FinancialAnalytics';
@@ -201,6 +202,7 @@ function App() {
                   <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
                   <Route path="suppliers" element={<SuppliersPage />} />
                   <Route path="expenses" element={<ExpenseManagementPage />} />
+                  <Route path="sorties-caisse" element={<SortiesCaissePage />} />
                   <Route path="doctor-visibility" element={<DoctorVisibilityPage />} />
                   <Route path="role-management" element={<RoleManagementPage />} />
                   <Route path="okapia-connect" element={<OkapiaConnectPage />} />

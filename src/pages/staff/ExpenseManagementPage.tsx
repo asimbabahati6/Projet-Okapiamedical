@@ -26,6 +26,9 @@ interface Expense {
   beneficiaire_type?: string;
   beneficiaire_id?: string;
   beneficiaire_nom?: string;
+  numero_bon_sortie?: string;
+  service_destinataire_id?: string;
+  piece_justificative_ref?: string;
   created_by: string;
   created_at: string;
   created_by_user?: {
@@ -36,6 +39,9 @@ interface Expense {
   };
   beneficiaire_user?: {
     full_name: string;
+  };
+  department?: {
+    name: string;
   };
 }
 
@@ -102,6 +108,8 @@ export default function ExpenseManagementPage() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [serviceFilter, setServiceFilter] = useState<string>('all');
+  const [departmentsList, setDepartmentsList] = useState<Array<{ id: string; name: string }>>([]);
   const [dateFilter, setDateFilter] = useState<string>('month');
   const [returnComment, setReturnComment] = useState('');
   const [processingId, setProcessingId] = useState<string | null>(null);
@@ -121,11 +129,16 @@ export default function ExpenseManagementPage() {
   useEffect(() => {
     fetchExpenses();
     if (isApprover) fetchPendingRequests();
+    async function loadDepts() {
+      const { data } = await supabase.from('departments').select('id, name').eq('is_active', true).order('name');
+      setDepartmentsList(data || []);
+    }
+    loadDepts();
   }, []);
 
   useEffect(() => {
     applyFilters();
-  }, [expenses, categoryFilter, dateFilter]);
+  }, [expenses, categoryFilter, dateFilter, serviceFilter]);
 
   async function fetchExpenses() {
     try {
@@ -136,7 +149,8 @@ export default function ExpenseManagementPage() {
           *,
           created_by_user:user_profiles!expenses_created_by_fkey(full_name),
           approved_by_user:user_profiles!expenses_approved_by_fkey(full_name),
-          beneficiaire_user:user_profiles!expenses_beneficiaire_id_fkey(full_name)
+          beneficiaire_user:user_profiles!expenses_beneficiaire_id_fkey(full_name),
+          department:departments!expenses_service_destinataire_id_fkey(name)
         `)
         .order('expense_date', { ascending: false });
 
@@ -212,6 +226,10 @@ export default function ExpenseManagementPage() {
 
     if (categoryFilter !== 'all') {
       filtered = filtered.filter((e) => e.category === categoryFilter);
+    }
+
+    if (serviceFilter !== 'all') {
+      filtered = filtered.filter((e) => e.service_destinataire_id === serviceFilter);
     }
 
     const now = new Date();
@@ -614,6 +632,19 @@ export default function ExpenseManagementPage() {
           </select>
 
           <select
+            value={serviceFilter}
+            onChange={(e) => setServiceFilter(e.target.value)}
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          >
+            <option value="all">Tous les services</option>
+            {departmentsList.map((dept) => (
+              <option key={dept.id} value={dept.id}>
+                {dept.name}
+              </option>
+            ))}
+          </select>
+
+          <select
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -637,25 +668,31 @@ export default function ExpenseManagementPage() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  N Bon
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Date
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Categorie
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Service
+                </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Beneficiaire
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Fournisseur
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Piece justif.
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Montant
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
               </tr>
@@ -663,7 +700,7 @@ export default function ExpenseManagementPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredExpenses.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-12 text-center text-gray-500">
                     Aucune depense trouvee
                   </td>
                 </tr>
@@ -679,27 +716,33 @@ export default function ExpenseManagementPage() {
                       className="hover:bg-gray-50 cursor-pointer"
                       onClick={() => setSelectedExpense(expense)}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      <td className="px-4 py-4 whitespace-nowrap text-xs font-mono text-gray-500">
+                        {expense.numero_bon_sortie || '-'}
+                      </td>
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">
                         {new Date(expense.expense_date).toLocaleDateString('fr-FR')}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-4 py-4 whitespace-nowrap">
                         <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                           {catInfo.icon} {catInfo.label}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                      <td className="px-4 py-4 text-sm text-gray-900 max-w-xs truncate">
                         {expense.description}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-4 py-4 text-sm text-gray-600 whitespace-nowrap">
+                        {expense.department?.name || '-'}
+                      </td>
+                      <td className="px-4 py-4 text-sm text-gray-600">
                         {benefName}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {expense.vendor || '-'}
+                      <td className="px-4 py-4 text-xs text-gray-500 font-mono max-w-[120px] truncate">
+                        {expense.piece_justificative_ref || '-'}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                         {formatCurrency(expense.amount)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800">
+                      <td className="px-4 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800">
                         Details
                       </td>
                     </tr>

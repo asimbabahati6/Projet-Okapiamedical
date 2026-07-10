@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Upload, Search, User, Building2, Link2 } from 'lucide-react';
+import { X, DollarSign, Upload, Search, User, Building2, Link2, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
@@ -9,6 +9,11 @@ interface EtatReference {
   medecin_nom: string;
   total_du: number;
   count: number;
+}
+
+interface Department {
+  id: string;
+  name: string;
 }
 
 interface AddExpenseModalProps {
@@ -50,7 +55,11 @@ export default function AddExpenseModal({
     beneficiaire_nom: '',
     type_paiement_lie: '' as '' | 'honoraire' | 'commission',
     reference_etat_selected: '',
+    service_destinataire_id: '',
+    piece_justificative_ref: '',
   });
+
+  const [departments, setDepartments] = useState<Department[]>([]);
 
   const [etatReferences, setEtatReferences] = useState<EtatReference[]>([]);
   const [etatSearch, setEtatSearch] = useState('');
@@ -60,6 +69,18 @@ export default function AddExpenseModal({
   const [staffResults, setStaffResults] = useState<Array<{ id: string; full_name: string }>>([]);
   const [showStaffDropdown, setShowStaffDropdown] = useState(false);
   const [selectedStaffName, setSelectedStaffName] = useState('');
+
+  useEffect(() => {
+    async function loadDepartments() {
+      const { data } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name');
+      setDepartments(data || []);
+    }
+    loadDepartments();
+  }, []);
 
   useEffect(() => {
     if (!formData.type_paiement_lie) {
@@ -133,8 +154,8 @@ export default function AddExpenseModal({
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!formData.category || !formData.amount || !formData.description) {
-      showError('Veuillez remplir tous les champs requis');
+    if (!formData.category || !formData.amount || !formData.description || !formData.service_destinataire_id || !formData.piece_justificative_ref.trim()) {
+      showError('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
@@ -161,6 +182,8 @@ export default function AddExpenseModal({
         beneficiaire_id: formData.beneficiaire_type === 'interne' && formData.beneficiaire_id ? formData.beneficiaire_id : null,
         beneficiaire_nom: formData.beneficiaire_type === 'externe' && formData.beneficiaire_nom ? formData.beneficiaire_nom : null,
         type_paiement_lie: formData.type_paiement_lie || null,
+        service_destinataire_id: formData.service_destinataire_id || null,
+        piece_justificative_ref: formData.piece_justificative_ref.trim(),
       };
 
       const { data: expenseData, error } = await supabase
@@ -297,6 +320,58 @@ export default function AddExpenseModal({
               placeholder="Details de la depense..."
               required
             />
+          </div>
+
+          {/* Service destinataire & Piece justificative - MANDATORY */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Service destinataire <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.service_destinataire_id}
+                onChange={(e) => setFormData({ ...formData, service_destinataire_id: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  !formData.service_destinataire_id ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                }`}
+                required
+              >
+                <option value="">-- Selectionner un service --</option>
+                {departments.map((dept) => (
+                  <option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </option>
+                ))}
+              </select>
+              {!formData.service_destinataire_id && (
+                <p className="mt-1 text-xs text-orange-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Ce champ est obligatoire pour enregistrer la depense
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Piece justificative (reference) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.piece_justificative_ref}
+                onChange={(e) => setFormData({ ...formData, piece_justificative_ref: e.target.value })}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  !formData.piece_justificative_ref.trim() ? 'border-orange-300 bg-orange-50' : 'border-gray-300'
+                }`}
+                placeholder="Ex: BC-2025-042, FAC-00123, ORD-..."
+                required
+              />
+              {!formData.piece_justificative_ref.trim() && (
+                <p className="mt-1 text-xs text-orange-600 flex items-center gap-1">
+                  <AlertCircle className="w-3 h-3" />
+                  Reference de la piece justificative obligatoire
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Payment Link Section */}
@@ -582,9 +657,9 @@ export default function AddExpenseModal({
             <button
               type="submit"
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              disabled={loading}
+              disabled={loading || !formData.service_destinataire_id || !formData.piece_justificative_ref.trim()}
             >
-              {loading ? 'Enregistrement...' : 'Enregistrer la Depense'}
+              {loading ? 'Enregistrement...' : !formData.service_destinataire_id || !formData.piece_justificative_ref.trim() ? 'Champs obligatoires manquants' : 'Enregistrer la Depense'}
             </button>
           </div>
         </form>
