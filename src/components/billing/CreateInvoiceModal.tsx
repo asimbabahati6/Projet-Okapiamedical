@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -23,12 +23,30 @@ interface MedicalActSuggestion {
   price_cdf: number;
 }
 
+interface Convention {
+  id: string;
+  nom: string;
+  code: string;
+  taux_prise_en_charge: number | null;
+}
+
+interface MedecinPrestataire {
+  id: string;
+  nom: string;
+  prenom: string;
+  specialite: string | null;
+  type: string;
+}
+
 interface InvoiceItem {
   id: string;
   description: string;
   item_type: string;
   quantity: number;
   unit_price: number;
+  medecin_prestataire_id: string | null;
+  mode_remuneration: string | null;
+  valeur_remuneration: number | null;
 }
 
 interface ItemErrors {
@@ -41,7 +59,10 @@ interface FieldErrors {
   patient?: string;
   items?: Record<string, ItemErrors>;
   general?: string;
+  convention?: string;
 }
+
+type ClientType = 'ordinaire' | 'prive' | 'conventionne';
 
 const ITEM_TYPES = [
   { value: 'consultation', label: 'Consultation' },
@@ -63,8 +84,20 @@ const PAYMENT_METHODS = [
 
 const TVA_RATE = 16;
 
+const COMMISSION_QUICK = [5, 10, 15, 20];
+const HONORAIRE_QUICK = [5, 10, 15, 20, 25, 30, 40, 50];
+
 function makeItem(): InvoiceItem {
-  return { id: crypto.randomUUID(), description: '', item_type: 'consultation', quantity: 1, unit_price: 0 };
+  return {
+    id: crypto.randomUUID(),
+    description: '',
+    item_type: 'consultation',
+    quantity: 1,
+    unit_price: 0,
+    medecin_prestataire_id: null,
+    mode_remuneration: null,
+    valeur_remuneration: null,
+  };
 }
 
 export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalProps) {
@@ -84,6 +117,19 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
+  // Type de client
+  const [clientType, setClientType] = useState<ClientType>('ordinaire');
+  const [conventions, setConventions] = useState<Convention[]>([]);
+  const [selectedConventionId, setSelectedConventionId] = useState<string>('');
+
+  // Medecin apporteur
+  const [apporteurs, setApporteurs] = useState<MedecinPrestataire[]>([]);
+  const [medecinApporteurId, setMedecinApporteurId] = useState<string>('');
+  const [pourcentageCommission, setPourcentageCommission] = useState<number>(0);
+
+  // Medecins prestataires (for line items)
+  const [prestataires, setPrestataires] = useState<MedecinPrestataire[]>([]);
+
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -91,6 +137,29 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [activeActDropdown, setActiveActDropdown] = useState<string | null>(null);
   const [actSearchLoading, setActSearchLoading] = useState<string | null>(null);
   const actDropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Load conventions and medecins on mount
+  useEffect(() => {
+    async function load() {
+      const [convRes, medRes] = await Promise.all([
+        supabase
+          .from('conventions')
+          .select('id, nom, code, taux_prise_en_charge')
+          .eq('actif', true)
+          .order('nom'),
+        supabase
+          .from('medecins_prestataires')
+          .select('id, nom, prenom, specialite, type')
+          .eq('actif', true)
+          .order('nom'),
+      ]);
+      setConventions(convRes.data || []);
+      const allMedecins = medRes.data || [];
+      setPrestataires(allMedecins.filter(m => m.type === 'honoraire' || m.type === 'les_deux'));
+      setApporteurs(allMedecins.filter(m => m.type === 'apporteur' || m.type === 'les_deux'));
+    }
+    load();
+  }, []);
 
   useEffect(() => {
     function handleActClickOutside(e: MouseEvent) {
@@ -253,7 +322,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
     });
   }
 
-  function updateItem(id: string, field: keyof InvoiceItem, value: string | number) {
+  function updateItem(id: string, field: keyof InvoiceItem, value: string | number | null) {
     setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
     setFieldErrors(prev => {
       if (!prev.items?.[id]) return prev;
@@ -267,6 +336,16 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
     });
   }
 
+  function updateItemPrestataire(id: string, medecinId: string) {
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      if (!medecinId) {
+        return { ...i, medecin_prestataire_id: null, mode_remuneration: null, valeur_remuneration: null };
+      }
+      return { ...i, medecin_prestataire_id: medecinId, mode_remuneration: i.mode_remuneration || 'pourcentage', valeur_remuneration: i.valeur_remuneration ?? 0 };
+    }));
+  }
+
   const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
   const discountApplied = discountType === 'percentage'
     ? parseFloat((subtotal * Math.min(discountValue, 100) / 100).toFixed(2))
@@ -276,12 +355,32 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const netToPay = parseFloat((afterDiscount + tvaAmount).toFixed(2));
   const validItemCount = items.filter(i => i.description.trim() && i.unit_price > 0).length;
 
+  // Compute honoraires per item for display
+  function computeHonoraire(item: InvoiceItem): number {
+    if (!item.medecin_prestataire_id || !item.valeur_remuneration) return 0;
+    const lineTotal = item.quantity * item.unit_price;
+    if (item.mode_remuneration === 'pourcentage') {
+      return parseFloat((lineTotal * item.valeur_remuneration / 100).toFixed(2));
+    }
+    return item.valeur_remuneration;
+  }
+
+  const totalHonoraires = items.reduce((sum, i) => sum + computeHonoraire(i), 0);
+  const totalCommission = medecinApporteurId && pourcentageCommission > 0
+    ? parseFloat((subtotal * pourcentageCommission / 100).toFixed(2))
+    : 0;
+
   function validate(): boolean {
     const errors: FieldErrors = {};
     let valid = true;
 
     if (!selectedPatient) {
       errors.patient = 'Veuillez selectionner un patient.';
+      valid = false;
+    }
+
+    if (clientType === 'conventionne' && !selectedConventionId) {
+      errors.convention = 'Veuillez selectionner une convention.';
       valid = false;
     }
 
@@ -333,6 +432,8 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
     try {
       const validItems = items.filter(i => i.description.trim() && i.unit_price > 0 && i.quantity >= 1);
 
+      const typeFacture = clientType === 'conventionne' ? 'conventionne' : 'cash';
+
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -350,6 +451,10 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           discount_type: discountType,
           discount_reason: discountReason || null,
           discount_reason_detail: discountReason === 'autre' ? (discountReasonDetail || null) : null,
+          type_facture: typeFacture,
+          convention_id: clientType === 'conventionne' ? selectedConventionId : null,
+          medecin_apporteur_id: medecinApporteurId || null,
+          pourcentage_commission: medecinApporteurId ? (pourcentageCommission || null) : null,
         })
         .select('id')
         .single();
@@ -363,6 +468,9 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
         quantity: item.quantity,
         unit_price: item.unit_price,
         total_price: parseFloat((item.quantity * item.unit_price).toFixed(2)),
+        medecin_prestataire_id: item.medecin_prestataire_id || null,
+        mode_remuneration: item.medecin_prestataire_id ? (item.mode_remuneration || null) : null,
+        valeur_remuneration: item.medecin_prestataire_id ? (item.valeur_remuneration || null) : null,
       }));
 
       const { error: itemsError } = await supabase.from('invoice_items').insert(itemRows);
@@ -391,7 +499,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           </button>
         </div>
 
-        {/* Form wraps body + footer so submit button works */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
           <div className="flex-1 overflow-y-auto">
             <div className="p-6 space-y-6">
@@ -467,6 +574,66 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 )}
               </div>
 
+              {/* Type de Client */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-600" />
+                  <h3 className="text-sm font-semibold text-gray-800">Type de client</h3>
+                </div>
+                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                  {([
+                    { value: 'ordinaire', label: 'Ordinaire' },
+                    { value: 'prive', label: 'Prive' },
+                    { value: 'conventionne', label: 'Conventionne' },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => {
+                        setClientType(opt.value);
+                        if (opt.value !== 'conventionne') setSelectedConventionId('');
+                        setFieldErrors(prev => ({ ...prev, convention: undefined }));
+                      }}
+                      className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
+                        clientType === opt.value
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                {clientType === 'conventionne' && (
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">Convention *</label>
+                    <select
+                      value={selectedConventionId}
+                      onChange={(e) => {
+                        setSelectedConventionId(e.target.value);
+                        setFieldErrors(prev => ({ ...prev, convention: undefined }));
+                      }}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm ${
+                        fieldErrors.convention ? 'border-red-400 bg-red-50/30' : 'border-gray-300'
+                      }`}
+                    >
+                      <option value="">-- Selectionner une convention --</option>
+                      {conventions.map(c => (
+                        <option key={c.id} value={c.id}>
+                          {c.nom} ({c.code}){c.taux_prise_en_charge ? ` - ${c.taux_prise_en_charge}%` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {fieldErrors.convention && (
+                      <p className="text-red-500 text-xs mt-1">{fieldErrors.convention}</p>
+                    )}
+                    {conventions.length === 0 && (
+                      <p className="text-xs text-amber-600 mt-1">Aucune convention active trouvee.</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {/* Invoice Items */}
               <div>
                 <div className="flex items-center justify-between mb-3">
@@ -485,6 +652,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                   {items.map((item, idx) => {
                     const ie = fieldErrors.items?.[item.id];
                     const itemSubtotal = item.quantity * item.unit_price;
+                    const honAmount = computeHonoraire(item);
 
                     return (
                       <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
@@ -584,6 +752,93 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                             </div>
                           </div>
                         </div>
+
+                        {/* Medecin Prestataire per line */}
+                        <div className="border-t border-gray-200 pt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Stethoscope className="w-3.5 h-3.5 text-teal-600" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase">Medecin prestataire (optionnel)</span>
+                          </div>
+                          <select
+                            value={item.medecin_prestataire_id || ''}
+                            onChange={(e) => updateItemPrestataire(item.id, e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                          >
+                            <option value="">-- Aucun --</option>
+                            {prestataires.map(m => (
+                              <option key={m.id} value={m.id}>
+                                Dr {m.nom} {m.prenom}{m.specialite ? ` (${m.specialite})` : ''}
+                              </option>
+                            ))}
+                          </select>
+                          {item.medecin_prestataire_id && (
+                            <div className="mt-2 space-y-2">
+                              <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">Mode</label>
+                                  <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                                    <button
+                                      type="button"
+                                      onClick={() => updateItem(item.id, 'mode_remuneration', 'pourcentage')}
+                                      className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${
+                                        item.mode_remuneration === 'pourcentage' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      Pourcentage
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateItem(item.id, 'mode_remuneration', 'forfait')}
+                                      className={`flex-1 px-2 py-1.5 text-xs font-medium transition-colors ${
+                                        item.mode_remuneration === 'forfait' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                                      }`}
+                                    >
+                                      Forfait
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="flex-1">
+                                  <label className="block text-xs text-gray-500 mb-1">
+                                    Valeur {item.mode_remuneration === 'pourcentage' ? '(%)' : '(USD)'}
+                                  </label>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    max={item.mode_remuneration === 'pourcentage' ? 100 : undefined}
+                                    step="0.01"
+                                    value={item.valeur_remuneration || ''}
+                                    onChange={(e) => updateItem(item.id, 'valeur_remuneration', Math.max(0, parseFloat(e.target.value) || 0))}
+                                    className="w-full px-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                  />
+                                </div>
+                              </div>
+                              {item.mode_remuneration === 'pourcentage' && (
+                                <div className="flex flex-wrap gap-1.5">
+                                  {HONORAIRE_QUICK.map(v => (
+                                    <button
+                                      key={v}
+                                      type="button"
+                                      onClick={() => updateItem(item.id, 'valeur_remuneration', v)}
+                                      className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                                        item.valeur_remuneration === v
+                                          ? 'bg-teal-100 border-teal-400 text-teal-700 font-semibold'
+                                          : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                                      }`}
+                                    >
+                                      {v}%
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                              {honAmount > 0 && (
+                                <p className="text-xs font-medium text-teal-700 bg-teal-50 px-2 py-1 rounded">
+                                  Honoraire estime : {honAmount.toFixed(2)} USD
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="text-right">
                           <span className={`text-sm font-semibold ${itemSubtotal > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
                             Sous-total: {itemSubtotal.toFixed(2)} USD
@@ -593,6 +848,66 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Medecin Apporteur */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <UserPlus className="w-5 h-5 text-indigo-600" />
+                  <h3 className="text-sm font-semibold text-gray-800">Medecin apporteur (optionnel)</h3>
+                </div>
+                <select
+                  value={medecinApporteurId}
+                  onChange={(e) => {
+                    setMedecinApporteurId(e.target.value);
+                    if (!e.target.value) setPourcentageCommission(0);
+                  }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                >
+                  <option value="">-- Aucun --</option>
+                  {apporteurs.map(m => (
+                    <option key={m.id} value={m.id}>
+                      Dr {m.nom} {m.prenom}{m.specialite ? ` (${m.specialite})` : ''}
+                    </option>
+                  ))}
+                </select>
+                {medecinApporteurId && (
+                  <div className="space-y-2">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Commission (%)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={pourcentageCommission || ''}
+                        onChange={(e) => setPourcentageCommission(Math.max(0, Math.min(100, parseFloat(e.target.value) || 0)))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {COMMISSION_QUICK.map(v => (
+                        <button
+                          key={v}
+                          type="button"
+                          onClick={() => setPourcentageCommission(v)}
+                          className={`px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                            pourcentageCommission === v
+                              ? 'bg-blue-100 border-blue-400 text-blue-700 font-semibold'
+                              : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                          }`}
+                        >
+                          {v}%
+                        </button>
+                      ))}
+                    </div>
+                    {totalCommission > 0 && (
+                      <p className="text-xs font-medium text-blue-700 bg-blue-50 px-2 py-1 rounded">
+                        Commission estimee : {totalCommission.toFixed(2)} USD ({pourcentageCommission}% du sous-total)
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Payment Method & Options */}
@@ -745,6 +1060,23 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                       <span className="text-xl font-bold text-blue-600">{netToPay.toFixed(2)} USD</span>
                     </div>
                   </div>
+                  {(totalHonoraires > 0 || totalCommission > 0) && (
+                    <div className="border-t border-dashed border-gray-300 pt-2 mt-2 space-y-1">
+                      <p className="text-xs font-semibold text-gray-500 uppercase">Informations internes</p>
+                      {totalHonoraires > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-teal-700">Total honoraires prestataires</span>
+                          <span className="font-medium text-teal-700">{totalHonoraires.toFixed(2)} USD</span>
+                        </div>
+                      )}
+                      {totalCommission > 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-blue-700">Commission apporteur ({pourcentageCommission}%)</span>
+                          <span className="font-medium text-blue-700">{totalCommission.toFixed(2)} USD</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
