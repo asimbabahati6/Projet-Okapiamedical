@@ -18,9 +18,19 @@ interface InvoiceItemRow {
   total_price: number;
 }
 
+interface PaymentRecord {
+  id: string;
+  payment_amount: number;
+  payment_method: string;
+  payment_date: string;
+  numero_recu: string | null;
+  devise_paiement: string | null;
+}
+
 export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewProps) {
   const [items, setItems] = useState<InvoiceItemRow[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -29,11 +39,16 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
   }, [invoice.id]);
 
   async function fetchInvoiceDetails() {
-    const [{ data: itemsData }, { data: patientData }] = await Promise.all([
+    const [{ data: itemsData }, { data: patientData }, { data: paymentsData }] = await Promise.all([
       supabase.from('invoice_items').select('*').eq('invoice_id', invoice.id),
       invoice.patient_id
         ? supabase.from('patients').select('*').eq('id', invoice.patient_id).maybeSingle()
         : Promise.resolve({ data: null }),
+      supabase
+        .from('payment_history')
+        .select('id, payment_amount, payment_method, payment_date, numero_recu, devise_paiement')
+        .eq('invoice_id', invoice.id)
+        .order('payment_date', { ascending: true }),
     ]);
 
     if (itemsData) {
@@ -47,6 +62,7 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
       })));
     }
     if (patientData) setPatient(patientData as Patient);
+    if (paymentsData) setPayments(paymentsData as PaymentRecord[]);
     setLoading(false);
   }
 
@@ -102,6 +118,14 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
           .footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e2e8f0; text-align: center; }
           .footer p { font-size: 10px; color: #999; margin: 3px 0; }
           .footer .thanks { font-style: italic; font-size: 11px; color: #666; margin-bottom: 8px; }
+          .receipt-section { margin-top: 20px; padding: 14px 18px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; }
+          .receipt-section h4 { font-size: 13px; font-weight: 700; color: #166534; margin-bottom: 10px; }
+          .receipt-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: #333; }
+          .receipt-number { font-weight: 700; color: #1e40af; }
+          .currency-boxes { display: flex; gap: 16px; margin-top: 10px; padding-top: 8px; border-top: 1px solid #d1fae5; }
+          .currency-box { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #333; }
+          .check-box { display: inline-block; width: 14px; height: 14px; border: 1.5px solid #555; border-radius: 2px; text-align: center; line-height: 12px; font-size: 11px; font-weight: 700; }
+          .check-box.checked { background: #1e40af; border-color: #1e40af; color: white; }
           @media print {
             body { padding: 20px; }
             .no-print { display: none !important; }
@@ -135,6 +159,15 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
   const tvaAmount = (invoice as unknown as Record<string, number>).tva_amount || 0;
   const netToPay = invoice.net_to_pay || invoice.balance || invoice.total_amount;
 
+  const invoiceNumeroRecu = (invoice as any).numero_recu as string | null;
+  const invoiceDevisePaiement = (invoice as any).devise_paiement as string | null;
+
+  const receiptsFromPayments = payments.filter(p => p.numero_recu);
+  const hasReceipts = receiptsFromPayments.length > 0 || !!invoiceNumeroRecu;
+  const lastDevise = receiptsFromPayments.length > 0
+    ? receiptsFromPayments[receiptsFromPayments.length - 1].devise_paiement
+    : invoiceDevisePaiement;
+
   const statusLabels: Record<string, string> = {
     paid: 'Payee', pending: 'En attente', partial: 'Partiel', cancelled: 'Annulee', draft: 'Brouillon',
   };
@@ -145,7 +178,8 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
 
   const methodLabels: Record<string, string> = {
     cash: 'Espèces', mobile_money: 'Mobile Money', bank_transfer: 'Virement bancaire',
-    card: 'Carte bancaire', insurance: 'Assurance',
+    card: 'Carte bancaire', insurance: 'Assurance', 'Espèces': 'Espèces',
+    'Carte bancaire': 'Carte bancaire', 'Mobile Money': 'Mobile Money', 'Assurance': 'Assurance',
   };
 
   if (loading) {
@@ -285,6 +319,67 @@ export function PrintableInvoiceView({ invoice, onClose }: PrintableInvoiceViewP
                 )}
               </div>
             </div>
+
+            {/* Receipt Proof Section */}
+            {hasReceipts && (
+              <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg" style={{ pageBreakInside: 'avoid' }}>
+                <h4 className="text-[13px] font-bold text-green-800 mb-3">Preuve de paiement</h4>
+                {receiptsFromPayments.length > 0 ? (
+                  <div className="space-y-2">
+                    {receiptsFromPayments.map((p, idx) => (
+                      <div key={p.id} className="flex justify-between items-center text-[12px]">
+                        <div className="flex items-center gap-2">
+                          <span className="text-gray-500">{idx + 1}.</span>
+                          <span className="font-bold text-blue-700">{p.numero_recu}</span>
+                          <span className="text-gray-400">|</span>
+                          <span className="text-gray-600">{new Date(p.payment_date).toLocaleDateString('fr-FR')}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-medium text-gray-800">
+                            {p.payment_amount.toLocaleString('fr-FR')} USD
+                          </span>
+                          {p.devise_paiement && (
+                            <span className="text-xs text-gray-500">({p.devise_paiement})</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : invoiceNumeroRecu ? (
+                  <div className="flex justify-between items-center text-[12px]">
+                    <span className="font-bold text-blue-700">Reçu n° {invoiceNumeroRecu}</span>
+                  </div>
+                ) : null}
+
+                {/* Currency checkboxes */}
+                <div className="flex gap-5 mt-3 pt-3 border-t border-green-200">
+                  <div className="flex items-center gap-2 text-[12px] text-gray-700">
+                    <span
+                      className={`inline-flex items-center justify-center w-[14px] h-[14px] border-[1.5px] rounded-sm text-[11px] font-bold leading-none ${
+                        lastDevise === 'USD'
+                          ? 'bg-blue-700 border-blue-700 text-white'
+                          : 'border-gray-500 bg-white'
+                      }`}
+                    >
+                      {lastDevise === 'USD' ? '\u2713' : ''}
+                    </span>
+                    Dollar (USD)
+                  </div>
+                  <div className="flex items-center gap-2 text-[12px] text-gray-700">
+                    <span
+                      className={`inline-flex items-center justify-center w-[14px] h-[14px] border-[1.5px] rounded-sm text-[11px] font-bold leading-none ${
+                        lastDevise === 'CDF'
+                          ? 'bg-blue-700 border-blue-700 text-white'
+                          : 'border-gray-500 bg-white'
+                      }`}
+                    >
+                      {lastDevise === 'CDF' ? '\u2713' : ''}
+                    </span>
+                    Franc (CDF)
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Footer */}
             <div className="mt-10 pt-4 border-t border-gray-200 text-center">

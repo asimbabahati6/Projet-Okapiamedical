@@ -116,6 +116,8 @@ export interface Invoice {
   payment_method: string | null;
   payment_date: string | null;
   net_to_pay?: number;
+  numero_recu?: string | null;
+  devise_paiement?: 'USD' | 'CDF' | null;
   created_at: string;
 }
 

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CreditCard, CheckCircle, MessageCircle, Mail, DollarSign, User, FileText, Tag } from 'lucide-react';
+import { X, CreditCard, CheckCircle, MessageCircle, Mail, DollarSign, User, FileText, Tag, Receipt, Banknote } from 'lucide-react';
 import { Invoice } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { getWhatsAppLink, getEmailLink } from '../../utils/invoiceCommunication';
@@ -26,9 +26,11 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
   const [paymentMethod, setPaymentMethod] = useState('Espèces');
   const [amount, setAmount] = useState(invoice.balance.toString());
   const [reference, setReference] = useState('');
+  const [devisePaiement, setDevisePaiement] = useState<'USD' | 'CDF'>('USD');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [generatedReceipt, setGeneratedReceipt] = useState('');
 
   const patName = invoice.patient
     ? `${invoice.patient.first_name} ${invoice.patient.last_name}`
@@ -51,6 +53,10 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
     setError('');
 
     try {
+      const { data: recData, error: recError } = await supabase.rpc('generate_rec_receipt_number');
+      if (recError) throw recError;
+      const receiptNumber: string = recData;
+
       const newPaid = invoice.paid_amount + paidAmount;
       const newBalance = Math.max(0, netToPay - newPaid);
       const newStatus = newBalance <= 0 ? 'paid' : 'partial';
@@ -64,6 +70,8 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           payment_method: paymentMethod,
           payment_date: new Date().toISOString(),
           updated_at: new Date().toISOString(),
+          numero_recu: receiptNumber,
+          devise_paiement: devisePaiement,
         })
         .eq('id', invoice.id);
 
@@ -78,10 +86,13 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           payment_date: new Date().toISOString(),
           transaction_reference: reference || null,
           notes: `Encaissement via interface de facturation`,
+          numero_recu: receiptNumber,
+          devise_paiement: devisePaiement,
         });
 
       if (histError) throw histError;
 
+      setGeneratedReceipt(receiptNumber);
       setSuccess(true);
       onSuccess();
     } catch (err: any) {
@@ -128,9 +139,15 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
                 <CheckCircle className="w-8 h-8 text-green-600" />
               </div>
               <h3 className="text-lg font-bold text-gray-900 mb-1">Paiement enregistré</h3>
-              <p className="text-sm text-gray-600 mb-6">
-                Le paiement de <span className="font-semibold">{parseFloat(amount).toFixed(2)} USD</span> a été enregistré avec succès.
+              <p className="text-sm text-gray-600 mb-2">
+                Le paiement de <span className="font-semibold">{parseFloat(amount).toFixed(2)} {devisePaiement}</span> a été enregistré avec succès.
               </p>
+              {generatedReceipt && (
+                <div className="inline-flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-6">
+                  <Receipt className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-semibold text-blue-800">Reçu n° {generatedReceipt}</span>
+                </div>
+              )}
 
               <div className="bg-gray-50 rounded-xl p-4 mb-6">
                 <p className="text-sm font-semibold text-gray-700 mb-3">Notifier le patient</p>
@@ -211,7 +228,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                    Montant encaissé (USD)
+                    Montant encaissé
                   </label>
                   <div className="relative">
                     <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -224,6 +241,39 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
                       onChange={(e) => setAmount(e.target.value)}
                       className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
+                  </div>
+                </div>
+
+                {/* Currency selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                    Devise du règlement
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setDevisePaiement('USD')}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                        devisePaiement === 'USD'
+                          ? 'border-green-500 bg-green-50 text-green-800 ring-1 ring-green-500/30'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <DollarSign className="w-4 h-4" />
+                      Dollar (USD)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setDevisePaiement('CDF')}
+                      className={`flex items-center justify-center gap-2 px-4 py-3 rounded-lg border-2 font-medium text-sm transition-all ${
+                        devisePaiement === 'CDF'
+                          ? 'border-blue-500 bg-blue-50 text-blue-800 ring-1 ring-blue-500/30'
+                          : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
+                      }`}
+                    >
+                      <Banknote className="w-4 h-4" />
+                      Franc (CDF)
+                    </button>
                   </div>
                 </div>
 
@@ -253,7 +303,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
                       type="text"
                       value={reference}
                       onChange={(e) => setReference(e.target.value)}
-                      placeholder="N° reçu, code transaction..."
+                      placeholder="Code transaction..."
                       className="w-full pl-9 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
