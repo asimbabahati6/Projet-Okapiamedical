@@ -81,6 +81,9 @@ import MedecinsPrestatairesPage from './pages/staff/MedecinsPrestatairesPage';
 import FacturesConventioneesPage from './pages/staff/FacturesConventioneesPage';
 import HonorairesPage from './pages/staff/HonorairesPage';
 import CommissionsPage from './pages/staff/CommissionsPage';
+import ClotureCaissePage from './pages/staff/ClotureCaissePage';
+import CaissePermanentePage from './pages/staff/CaissePermanentePage';
+import HistoriqueCoturesPage from './pages/staff/HistoriqueCoturesPage';
 
 function App() {
   return (
@@ -209,6 +212,9 @@ function App() {
                   <Route path="messaging" element={<MessagingPage />} />
                   <Route path="feedback" element={<FeedbackDashboard />} />
                   <Route path="caisse" element={<CaissePage />} />
+                  <Route path="cloture-caisse" element={<ClotureCaissePage />} />
+                  <Route path="caisse-permanente" element={<CaissePermanentePage />} />
+                  <Route path="historique-clotures" element={<HistoriqueCoturesPage />} />
                   <Route path="medical-acts-pricing" element={<MedicalActsPricingPage />} />
                   <Route path="doctor-queue" element={<DoctorQueuePage />} />
                   <Route path="pending-registrations" element={<PendingRegistrationsPage />} />

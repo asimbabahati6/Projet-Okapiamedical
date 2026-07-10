@@ -19,6 +19,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { enregistrerMouvementEntree } from '../../services/caisseService';
 
 interface QueueEntry {
   id: string;
@@ -233,6 +234,15 @@ export function CaissePaymentView() {
           .update({ status: 'confirmed' })
           .eq('id', (entryFull as unknown as { appointment_id?: string }).appointment_id || '');
       }
+
+      try {
+        await enregistrerMouvementEntree({
+          montant: entry.consultation_fee,
+          devise,
+          reference: receiptNumber,
+          motif: `Paiement consultation - ${entry.ticket_number}`,
+        });
+      } catch (_) { /* mouvement non bloquant */ }
 
       setSuccessId(entry.id);
       setTimeout(() => setSuccessId(null), 2000);

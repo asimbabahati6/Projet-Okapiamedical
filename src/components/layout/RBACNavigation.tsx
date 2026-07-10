@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Ligature as FileSignature, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store, FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3, ClipboardList } from 'lucide-react';
+import { ChevronDown, ChevronRight, Lock, Activity, Building2, DollarSign, Settings, Users, Calendar, Stethoscope, UserCog, FileText, Briefcase, FlaskConical, Pill, Package, DoorOpen, UserCheck, BookUser, CalendarClock, Coffee, Warehouse, Truck, Building, TrendingUp, Ligature as FileSignature, Shield, Wallet, LayoutDashboard, Newspaper, Home, Store, FileCheck, Receipt, MessageSquare, Fingerprint, BarChart3, ClipboardList, Calculator, Vault, History } from 'lucide-react';
 import { MENU_STRUCTURE, MenuItem, hasAccess, filterMenuByRole, ROLE_LABELS, UserRole } from '../../config/rbac';
 import { useRBAC } from '../../contexts/RBACContext';
 import { getAllSimulatorRoles, getRoleDisplayName, isAdminRole } from '../../utils/roleMapping';
@@ -42,6 +42,9 @@ const ICON_MAP: Record<string, any> = {
   Fingerprint,
   BarChart3,
   ClipboardList,
+  Calculator,
+  Vault,
+  History,
 };
 
 interface MenuItemComponentProps {

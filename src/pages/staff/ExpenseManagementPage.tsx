@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DollarSign, Plus, Calendar, TrendingUp, TrendingDown, Filter, Download, CheckCircle, RotateCcw, XCircle, Clock, MessageSquare, Send } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { enregistrerMouvementSortie } from '../../services/caisseService';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
 import { logActivity } from '../../utils/activityLogger';
@@ -307,7 +308,19 @@ export default function ExpenseManagementPage() {
 
       const expense = pendingRequests.find(r => r.id === expenseId);
       const amount = expense ? `${expense.amount} USD` : expenseId;
-      if (action === 'approved') logActivity('approve', 'expenses', `Demande validee: ${amount}`);
+      if (action === 'approved') {
+        logActivity('approve', 'expenses', `Demande validee: ${amount}`);
+        if (expense) {
+          try {
+            await enregistrerMouvementSortie({
+              montant: expense.amount,
+              devise: 'USD',
+              reference: expense.numero_bon_sortie || expenseId,
+              motif: `Bon de sortie - ${expense.description || expense.category}`,
+            });
+          } catch (_) { /* mouvement non bloquant */ }
+        }
+      }
       else if (action === 'returned') logActivity('return', 'expenses', `Demande retournee: ${comment || amount}`);
       else if (action === 'cancelled') logActivity('cancel', 'expenses', `Demande annulee: ${amount}`);
 

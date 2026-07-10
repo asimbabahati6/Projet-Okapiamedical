@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { X, CreditCard, CheckCircle, MessageCircle, Mail, DollarSign, User, FileText, Tag, Receipt, Banknote } from 'lucide-react';
 import { Invoice } from '../../types/database';
 import { supabase } from '../../lib/supabase';
+import { enregistrerMouvementEntree } from '../../services/caisseService';
 import { getWhatsAppLink, getEmailLink } from '../../utils/invoiceCommunication';
 
 interface EncaisserModalProps {
@@ -91,6 +92,15 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
         });
 
       if (histError) throw histError;
+
+      try {
+        await enregistrerMouvementEntree({
+          montant: paidAmount,
+          devise: devisePaiement,
+          reference: receiptNumber,
+          motif: `Encaissement facture ${displayNumber}`,
+        });
+      } catch (_) { /* mouvement non bloquant */ }
 
       setGeneratedReceipt(receiptNumber);
       setSuccess(true);

@@ -18,6 +18,9 @@ export interface FinancialPermissions {
   canViewReceipts: boolean;
   canMarkConventionPaid: boolean;
   canMarkHonorairesPaid: boolean;
+  canCloseCashRegister: boolean;
+  canViewCaissePermanente: boolean;
+  canViewClosureHistory: boolean;
   isDirecteurGeneral: boolean;
   isGestionnaire: boolean;
   isCaissiere: boolean;
@@ -69,6 +72,12 @@ export function useFinancialPermissions(): FinancialPermissions {
     canMarkConventionPaid: isDirecteurGeneral || isAccountant,
 
     canMarkHonorairesPaid: isDirecteurGeneral || isAccountant,
+
+    canCloseCashRegister: isDirecteurGeneral || isCaissiere,
+
+    canViewCaissePermanente: isDirecteurGeneral || isAccountant,
+
+    canViewClosureHistory: isDirecteurGeneral || isAccountant,
 
     isDirecteurGeneral,
     isGestionnaire,

@@ -124,6 +124,9 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'honoraires', label: 'Honoraires', icon: 'Coins', path: '/staff/honoraires', roles: FINANCE_ROLES },
       { id: 'commissions', label: 'Commissions', icon: 'Handshake', path: '/staff/commissions', roles: FINANCE_ROLES },
       { id: 'medecins-prestataires', label: 'Medecins Prestataires', icon: 'UserCheck', path: '/staff/medecins-prestataires', roles: FINANCE_ROLES },
+      { id: 'cloture-caisse', label: 'Cloture de Caisse', icon: 'Calculator', path: '/staff/cloture-caisse', roles: ['admin', 'caissiere', 'directeur_general'] },
+      { id: 'caisse-permanente', label: 'Caisse Permanente', icon: 'Vault', path: '/staff/caisse-permanente', roles: ['admin', 'directeur_general', 'accountant'] },
+      { id: 'historique-clotures', label: 'Historique Clotures', icon: 'History', path: '/staff/historique-clotures', roles: ['admin', 'directeur_general', 'accountant'] },
     ],
   },
   {
