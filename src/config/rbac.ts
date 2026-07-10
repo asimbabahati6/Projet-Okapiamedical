@@ -120,6 +120,8 @@ export const MENU_STRUCTURE: MenuItem[] = [
       { id: 'medical-acts-pricing', label: 'Tarification actes', icon: 'DollarSign', path: '/staff/medical-acts-pricing', roles: ['admin', 'medical_director', 'caissiere', 'accountant', 'directeur_general'] },
       { id: 'conventions', label: 'Conventions', icon: 'FileCheck', path: '/staff/conventions', roles: FINANCE_ROLES },
       { id: 'factures-conventionnees', label: 'Factures conventionnees', icon: 'FileCheck', path: '/staff/factures-conventionnees', roles: FINANCE_ROLES },
+      { id: 'honoraires', label: 'Honoraires', icon: 'Coins', path: '/staff/honoraires', roles: FINANCE_ROLES },
+      { id: 'commissions', label: 'Commissions', icon: 'Handshake', path: '/staff/commissions', roles: FINANCE_ROLES },
       { id: 'medecins-prestataires', label: 'Medecins Prestataires', icon: 'UserCheck', path: '/staff/medecins-prestataires', roles: FINANCE_ROLES },
     ],
   },

@@ -78,6 +78,8 @@ import StaffAccessDashboard from './pages/staff/StaffAccessDashboard';
 import ConventionsPage from './pages/staff/ConventionsPage';
 import MedecinsPrestatairesPage from './pages/staff/MedecinsPrestatairesPage';
 import FacturesConventioneesPage from './pages/staff/FacturesConventioneesPage';
+import HonorairesPage from './pages/staff/HonorairesPage';
+import CommissionsPage from './pages/staff/CommissionsPage';
 
 function App() {
   return (
@@ -180,6 +182,8 @@ function App() {
                   <Route path="financial-analytics" element={<FinancialAnalytics />} />
                   <Route path="conventions" element={<ConventionsPage />} />
                   <Route path="factures-conventionnees" element={<FacturesConventioneesPage />} />
+                  <Route path="honoraires" element={<HonorairesPage />} />
+                  <Route path="commissions" element={<CommissionsPage />} />
                   <Route path="medecins-prestataires" element={<MedecinsPrestatairesPage />} />
                   <Route path="settings" element={<div className="text-center py-12 text-gray-500">Module Paramètres - En développement</div>} />
                   <Route path="drc-dashboard" element={<DRCDashboard />} />

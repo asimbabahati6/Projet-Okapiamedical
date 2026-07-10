@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react';
-import { X, DollarSign, Upload, Search, User, Building2 } from 'lucide-react';
+import { X, DollarSign, Upload, Search, User, Building2, Link2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../hooks/useToast';
+
+interface EtatReference {
+  reference_etat: string;
+  medecin_nom: string;
+  total_du: number;
+  count: number;
+}
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -41,12 +48,62 @@ export default function AddExpenseModal({
     beneficiaire_type: 'externe' as 'interne' | 'externe',
     beneficiaire_id: '',
     beneficiaire_nom: '',
+    type_paiement_lie: '' as '' | 'honoraire' | 'commission',
+    reference_etat_selected: '',
   });
+
+  const [etatReferences, setEtatReferences] = useState<EtatReference[]>([]);
+  const [etatSearch, setEtatSearch] = useState('');
+  const [loadingEtats, setLoadingEtats] = useState(false);
 
   const [staffSearch, setStaffSearch] = useState('');
   const [staffResults, setStaffResults] = useState<Array<{ id: string; full_name: string }>>([]);
   const [showStaffDropdown, setShowStaffDropdown] = useState(false);
   const [selectedStaffName, setSelectedStaffName] = useState('');
+
+  useEffect(() => {
+    if (!formData.type_paiement_lie) {
+      setEtatReferences([]);
+      return;
+    }
+    async function loadEtats() {
+      setLoadingEtats(true);
+      try {
+        const table = formData.type_paiement_lie === 'honoraire' ? 'honoraires_medecins' : 'commissions_medecins';
+        const { data } = await supabase
+          .from(table)
+          .select('reference_etat, montant_du, medecins_prestataires(nom_complet)')
+          .eq('statut_paiement', 'non_paye')
+          .not('reference_etat', 'is', null);
+
+        if (data) {
+          const map = new Map<string, EtatReference>();
+          for (const row of data) {
+            const ref = row.reference_etat as string;
+            const med = (row.medecins_prestataires as { nom_complet: string } | null)?.nom_complet || '';
+            const existing = map.get(ref);
+            if (existing) {
+              existing.total_du += Number(row.montant_du || 0);
+              existing.count++;
+            } else {
+              map.set(ref, {
+                reference_etat: ref,
+                medecin_nom: med,
+                total_du: Number(row.montant_du || 0),
+                count: 1,
+              });
+            }
+          }
+          setEtatReferences(Array.from(map.values()));
+        }
+      } catch (err) {
+        console.error('Error loading etat references:', err);
+      } finally {
+        setLoadingEtats(false);
+      }
+    }
+    loadEtats();
+  }, [formData.type_paiement_lie]);
 
   useEffect(() => {
     if (staffSearch.length < 2 || formData.beneficiaire_type !== 'interne') {
@@ -89,7 +146,7 @@ export default function AddExpenseModal({
     setLoading(true);
 
     try {
-      const { error } = await supabase.from('expenses').insert({
+      const insertData: Record<string, unknown> = {
         category: formData.category,
         subcategory: formData.subcategory || null,
         amount: parseFloat(formData.amount),
@@ -103,9 +160,33 @@ export default function AddExpenseModal({
         beneficiaire_type: formData.beneficiaire_type,
         beneficiaire_id: formData.beneficiaire_type === 'interne' && formData.beneficiaire_id ? formData.beneficiaire_id : null,
         beneficiaire_nom: formData.beneficiaire_type === 'externe' && formData.beneficiaire_nom ? formData.beneficiaire_nom : null,
-      });
+        type_paiement_lie: formData.type_paiement_lie || null,
+      };
+
+      const { data: expenseData, error } = await supabase
+        .from('expenses')
+        .insert(insertData)
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      if (formData.type_paiement_lie && formData.reference_etat_selected && expenseData) {
+        const table = formData.type_paiement_lie === 'honoraire' ? 'honoraires_medecins' : 'commissions_medecins';
+        const { error: updateErr } = await supabase
+          .from(table)
+          .update({
+            statut_paiement: 'paye',
+            paye_le: new Date().toISOString(),
+            depense_id: expenseData.id,
+          })
+          .eq('reference_etat', formData.reference_etat_selected)
+          .eq('statut_paiement', 'non_paye');
+
+        if (updateErr) {
+          console.error('Error marking etat as paid:', updateErr);
+        }
+      }
 
       onSuccess();
     } catch (err) {
@@ -216,6 +297,111 @@ export default function AddExpenseModal({
               placeholder="Details de la depense..."
               required
             />
+          </div>
+
+          {/* Payment Link Section */}
+          <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-amber-600" />
+              Lier a un etat d'honoraires ou commissions
+            </h3>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type_paiement_lie: '', reference_etat_selected: '' })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  !formData.type_paiement_lie
+                    ? 'bg-gray-700 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Aucun
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type_paiement_lie: 'honoraire', reference_etat_selected: '' })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  formData.type_paiement_lie === 'honoraire'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Honoraire (HON-)
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ ...formData, type_paiement_lie: 'commission', reference_etat_selected: '' })}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  formData.type_paiement_lie === 'commission'
+                    ? 'bg-indigo-600 text-white'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                Commission (COM-)
+              </button>
+            </div>
+
+            {formData.type_paiement_lie && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Reference de l'etat a payer
+                </label>
+                {loadingEtats ? (
+                  <p className="text-sm text-gray-500">Chargement des etats...</p>
+                ) : etatReferences.length === 0 ? (
+                  <p className="text-sm text-gray-500">Aucun etat en attente de paiement</p>
+                ) : (
+                  <>
+                    <input
+                      type="text"
+                      placeholder="Rechercher une reference..."
+                      value={etatSearch}
+                      onChange={(e) => setEtatSearch(e.target.value)}
+                      className="w-full mb-2 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    />
+                    <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                      {etatReferences
+                        .filter(
+                          (e) =>
+                            e.reference_etat.toLowerCase().includes(etatSearch.toLowerCase()) ||
+                            e.medecin_nom.toLowerCase().includes(etatSearch.toLowerCase())
+                        )
+                        .map((e) => (
+                          <button
+                            key={e.reference_etat}
+                            type="button"
+                            onClick={() => {
+                              setFormData({
+                                ...formData,
+                                reference_etat_selected: e.reference_etat,
+                                amount: String(e.total_du),
+                                description: `Paiement ${formData.type_paiement_lie === 'honoraire' ? 'honoraires' : 'commission'} - ${e.reference_etat} - ${e.medecin_nom}`,
+                                beneficiaire_type: 'interne',
+                              });
+                              setEtatSearch('');
+                            }}
+                            className={`w-full px-4 py-3 text-left hover:bg-amber-50 transition-colors flex items-center justify-between ${
+                              formData.reference_etat_selected === e.reference_etat ? 'bg-amber-100' : ''
+                            }`}
+                          >
+                            <div>
+                              <span className="font-mono text-sm font-semibold text-gray-900">{e.reference_etat}</span>
+                              <p className="text-xs text-gray-500 mt-0.5">{e.medecin_nom} - {e.count} ligne{e.count > 1 ? 's' : ''}</p>
+                            </div>
+                            <span className="font-bold text-gray-900">{e.total_du.toLocaleString('fr-FR')} USD</span>
+                          </button>
+                        ))}
+                    </div>
+                    {formData.reference_etat_selected && (
+                      <p className="mt-2 text-sm text-green-700 font-medium flex items-center gap-1">
+                        <Link2 className="w-3.5 h-3.5" />
+                        Lie a : {formData.reference_etat_selected}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Beneficiary Section */}
