@@ -348,8 +348,9 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
         .select('id, act_name, category, price_usd, price_cdf')
         .eq('is_active', true)
         .or(`act_name.ilike.${pattern},category.ilike.${pattern}`)
+        .order('category')
         .order('act_name')
-        .limit(15);
+        .limit(50);
       setActSuggestions(prev => ({ ...prev, [itemId]: data || [] }));
       setActiveActDropdown(itemId);
     } catch {
@@ -847,22 +848,42 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                             {actSearchLoading === item.id && (
                               <Loader2 className="absolute right-3 top-[11px] w-4 h-4 text-blue-500 animate-spin" />
                             )}
-                            {activeActDropdown === item.id && actSuggestions[item.id]?.length > 0 && (
-                              <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
-                                {actSuggestions[item.id].map(act => (
-                                  <button
-                                    key={act.id}
-                                    type="button"
-                                    onClick={() => selectMedicalAct(item.id, act)}
-                                    className="w-full text-left px-4 py-2.5 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
-                                  >
-                                    <span className="font-medium text-gray-900 text-sm">{act.act_name}</span>
-                                    <span className="text-xs text-gray-400 ml-2">{act.category}</span>
-                                    <span className="float-right text-xs font-semibold text-blue-600">{act.price_usd.toFixed(2)} USD</span>
-                                  </button>
-                                ))}
-                              </div>
-                            )}
+                            {activeActDropdown === item.id && actSuggestions[item.id]?.length > 0 && (() => {
+                              const suggestions = actSuggestions[item.id];
+                              const categories = [...new Set(suggestions.map(a => a.category))];
+                              return (
+                                <div className="absolute z-20 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-y-auto">
+                                  {categories.map(cat => (
+                                    <div key={cat}>
+                                      <div className="px-3 py-1.5 text-xs font-bold text-gray-400 uppercase bg-gray-50 sticky top-0 border-b border-gray-100">
+                                        {cat}
+                                      </div>
+                                      {suggestions.filter(a => a.category === cat).map(act => (
+                                        <button
+                                          key={act.id}
+                                          type="button"
+                                          onClick={() => selectMedicalAct(item.id, act)}
+                                          className="w-full text-left px-4 py-2 hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                                        >
+                                          <span className="font-medium text-gray-900 text-sm">{act.act_name}</span>
+                                          <span className="float-right text-xs font-semibold text-blue-600">
+                                            {act.price_usd.toFixed(2)} USD
+                                            {act.price_cdf > 0 && (
+                                              <span className="text-gray-400 font-normal ml-1.5">
+                                                ({Number(act.price_cdf).toLocaleString('fr-FR')} CDF)
+                                              </span>
+                                            )}
+                                          </span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  ))}
+                                  <div className="px-3 py-1.5 text-[10px] text-gray-300 text-center border-t border-gray-100">
+                                    {suggestions.length} resultat(s)
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             {ie?.description && (
                               <p className="text-red-500 text-xs mt-1">{ie.description}</p>
                             )}
