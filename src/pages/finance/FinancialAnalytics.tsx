@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useFinancialAnalytics, PeriodType } from '../../hooks/finance/useFinancialAnalytics';
 import { FinancialKPICard } from '../../components/finance/FinancialKPICard';
+import { exportFinancialAnalyticsToCSV } from '../../utils/financialExport';
 import { RevenueTrendChart } from '../../components/finance/RevenueTrendChart';
 import { ExpenseDistributionChart } from '../../components/finance/ExpenseDistributionChart';
 import { RevenueExpenseComparison } from '../../components/finance/RevenueExpenseComparison';
@@ -115,7 +116,10 @@ export default function FinancialAnalytics() {
             <RefreshCw className="w-4 h-4" />
             Actualiser
           </button>
-          <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+          <button
+            onClick={() => data && exportFinancialAnalyticsToCSV(data, getPeriodLabel())}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
             <Download className="w-4 h-4" />
             Exporter
           </button>
