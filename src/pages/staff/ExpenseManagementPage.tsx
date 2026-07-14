@@ -30,6 +30,8 @@ interface Expense {
   numero_bon_sortie?: string;
   service_destinataire_id?: string;
   piece_justificative_ref?: string;
+  devise?: string;
+  taux_applique?: number;
   created_by: string;
   created_at: string;
   created_by_user?: {
@@ -48,8 +50,11 @@ interface Expense {
 
 interface ExpenseStats {
   total: number;
+  totalCDF: number;
   thisMonth: number;
+  thisMonthCDF: number;
   lastMonth: number;
+  lastMonthCDF: number;
   byCategory: Record<string, number>;
   trend: number;
 }
@@ -99,11 +104,15 @@ export default function ExpenseManagementPage() {
   const [pendingRequests, setPendingRequests] = useState<Expense[]>([]);
   const [stats, setStats] = useState<ExpenseStats>({
     total: 0,
+    totalCDF: 0,
     thisMonth: 0,
+    thisMonthCDF: 0,
     lastMonth: 0,
+    lastMonthCDF: 0,
     byCategory: {},
     trend: 0,
   });
+  const [activeRate, setActiveRate] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
@@ -122,6 +131,7 @@ export default function ExpenseManagementPage() {
     description: '',
     category: '',
     justification_documents: '',
+    devise: 'USD' as 'USD' | 'CDF',
   });
   const [submittingRequest, setSubmittingRequest] = useState(false);
 
@@ -135,6 +145,11 @@ export default function ExpenseManagementPage() {
       setDepartmentsList(data || []);
     }
     loadDepts();
+    async function loadRate() {
+      const { data } = await supabase.from('exchange_rates').select('usd_to_cdf').eq('is_active', true).maybeSingle();
+      if (data) setActiveRate(data.usd_to_cdf);
+    }
+    loadRate();
   }, []);
 
   useEffect(() => {
@@ -201,12 +216,23 @@ export default function ExpenseManagementPage() {
         new Date(e.expense_date) <= lastMonthEnd
     );
 
-    const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const lastMonthTotal = lastMonthExpenses.reduce((sum, e) => sum + e.amount, 0);
+    function toUSD(e: Expense): number {
+      if (!e.devise || e.devise === 'USD') return e.amount;
+      return e.taux_applique && e.taux_applique > 0 ? e.amount / e.taux_applique : 0;
+    }
+    function toCDF(e: Expense): number {
+      if (e.devise === 'CDF') return e.amount;
+      return e.taux_applique && e.taux_applique > 0 ? e.amount * e.taux_applique : 0;
+    }
+
+    const thisMonthTotal = thisMonthExpenses.reduce((sum, e) => sum + toUSD(e), 0);
+    const thisMonthTotalCDF = thisMonthExpenses.reduce((sum, e) => sum + toCDF(e), 0);
+    const lastMonthTotal = lastMonthExpenses.reduce((sum, e) => sum + toUSD(e), 0);
+    const lastMonthTotalCDF = lastMonthExpenses.reduce((sum, e) => sum + toCDF(e), 0);
 
     const byCategory: Record<string, number> = {};
     thisMonthExpenses.forEach((e) => {
-      byCategory[e.category] = (byCategory[e.category] || 0) + e.amount;
+      byCategory[e.category] = (byCategory[e.category] || 0) + toUSD(e);
     });
 
     const trend = lastMonthTotal > 0
@@ -214,9 +240,12 @@ export default function ExpenseManagementPage() {
       : 0;
 
     setStats({
-      total: expenseList.reduce((sum, e) => sum + e.amount, 0),
+      total: expenseList.reduce((sum, e) => sum + toUSD(e), 0),
+      totalCDF: expenseList.reduce((sum, e) => sum + toCDF(e), 0),
       thisMonth: thisMonthTotal,
+      thisMonthCDF: thisMonthTotalCDF,
       lastMonth: lastMonthTotal,
+      lastMonthCDF: lastMonthTotalCDF,
       byCategory,
       trend,
     });
@@ -274,13 +303,15 @@ export default function ExpenseManagementPage() {
         payment_method: 'cash',
         approval_status: 'pending_approval',
         created_by: profile?.id,
+        devise: requestForm.devise,
+        taux_applique: activeRate || null,
       });
 
       if (error) throw error;
 
-      logActivity('create', 'expenses', `Demande creee: ${requestForm.amount} USD`);
+      logActivity('create', 'expenses', `Demande creee: ${requestForm.amount} ${requestForm.devise}`);
       success('Demande de depense soumise pour approbation');
-      setRequestForm({ amount: '', description: '', category: '', justification_documents: '' });
+      setRequestForm({ amount: '', description: '', category: '', justification_documents: '', devise: 'USD' });
       setShowRequestModal(false);
       fetchExpenses();
     } catch (err) {
@@ -307,14 +338,14 @@ export default function ExpenseManagementPage() {
       if (error) throw error;
 
       const expense = pendingRequests.find(r => r.id === expenseId);
-      const amount = expense ? `${expense.amount} USD` : expenseId;
+      const amount = expense ? `${expense.amount} ${expense.devise || 'USD'}` : expenseId;
       if (action === 'approved') {
         logActivity('approve', 'expenses', `Demande validee: ${amount}`);
         if (expense) {
           try {
             await enregistrerMouvementSortie({
               montant: expense.amount,
-              devise: 'USD',
+              devise: expense.devise || 'USD',
               reference: expense.numero_bon_sortie || expenseId,
               motif: `Bon de sortie - ${expense.description || expense.category}`,
             });
@@ -574,6 +605,11 @@ export default function ExpenseManagementPage() {
           <p className="text-3xl font-bold text-gray-900">
             {formatCurrency(stats.thisMonth)}
           </p>
+          {stats.thisMonthCDF > 0 && (
+            <p className="text-sm text-gray-400 mt-0.5">
+              {Math.round(stats.thisMonthCDF).toLocaleString('fr-FR')} CDF
+            </p>
+          )}
           <div className="mt-2 flex items-center text-sm">
             {stats.trend >= 0 ? (
               <>
@@ -617,6 +653,11 @@ export default function ExpenseManagementPage() {
           <p className="text-3xl font-bold text-gray-900">
             {formatCurrency(stats.total)}
           </p>
+          {stats.totalCDF > 0 && (
+            <p className="text-sm text-gray-400 mt-0.5">
+              {Math.round(stats.totalCDF).toLocaleString('fr-FR')} CDF
+            </p>
+          )}
           <p className="text-sm text-gray-500 mt-2">
             {expenses.filter(e => e.approval_status === 'approved').length} transactions approuvees
           </p>
@@ -753,7 +794,9 @@ export default function ExpenseManagementPage() {
                         {expense.piece_justificative_ref || '-'}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                        {formatCurrency(expense.amount)}
+                        {expense.devise === 'CDF'
+                          ? `${Math.round(expense.amount).toLocaleString('fr-FR')} CDF`
+                          : formatCurrency(expense.amount)}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap text-sm text-blue-600 hover:text-blue-800">
                         Details
@@ -782,16 +825,34 @@ export default function ExpenseManagementPage() {
             </div>
             <form onSubmit={handleSubmitRequest} className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Montant (USD) *</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={requestForm.amount}
-                  onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
-                  placeholder="0.00"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  required
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">Montant *</label>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    step={requestForm.devise === 'CDF' ? '1' : '0.01'}
+                    value={requestForm.amount}
+                    onChange={(e) => setRequestForm({ ...requestForm, amount: e.target.value })}
+                    placeholder={requestForm.devise === 'CDF' ? '0' : '0.00'}
+                    className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    required
+                  />
+                  <select
+                    value={requestForm.devise}
+                    onChange={(e) => setRequestForm({ ...requestForm, devise: e.target.value as 'USD' | 'CDF' })}
+                    className="w-24 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent font-medium"
+                  >
+                    <option value="USD">USD</option>
+                    <option value="CDF">CDF</option>
+                  </select>
+                </div>
+                {requestForm.amount && activeRate > 0 && (
+                  <p className="text-xs text-gray-400 mt-1">
+                    {requestForm.devise === 'USD'
+                      ? `= ${Math.round(parseFloat(requestForm.amount) * activeRate).toLocaleString('fr-FR')} CDF`
+                      : `= ${(parseFloat(requestForm.amount) / activeRate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`}
+                    {' '}(taux: 1 USD = {activeRate.toLocaleString('fr-FR')} CDF)
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Motif / Description *</label>

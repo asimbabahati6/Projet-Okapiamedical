@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, DollarSign, Calendar, User, FileText, CreditCard, Building2, Edit, Trash2, Printer } from 'lucide-react';
+import { X, DollarSign, Calendar, User, FileText, CreditCard, Building2, CreditCard as Edit, Trash2, Printer } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 
@@ -14,6 +14,8 @@ interface Expense {
   vendor?: string;
   receipt_number?: string;
   notes?: string;
+  devise?: string;
+  taux_applique?: number;
   created_by: string;
   created_at: string;
   created_by_user?: {
@@ -72,7 +74,8 @@ export default function ExpenseDetailsModal({
     }
   }
 
-  function formatCurrency(amount: number) {
+  function formatCurrency(amount: number, devise?: string) {
+    if (devise === 'CDF') return `${Math.round(amount).toLocaleString('fr-FR')} CDF`;
     return new Intl.NumberFormat('fr-CD', {
       style: 'currency',
       currency: 'USD',
@@ -131,7 +134,7 @@ export default function ExpenseDetailsModal({
 
   <div class="amount-box">
     <div class="label">Montant</div>
-    <div class="value">${formatCurrency(expense.amount)}</div>
+    <div class="value">${formatCurrency(expense.amount, expense.devise)}</div>
   </div>
 
   <div class="section">
@@ -139,6 +142,10 @@ export default function ExpenseDetailsModal({
     <div class="row"><span class="lbl">Date</span><span class="val">${dateStr}</span></div>
     <div class="row"><span class="lbl">Categorie</span><span class="val">${catLabel.label}</span></div>
     <div class="row"><span class="lbl">Methode de paiement</span><span class="val">${paymentLabel}</span></div>
+    <div class="row"><span class="lbl">Devise</span><span class="val">${expense.devise || 'USD'}</span></div>
+    ${expense.taux_applique ? `<div class="row"><span class="lbl">Taux applique</span><span class="val">1 USD = ${expense.taux_applique.toLocaleString('fr-FR')} CDF</span></div>` : ''}
+    ${expense.devise === 'CDF' && expense.taux_applique ? `<div class="row"><span class="lbl">Equivalent USD</span><span class="val">${(expense.amount / expense.taux_applique).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</span></div>` : ''}
+    ${expense.devise !== 'CDF' && expense.taux_applique ? `<div class="row"><span class="lbl">Equivalent CDF</span><span class="val">${Math.round(expense.amount * expense.taux_applique).toLocaleString('fr-FR')} CDF</span></div>` : ''}
     ${expense.vendor ? `<div class="row"><span class="lbl">Fournisseur</span><span class="val">${expense.vendor}</span></div>` : ''}
     ${expense.receipt_number ? `<div class="row"><span class="lbl">N&deg; de recu</span><span class="val">${expense.receipt_number}</span></div>` : ''}
   </div>
@@ -200,7 +207,7 @@ export default function ExpenseDetailsModal({
           <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 text-center">
             <p className="text-sm text-blue-600 font-medium mb-2">Montant Total</p>
             <p className="text-4xl font-bold text-blue-900">
-              {formatCurrency(expense.amount)}
+              {formatCurrency(expense.amount, expense.devise)}
             </p>
           </div>
 
@@ -254,6 +261,21 @@ export default function ExpenseDetailsModal({
                   </p>
                 </div>
               </div>
+
+              {expense.devise && (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                    <DollarSign className="w-5 h-5 text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-600">Devise</p>
+                    <p className="font-semibold text-gray-900">{expense.devise}</p>
+                    {expense.taux_applique && (
+                      <p className="text-xs text-gray-400">1 USD = {expense.taux_applique.toLocaleString('fr-FR')} CDF</p>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {expense.vendor && (
                 <div className="flex items-center gap-3">
