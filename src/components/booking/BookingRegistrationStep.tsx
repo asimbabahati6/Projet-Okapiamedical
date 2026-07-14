@@ -29,7 +29,7 @@ interface BookingRegistrationStepProps {
 }
 
 interface DepartmentOption { id: string; name: string; }
-interface DoctorOption { id: string; name: string; specialization: string; consultationFee: number; }
+interface DoctorOption { id: string; name: string; specialization: string; consultationFee: number; source: 'okapia' | 'visiteur'; }
 
 // Créneaux horaires disponibles
 const TIME_SLOTS = [
@@ -84,45 +84,72 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
     } finally { setLoadingDepartments(false); }
   }
 
+  function matchesDepartment(spec: string, deptName: string): boolean {
+    if (!deptName) return true;
+    const s = spec.toLowerCase();
+    const d = deptName.toLowerCase();
+    if (d.includes('general') && s.includes('general')) return true;
+    if (d.includes('chirurgie') && s.includes('chirurgie')) return true;
+    if (d.includes('cardiologie') && (s.includes('cardiologie') || s.includes('cardiologue'))) return true;
+    if (d.includes('gynecol') && (s.includes('gyn') || s.includes('gynecol'))) return true;
+    if (d.includes('pediatr') && s.includes('pediatr')) return true;
+    if (d.includes('dentist') && (s.includes('dentist') || s.includes('dentaire'))) return true;
+    if (d.includes('kinesither') && s.includes('kinesither')) return true;
+    if (d.includes('medecine interne') && (s.includes('interne') || s.includes('interniste'))) return true;
+    if (d.includes('radiologie') && (s.includes('radiologie') || s.includes('echographie'))) return true;
+    if (d.includes('orthopedie') && (s.includes('orthopedie') || s.includes('orthop'))) return true;
+    if (d === s) return true;
+    return d.includes(s) || s.includes(d);
+  }
+
   async function fetchDoctors() {
     setLoadingDoctors(true);
     setError(null);
     try {
       const selectedDept = departments.find(d => d.id === departmentId);
       const deptName = selectedDept?.name || '';
-      let query = supabase
+
+      // 1. Medecins employes Okapia
+      let staffQuery = supabase
         .from('medical_staff')
         .select('id, display_name, specialization, consultation_fee, telemedicine_enabled, user_profiles!inner(full_name)')
         .eq('is_accepting_patients', true);
-      if (consultationType === 'visioconference') query = query.eq('telemedicine_enabled', true);
-      const { data: staff, error: err } = await query;
-      if (err) { setError('Impossible de charger les medecins.'); return; }
-      if (staff && staff.length > 0) {
-        const mapped = staff.map((s: Record<string, unknown>) => {
-          const profile = s.user_profiles as { full_name: string } | null;
-          return {
-            id: s.id as string,
-            name: profile?.full_name || (s.display_name as string) || '',
-            specialization: (s.specialization as string) || '',
-            consultationFee: Number(s.consultation_fee) || 50,
-          };
-        }).filter((doc) => {
-          if (!deptName) return true;
-          const spec = doc.specialization.toLowerCase();
-          const dept = deptName.toLowerCase();
-          if (dept.includes('general') && spec.includes('general')) return true;
-          if (dept.includes('chirurgie') && spec.includes('chirurgie')) return true;
-          if (dept.includes('cardiologie') && spec.includes('cardiologie')) return true;
-          if (dept.includes('gynecol') && spec.includes('gyn')) return true;
-          if (dept.includes('pediatr') && spec.includes('pediatr')) return true;
-          if (dept.includes('dentist') && spec.includes('dentist')) return true;
-          if (dept.includes('kinesither') && spec.includes('kinesither')) return true;
-          if (dept.includes('medecine interne') && spec.includes('interne')) return true;
-          if (dept === spec) return true;
-          return dept.includes(spec) || spec.includes(dept);
-        });
-        setDoctors(mapped);
-      } else { setDoctors([]); }
+      if (consultationType === 'visioconference') staffQuery = staffQuery.eq('telemedicine_enabled', true);
+
+      // 2. Medecins visiteurs
+      const visiteurQuery = supabase
+        .from('medecins_prestataires')
+        .select('id, nom_complet, specialite')
+        .eq('actif', true)
+        .in('type', ['visiteur', 'les_deux']);
+
+      const [staffRes, visiteurRes] = await Promise.all([staffQuery, visiteurQuery]);
+
+      if (staffRes.error && visiteurRes.error) {
+        setError('Impossible de charger les medecins.');
+        return;
+      }
+
+      const okaDocs: DoctorOption[] = (staffRes.data || []).map((s: Record<string, unknown>) => {
+        const profile = s.user_profiles as { full_name: string } | null;
+        return {
+          id: s.id as string,
+          name: profile?.full_name || (s.display_name as string) || '',
+          specialization: (s.specialization as string) || '',
+          consultationFee: Number(s.consultation_fee) || 50,
+          source: 'okapia' as const,
+        };
+      }).filter(doc => matchesDepartment(doc.specialization, deptName));
+
+      const visiteurDocs: DoctorOption[] = (visiteurRes.data || []).map((v: Record<string, unknown>) => ({
+        id: v.id as string,
+        name: (v.nom_complet as string) || '',
+        specialization: (v.specialite as string) || '',
+        consultationFee: 50,
+        source: 'visiteur' as const,
+      })).filter(doc => matchesDepartment(doc.specialization, deptName));
+
+      setDoctors([...okaDocs, ...visiteurDocs]);
     } finally { setLoadingDoctors(false); }
   }
 
@@ -349,11 +376,24 @@ export function BookingRegistrationStep({ onSubmit, loading }: BookingRegistrati
                   {departmentId ? (doctors.length === 0 ? 'Aucun medecin disponible' : 'Selectionnez un medecin')
                     : "Choisissez la specialite d'abord"}
                 </option>
-                {doctors.map((doc) => (
-                  <option key={doc.id} value={doc.id}>
-                    Dr. {doc.name} - {doc.specialization || 'Generaliste'}
-                  </option>
-                ))}
+                {doctors.filter(d => d.source === 'okapia').length > 0 && (
+                  <optgroup label="Medecins Okapia">
+                    {doctors.filter(d => d.source === 'okapia').map((doc) => (
+                      <option key={doc.id} value={doc.id}>
+                        Dr. {doc.name} — {doc.specialization || 'Generaliste'}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
+                {doctors.filter(d => d.source === 'visiteur').length > 0 && (
+                  <optgroup label="Medecins Visiteurs">
+                    {doctors.filter(d => d.source === 'visiteur').map((doc) => (
+                      <option key={`v-${doc.id}`} value={doc.id}>
+                        {doc.name} — {doc.specialization || 'Generaliste'}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
               </motion.select>
             )}
           </AnimatePresence>
