@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer, CheckCircle, X as XIcon, CreditCard } from 'lucide-react';
+import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer, CheckCircle, X as XIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CreateInvoiceModal } from '../../components/billing/CreateInvoiceModal';
 import { PrintableInvoiceView } from '../../components/billing/PrintableInvoiceView';
-import { EncaisserModal } from '../../components/billing/EncaisserModal';
 import { Invoice } from '../../types/database';
 
 interface InvoiceRow {
@@ -28,7 +27,6 @@ export function BillingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
-  const [encaisserInvoice, setEncaisserInvoice] = useState<InvoiceRow | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
 
   useEffect(() => {
@@ -246,15 +244,13 @@ export function BillingPage() {
                         >
                           <Eye className="w-4 h-4" />
                         </button>
-                        {inv.balance > 0 && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); setEncaisserInvoice(inv); }}
-                            title="Encaisser"
-                            className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                          >
-                            <CreditCard className="w-4 h-4" />
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleViewInvoice(inv)}
+                          title="Imprimer"
+                          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                        >
+                          <Printer className="w-4 h-4" />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -281,19 +277,6 @@ export function BillingPage() {
         <PrintableInvoiceView
           invoice={viewingInvoice}
           onClose={() => setViewingInvoice(null)}
-        />
-      )}
-
-      {encaisserInvoice && (
-        <EncaisserModal
-          invoice={encaisserInvoice}
-          onClose={() => setEncaisserInvoice(null)}
-          onSuccess={() => {
-            setEncaisserInvoice(null);
-            fetchInvoices();
-            setSuccessMsg('Paiement enregistre avec succes');
-            setTimeout(() => setSuccessMsg(''), 5000);
-          }}
         />
       )}
     </div>
