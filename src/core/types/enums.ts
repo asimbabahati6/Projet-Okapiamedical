@@ -26,7 +26,8 @@ export enum UserRole {
   RADIO_TECH = 'radio_tech',
   CAISSIERE = 'caissiere',
   TECHNIQUE = 'technique',
-  HYGIENE = 'hygiene'
+  HYGIENE = 'hygiene',
+  INTERNISTE = 'interniste'
 }
 
 export enum AppointmentStatus {
