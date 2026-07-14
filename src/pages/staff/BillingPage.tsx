@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer, CheckCircle, X as XIcon } from 'lucide-react';
+import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer, CheckCircle, X as XIcon, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CreateInvoiceModal } from '../../components/billing/CreateInvoiceModal';
 import { PrintableInvoiceView } from '../../components/billing/PrintableInvoiceView';
+import { EncaisserModal } from '../../components/billing/EncaisserModal';
 import { Invoice } from '../../types/database';
+import { useExchangeRate } from '../../hooks/useExchangeRate';
 
 interface InvoiceRow {
   id: string;
@@ -16,6 +18,7 @@ interface InvoiceRow {
   balance: number;
   status: string;
   payment_method: string;
+  devise_paiement: string | null;
   created_at: string;
   tva_rate: number;
   tva_amount: number;
@@ -27,7 +30,9 @@ export function BillingPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState<Invoice | null>(null);
+  const [encaisserInvoice, setEncaisserInvoice] = useState<Invoice | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const { usdToCdf } = useExchangeRate();
 
   useEffect(() => {
     fetchInvoices();
@@ -56,6 +61,7 @@ export function BillingPage() {
             balance: Number(inv.balance || 0),
             status: (inv.status as string) || 'pending',
             payment_method: (inv.payment_method as string) || '',
+            devise_paiement: (inv.devise_paiement as string) || null,
             created_at: inv.created_at as string,
             tva_rate: Number(inv.tva_rate || 0),
             tva_amount: Number(inv.tva_amount || 0),
@@ -93,6 +99,8 @@ export function BillingPage() {
 
   const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.paid_amount, 0);
   const totalPending = invoices.filter(i => i.status !== 'paid' && i.status !== 'cancelled').reduce((sum, i) => sum + i.balance, 0);
+  const revenueCDF = usdToCdf > 0 ? Math.round(totalRevenue * usdToCdf) : 0;
+  const pendingCDF = usdToCdf > 0 ? Math.round(totalPending * usdToCdf) : 0;
 
   return (
     <div className="p-6 space-y-6">
@@ -131,7 +139,8 @@ export function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">Revenus</p>
-              <p className="text-xl font-bold text-gray-900">{totalRevenue.toLocaleString('fr-FR')} USD</p>
+              <p className="text-xl font-bold text-gray-900">{totalRevenue.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</p>
+              {revenueCDF > 0 && <p className="text-xs text-gray-400 mt-0.5">{revenueCDF.toLocaleString('fr-FR')} CDF</p>}
             </div>
           </div>
         </div>
@@ -142,7 +151,8 @@ export function BillingPage() {
             </div>
             <div>
               <p className="text-sm text-gray-500">En attente</p>
-              <p className="text-xl font-bold text-gray-900">{totalPending.toLocaleString('fr-FR')} USD</p>
+              <p className="text-xl font-bold text-gray-900">{totalPending.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</p>
+              {pendingCDF > 0 && <p className="text-xs text-gray-400 mt-0.5">{pendingCDF.toLocaleString('fr-FR')} CDF</p>}
             </div>
           </div>
         </div>
@@ -211,13 +221,13 @@ export function BillingPage() {
                   <tr key={inv.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-mono text-sm text-gray-700">{inv.invoice_number}</td>
                     <td className="px-4 py-3 font-medium text-gray-900">{inv.patient_name}</td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{(inv.net_to_pay || inv.amount).toLocaleString('fr-FR')} USD</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{(inv.net_to_pay || inv.amount).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</td>
                     <td className="px-4 py-3 text-sm text-gray-600 capitalize">{inv.payment_method?.replace('_', ' ') || '-'}</td>
                     <td className="px-4 py-3 text-right">
                       <span className={`font-semibold text-sm ${
                         inv.balance <= 0 ? 'text-green-600' : 'text-orange-600'
                       }`}>
-                        {inv.balance > 0 ? `${inv.balance.toLocaleString('fr-FR')} USD` : '0 USD'}
+                        {inv.balance > 0 ? `${inv.balance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD` : '0.00 USD'}
                       </span>
                     </td>
                     <td className="px-4 py-3">
@@ -251,6 +261,30 @@ export function BillingPage() {
                         >
                           <Printer className="w-4 h-4" />
                         </button>
+                        {inv.status !== 'paid' && inv.status !== 'cancelled' && (
+                          <button
+                            onClick={() => {
+                              const full: Invoice = {
+                                id: inv.id,
+                                invoice_number: inv.invoice_number,
+                                patient_id: inv.patient_id,
+                                total_amount: inv.amount,
+                                paid_amount: inv.paid_amount,
+                                balance: inv.balance,
+                                status: inv.status as Invoice['status'],
+                                payment_method: inv.payment_method || null,
+                                payment_date: null,
+                                net_to_pay: inv.net_to_pay,
+                                created_at: inv.created_at,
+                              };
+                              setEncaisserInvoice(full);
+                            }}
+                            title="Encaisser"
+                            className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+                          >
+                            <DollarSign className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -278,6 +312,26 @@ export function BillingPage() {
           invoice={viewingInvoice}
           onClose={() => setViewingInvoice(null)}
         />
+      )}
+
+      {encaisserInvoice && (
+        <EncaisserModal
+          invoice={encaisserInvoice}
+          onClose={() => setEncaisserInvoice(null)}
+          onSuccess={() => {
+            setEncaisserInvoice(null);
+            fetchInvoices();
+            setSuccessMsg('Paiement enregistre avec succes');
+            setTimeout(() => setSuccessMsg(''), 5000);
+          }}
+        />
+      )}
+
+      {usdToCdf > 0 && (
+        <div className="flex items-center gap-2 text-xs text-gray-400 px-1">
+          <ArrowRightLeft className="w-3 h-3" />
+          <span>Taux du jour : 1 USD = {usdToCdf.toLocaleString('fr-FR')} CDF</span>
+        </div>
       )}
     </div>
   );

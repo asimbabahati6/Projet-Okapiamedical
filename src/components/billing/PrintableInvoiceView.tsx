@@ -12,6 +12,16 @@ interface InvoiceItem {
   total_price: number;
 }
 
+interface PaymentRow {
+  id: string;
+  payment_amount: number;
+  payment_method: string;
+  payment_date: string;
+  devise_paiement: string | null;
+  taux_applique: number | null;
+  transaction_reference: string | null;
+}
+
 interface Invoice {
   id: string;
   invoice_number: string | null;
@@ -34,7 +44,8 @@ const TVA_RATE = 0.16;
 
 function formatCurrency(amount: number, devise?: string | null): string {
   const currency = devise || 'USD';
-  return `${amount.toFixed(2)} ${currency}`;
+  if (currency === 'CDF') return `${Math.round(amount).toLocaleString('fr-FR')} CDF`;
+  return `${amount.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${currency}`;
 }
 
 function formatDate(dateStr: string): string {
@@ -47,19 +58,20 @@ function formatDate(dateStr: string): string {
 
 export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; onClose: () => void }) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchItems() {
-      const { data, error } = await supabase
-        .from('invoice_items')
-        .select('*')
-        .eq('invoice_id', invoice.id);
-
-      if (!error && data) setItems(data as InvoiceItem[]);
+    async function fetchData() {
+      const [itemsRes, paymentsRes] = await Promise.all([
+        supabase.from('invoice_items').select('*').eq('invoice_id', invoice.id),
+        supabase.from('payment_history').select('id, payment_amount, payment_method, payment_date, devise_paiement, taux_applique, transaction_reference').eq('invoice_id', invoice.id).order('payment_date', { ascending: true }),
+      ]);
+      if (!itemsRes.error && itemsRes.data) setItems(itemsRes.data as InvoiceItem[]);
+      if (!paymentsRes.error && paymentsRes.data) setPayments(paymentsRes.data as PaymentRow[]);
       setLoading(false);
     }
-    fetchItems();
+    fetchData();
   }, [invoice.id]);
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
@@ -244,24 +256,56 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
                 <>
                   <div className="flex justify-between py-1 text-sm text-green-700">
                     <span>Montant payé</span>
-                    <span>{formatCurrency(invoice.paid_amount, devise)}</span>
+                    <span>{formatCurrency(invoice.paid_amount, 'USD')}</span>
                   </div>
                   {invoice.balance > 0 && (
                     <div className="flex justify-between py-1 text-sm font-semibold text-orange-700">
                       <span>Solde restant</span>
-                      <span>{formatCurrency(invoice.balance, devise)}</span>
+                      <span>{formatCurrency(invoice.balance, 'USD')}</span>
                     </div>
                   )}
                 </>
               )}
-              {invoice.payment_method && (
-                <div className="flex justify-between py-1 text-xs text-gray-500 mt-1">
-                  <span>Mode de paiement</span>
-                  <span className="capitalize">{invoice.payment_method}</span>
-                </div>
-              )}
             </div>
           </div>
+
+          {/* Payment history */}
+          {payments.length > 0 && (
+            <div className="mb-10">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Historique des paiements</h3>
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="bg-green-50 print:bg-green-100">
+                    <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">Date</th>
+                    <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700">Montant</th>
+                    <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700">Equivalent</th>
+                    <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700">Methode</th>
+                    <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700">Taux</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map(p => {
+                    const d = p.devise_paiement || 'USD';
+                    const taux = p.taux_applique || 0;
+                    const equiv = d === 'USD' && taux > 0
+                      ? `${Math.round(p.payment_amount * taux).toLocaleString('fr-FR')} CDF`
+                      : d === 'CDF' && taux > 0
+                        ? `${(p.payment_amount / taux).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
+                        : '—';
+                    return (
+                      <tr key={p.id} className="even:bg-gray-50/50">
+                        <td className="border border-gray-300 px-3 py-1.5 text-gray-700">{formatDate(p.payment_date)}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-right font-medium text-gray-800">{formatCurrency(p.payment_amount, d)}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-right text-gray-500 text-xs">{equiv}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-center text-gray-600 capitalize">{p.payment_method}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-center text-gray-500 text-xs">{taux > 0 ? `1 USD = ${taux.toLocaleString('fr-FR')} CDF` : '—'}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {/* Footer */}
           <footer className="border-t border-gray-200 pt-6 text-center">

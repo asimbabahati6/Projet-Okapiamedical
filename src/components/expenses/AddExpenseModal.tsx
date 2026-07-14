@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { X, Plus, DollarSign, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { X, Plus, DollarSign, Calendar, FileText, AlertCircle, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useExchangeRate } from '../../hooks/useExchangeRate';
 
 interface Category {
   value: string;
@@ -28,6 +29,7 @@ export default function AddExpenseModal({
 }) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const { rate, usdToCdf, equivalentDisplay } = useExchangeRate();
 
   const [form, setForm] = useState({
     category: categories[0]?.value || '',
@@ -73,7 +75,8 @@ export default function AddExpenseModal({
         piece_justificative_ref: form.piece_justificative_ref.trim() || null,
         notes: form.notes.trim() || null,
         approval_status: 'pending',
-        devise_depense: form.devise,
+        devise: form.devise,
+        taux_applique: usdToCdf || null,
       });
 
       if (dbError) throw dbError;
@@ -143,6 +146,15 @@ export default function AddExpenseModal({
                 <option value="CDF">CDF</option>
               </select>
             </div>
+            {parseFloat(form.amount) > 0 && usdToCdf > 0 && (
+              <div className="col-span-2 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700">
+                <ArrowRightLeft className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>
+                  Equivalent : <strong>{equivalentDisplay(parseFloat(form.amount), form.devise as 'USD' | 'CDF')}</strong>
+                  {' '}(taux : 1 USD = {usdToCdf.toLocaleString('fr-FR')} CDF)
+                </span>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Categorie *</label>
               <select
