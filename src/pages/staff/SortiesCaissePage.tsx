@@ -18,8 +18,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useFinancialPermissions } from '../../hooks/useFinancialPermissions';
-import { getCaisseByType, enregistrerMouvementSortie, type CaisseInfo } from '../../services/caisseService';
-import { useAuth } from '../../contexts/AuthContext';
+import { getCaisseByType, enregistrerMouvementSortie } from '../../services/caisseService';
 import { useToast } from '../../hooks/useToast';
 
 interface MouvementSortie {
@@ -85,13 +84,12 @@ function computeDateRange(preset: string, customFrom: string, customTo: string) 
 }
 
 export default function SortiesCaissePage() {
-  const { canAccessCashRegister, canViewCashFlow, isDirecteurGeneral, isCaissiere, isGestionnaire, isAccountant } = useFinancialPermissions();
+  const { canAccessCashRegister, canViewCashFlow, isDirecteurGeneral, isCaissiere, isGestionnaire } = useFinancialPermissions();
   const canView = canViewCashFlow || canAccessCashRegister;
   const canCreate = isDirecteurGeneral || isCaissiere || isGestionnaire;
-  const { profile } = useAuth();
-  const { toast, ToastContainer } = useToast();
+  const { showToast } = useToast();
 
-  const [caisse, setCaisse] = useState<CaisseInfo | null>(null);
+  const [_caisse, setCaisse] = useState<string | null>(null);
   const [mouvements, setMouvements] = useState<MouvementSortie[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -122,7 +120,7 @@ export default function SortiesCaissePage() {
     setLoading(true);
     try {
       const c = await getCaisseByType('auxiliaire');
-      setCaisse(c);
+      setCaisse(c?.id ?? null);
       if (!c) return;
 
       const range = computeDateRange(periodPreset, customFrom, customTo);
@@ -154,7 +152,7 @@ export default function SortiesCaissePage() {
       );
     } catch (err) {
       console.error(err);
-      toast('Erreur lors du chargement des donnees', 'error');
+      showToast('Erreur lors du chargement des donnees', 'error');
     } finally {
       setLoading(false);
     }
@@ -217,8 +215,8 @@ export default function SortiesCaissePage() {
   async function handleCreateSortie(e: React.FormEvent) {
     e.preventDefault();
     const montant = parseFloat(newSortie.montant);
-    if (!montant || montant <= 0) { toast('Le montant doit etre superieur a 0', 'error'); return; }
-    if (!newSortie.motif.trim()) { toast('Le motif est obligatoire', 'error'); return; }
+    if (!montant || montant <= 0) { showToast('Le montant doit etre superieur a 0', 'error'); return; }
+    if (!newSortie.motif.trim()) { showToast('Le motif est obligatoire', 'error'); return; }
 
     setSubmitting(true);
     try {
@@ -228,19 +226,19 @@ export default function SortiesCaissePage() {
         reference: newSortie.reference || `SRT-${new Date().toISOString().slice(0, 10)}-${Date.now().toString(36).slice(-4).toUpperCase()}`,
         motif: newSortie.motif,
       });
-      toast('Sortie de caisse enregistree avec succes', 'success');
+      showToast('Sortie de caisse enregistree avec succes', 'success');
       setShowAddModal(false);
       setNewSortie({ montant: '', devise: 'USD', reference: '', motif: '' });
       loadData();
     } catch (err: any) {
-      toast(err.message || 'Erreur lors de la creation', 'error');
+      showToast(err.message || 'Erreur lors de la creation', 'error');
     } finally {
       setSubmitting(false);
     }
   }
 
   function exportToCSV() {
-    if (filtered.length === 0) { toast('Aucune donnee a exporter', 'error'); return; }
+    if (filtered.length === 0) { showToast('Aucune donnee a exporter', 'error'); return; }
 
     const lines: string[] = [];
     lines.push('SORTIES DE CAISSE');
@@ -275,7 +273,7 @@ export default function SortiesCaissePage() {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    toast('Export CSV telecharge', 'success');
+    showToast('Export CSV telecharge', 'success');
   }
 
   function toggleSort(col: SortBy) {
@@ -306,7 +304,7 @@ export default function SortiesCaissePage() {
 
   return (
     <div className="space-y-6">
-      <ToastContainer />
+
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
