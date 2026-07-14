@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, DollarSign, Calendar, User, FileText, CreditCard, Building2, Edit, Trash2 } from 'lucide-react';
+import { X, DollarSign, Calendar, User, FileText, CreditCard, Building2, Edit, Trash2, Printer } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../hooks/useToast';
 
@@ -83,6 +83,86 @@ export default function ExpenseDetailsModal({
     return categories.find((c) => c.value === category) || categories[9];
   }
 
+  function handlePrintReceipt() {
+    const creatorName = expense.created_by_user?.full_name || '\u2014';
+    const catLabel = getCategoryInfo(expense.category);
+    const paymentLabel = PAYMENT_METHOD_LABELS[expense.payment_method] || expense.payment_method;
+    const dateStr = new Date(expense.expense_date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+    const createdAtStr = new Date(expense.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const receiptNum = expense.receipt_number || expense.id.slice(0, 8).toUpperCase();
+
+    const printWindow = window.open('', '_blank', 'width=600,height=800');
+    if (!printWindow) return;
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Recu Depense - ${receiptNum}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; padding: 32px; color: #1a1a1a; max-width: 600px; margin: 0 auto; }
+    .header { text-align: center; border-bottom: 2px solid #2563eb; padding-bottom: 16px; margin-bottom: 20px; }
+    .header h1 { font-size: 20px; color: #2563eb; margin-bottom: 4px; }
+    .header .receipt-num { font-size: 13px; color: #666; }
+    .amount-box { background: #eff6ff; border-radius: 8px; padding: 20px; text-align: center; margin-bottom: 20px; }
+    .amount-box .label { font-size: 12px; color: #2563eb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+    .amount-box .value { font-size: 28px; font-weight: 700; color: #1e3a5f; }
+    .section { margin-bottom: 16px; }
+    .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 8px; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+    .row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+    .row .lbl { color: #666; }
+    .row .val { font-weight: 600; color: #1a1a1a; text-align: right; max-width: 60%; }
+    .description { background: #f9fafb; border-radius: 6px; padding: 12px; font-size: 13px; color: #374151; margin-bottom: 16px; }
+    .footer { border-top: 2px solid #2563eb; padding-top: 16px; margin-top: 24px; }
+    .footer .operator { font-size: 13px; color: #374151; margin-bottom: 4px; }
+    .footer .operator strong { color: #1a1a1a; }
+    .footer .timestamp { font-size: 11px; color: #999; }
+    .print-hide { margin-top: 24px; text-align: center; }
+    .print-hide button { background: #2563eb; color: #fff; border: none; padding: 10px 32px; border-radius: 6px; font-size: 14px; cursor: pointer; }
+    @media print { .print-hide { display: none; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>BON DE DEPENSE</h1>
+    <div class="receipt-num">Recu N&deg; ${receiptNum}</div>
+  </div>
+
+  <div class="amount-box">
+    <div class="label">Montant</div>
+    <div class="value">${formatCurrency(expense.amount)}</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Informations</div>
+    <div class="row"><span class="lbl">Date</span><span class="val">${dateStr}</span></div>
+    <div class="row"><span class="lbl">Categorie</span><span class="val">${catLabel.label}</span></div>
+    <div class="row"><span class="lbl">Methode de paiement</span><span class="val">${paymentLabel}</span></div>
+    ${expense.vendor ? `<div class="row"><span class="lbl">Fournisseur</span><span class="val">${expense.vendor}</span></div>` : ''}
+    ${expense.receipt_number ? `<div class="row"><span class="lbl">N&deg; de recu</span><span class="val">${expense.receipt_number}</span></div>` : ''}
+  </div>
+
+  <div class="section">
+    <div class="section-title">Description</div>
+    <div class="description">${expense.description}</div>
+  </div>
+
+  ${expense.notes ? `<div class="section"><div class="section-title">Notes</div><div class="description">${expense.notes}</div></div>` : ''}
+
+  <div class="footer">
+    <div class="operator">Enregistre par : <strong>${creatorName}</strong></div>
+    <div class="timestamp">${createdAtStr}</div>
+  </div>
+
+  <div class="print-hide">
+    <button onclick="window.print()">Imprimer</button>
+  </div>
+</body>
+</html>`);
+    printWindow.document.close();
+  }
+
   const catInfo = getCategoryInfo(expense.category);
 
   return (
@@ -98,12 +178,21 @@ export default function ExpenseDetailsModal({
               <p className="text-sm text-gray-600">Reçu #{expense.receipt_number || expense.id.slice(0, 8)}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handlePrintReceipt}
+              className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Imprimer le reçu"
+            >
+              <Printer className="w-5 h-5" />
+            </button>
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-6">
