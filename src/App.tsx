@@ -61,6 +61,8 @@ const MedicalActsPricingPage = React.lazy(() => import('./pages/staff/MedicalAct
 const MedecinsPrestatairesPage = React.lazy(() => import('./pages/staff/MedecinsPrestatairesPage'));
 const ExchangeRatesPage = React.lazy(() => import('./pages/staff/ExchangeRatesPage'));
 const ConventionsPage = React.lazy(() => import('./pages/staff/ConventionsPage'));
+const HonorairesPage = React.lazy(() => import('./pages/staff/HonorairesPage'));
+const CommissionsPage = React.lazy(() => import('./pages/staff/CommissionsPage'));
 const FacturesConventionneesPage = React.lazy(() => import('./pages/staff/FacturesConventionneesPage'));
 const SmartPunchPage = React.lazy(() => import('./pages/staff/SmartPunchPage'));
 const SmartPunchDashboard = React.lazy(() => import('./pages/staff/SmartPunchDashboard'));
@@ -180,8 +182,8 @@ export default function App() {
                       <Route path="exchange-rates" element={<Lazy><ExchangeRatesPage /></Lazy>} />
                       <Route path="conventions" element={<Lazy><ConventionsPage /></Lazy>} />
                       <Route path="factures-conventionnees" element={<Lazy><FacturesConventionneesPage /></Lazy>} />
-                      <Route path="honoraires" element={<PlaceholderPage title="Honoraires" />} />
-                      <Route path="commissions" element={<PlaceholderPage title="Commissions" />} />
+                      <Route path="honoraires" element={<Lazy><HonorairesPage /></Lazy>} />
+                      <Route path="commissions" element={<Lazy><CommissionsPage /></Lazy>} />
                       <Route path="insurance" element={<InsurancePage />} />
                       <Route path="employees" element={<EmployeesPage />} />
                       <Route path="unified-personnel" element={<EmployeesPage />} />
