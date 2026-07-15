@@ -10,10 +10,6 @@ interface InvoiceItem {
   quantity: number;
   unit_price: number;
   total_price: number;
-  discount_type: string | null;
-  discount_value: number | null;
-  discount_amount: number | null;
-  forfait_usd: number | null;
 }
 
 interface PaymentRow {
@@ -24,8 +20,6 @@ interface PaymentRow {
   devise_paiement: string | null;
   taux_applique: number | null;
   transaction_reference: string | null;
-  montant_usd: number | null;
-  montant_cdf: number | null;
 }
 
 interface Invoice {
@@ -71,7 +65,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
     async function fetchData() {
       const [itemsRes, paymentsRes] = await Promise.all([
         supabase.from('invoice_items').select('*').eq('invoice_id', invoice.id),
-        supabase.from('payment_history').select('id, payment_amount, payment_method, payment_date, devise_paiement, taux_applique, transaction_reference, montant_usd, montant_cdf').eq('invoice_id', invoice.id).order('payment_date', { ascending: true }),
+        supabase.from('payment_history').select('id, payment_amount, payment_method, payment_date, devise_paiement, taux_applique, transaction_reference').eq('invoice_id', invoice.id).order('payment_date', { ascending: true }),
       ]);
       if (!itemsRes.error && itemsRes.data) setItems(itemsRes.data as InvoiceItem[]);
       if (!paymentsRes.error && paymentsRes.data) setPayments(paymentsRes.data as PaymentRow[]);
@@ -81,23 +75,19 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
   }, [invoice.id]);
 
   const subtotal = items.reduce((sum, item) => sum + item.total_price, 0);
-  const totalDiscounts = items.reduce((sum, item) => sum + (item.discount_amount || 0), 0);
-  const totalForfaits = items.reduce((sum, item) => sum + (item.forfait_usd || 0), 0);
-  const grossTotal = items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
   const hasTva = (invoice.net_to_pay ?? 0) > subtotal && subtotal > 0;
   const tvaAmount = hasTva ? subtotal * TVA_RATE : 0;
   const netToPay = invoice.net_to_pay ?? subtotal + tvaAmount;
   const displayNumber = invoice.invoice_number || invoice.draft_number || '—';
-  const hasAnyDiscount = totalDiscounts > 0;
-  const hasAnyForfait = totalForfaits > 0;
+  const devise = invoice.devise_paiement;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 overflow-auto print:bg-white print:static">
-      {/* Action bar */}
+      {/* Action bar — hidden in print */}
       <div className="no-print sticky top-0 z-10 flex items-center justify-between bg-white/95 backdrop-blur border-b px-6 py-3">
         <div className="flex items-center gap-2 text-gray-700">
           <FileText className="w-5 h-5" />
-          <span className="font-semibold text-sm">Apercu de la facture</span>
+          <span className="font-semibold text-sm">Aperçu de la facture</span>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -131,18 +121,18 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
                   <h1 className="text-xl font-bold text-blue-800 leading-tight">
                     Clinique Okapia Medical
                   </h1>
-                  <p className="text-xs text-gray-500 tracking-wide">Etablissement de sante agree</p>
+                  <p className="text-xs text-gray-500 tracking-wide">Établissement de santé agréé</p>
                 </div>
               </div>
               <div className="mt-3 text-xs text-gray-600 space-y-0.5 pl-[60px]">
                 <p>Avenue de la Paix, Commune de Lingwala</p>
-                <p>Kinshasa, Republique Democratique du Congo</p>
-                <p>Tel : +243 81 234 5678 - info@okapiamedical.cd</p>
+                <p>Kinshasa, République Démocratique du Congo</p>
+                <p>Tél : +243 81 234 5678 · info@okapiamedical.cd</p>
               </div>
             </div>
             <div className="text-right">
               <h2 className="text-2xl font-bold text-gray-800 tracking-tight">FACTURE</h2>
-              <p className="text-sm text-gray-500 mt-1">N. {displayNumber}</p>
+              <p className="text-sm text-gray-500 mt-1">N° {displayNumber}</p>
             </div>
           </header>
 
@@ -158,7 +148,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
                   : 'Patient inconnu'}
               </p>
               {invoice.patient?.phone && (
-                <p className="text-sm text-gray-600">Tel : {invoice.patient.phone}</p>
+                <p className="text-sm text-gray-600">Tél : {invoice.patient.phone}</p>
               )}
               {invoice.patient?.email && (
                 <p className="text-sm text-gray-600">{invoice.patient.email}</p>
@@ -166,7 +156,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
             </div>
             <div className="text-right">
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-                Details
+                Détails
               </h3>
               <p className="text-sm text-gray-700">
                 <span className="text-gray-500">Date :</span>{' '}
@@ -180,7 +170,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
               )}
               {invoice.numero_recu && (
                 <p className="text-sm text-gray-700">
-                  <span className="text-gray-500">Recu N. :</span> {invoice.numero_recu}
+                  <span className="text-gray-500">Reçu N° :</span> {invoice.numero_recu}
                 </p>
               )}
               <div className="mt-2">
@@ -191,7 +181,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
 
           {/* Items table */}
           {loading ? (
-            <div className="py-12 text-center text-gray-400 text-sm">Chargement des lignes...</div>
+            <div className="py-12 text-center text-gray-400 text-sm">Chargement des lignes…</div>
           ) : (
             <table className="w-full text-sm border-collapse mb-8">
               <thead>
@@ -202,23 +192,13 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
                   <th className="border border-gray-300 px-3 py-2 text-left font-semibold text-gray-700">
                     Description
                   </th>
-                  <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 w-[10%]">
-                    Qte
+                  <th className="border border-gray-300 px-3 py-2 text-center font-semibold text-gray-700 w-[12%]">
+                    Quantité
                   </th>
-                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[14%]">
-                    P.U.
+                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[18%]">
+                    Prix unitaire
                   </th>
-                  {hasAnyDiscount && (
-                    <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[14%]">
-                      Remise
-                    </th>
-                  )}
-                  {hasAnyForfait && (
-                    <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[14%]">
-                      Forfait
-                    </th>
-                  )}
-                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[16%]">
+                  <th className="border border-gray-300 px-3 py-2 text-right font-semibold text-gray-700 w-[18%]">
                     Total
                   </th>
                 </tr>
@@ -226,52 +206,30 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={hasAnyDiscount && hasAnyForfait ? 7 : hasAnyDiscount || hasAnyForfait ? 6 : 5} className="border border-gray-300 px-3 py-6 text-center text-gray-400">
+                    <td colSpan={5} className="border border-gray-300 px-3 py-6 text-center text-gray-400">
                       Aucune ligne de facturation
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, idx) => {
-                    const discountAmt = item.discount_amount || 0;
-                    const forfait = item.forfait_usd || 0;
-                    const discountLabel = discountAmt > 0
-                      ? item.discount_type === 'percentage'
-                        ? `${item.discount_value}%`
-                        : `${discountAmt.toFixed(2)} USD`
-                      : '';
-
-                    return (
-                      <tr key={item.id} className="even:bg-gray-50/50">
-                        <td className="border border-gray-300 px-3 py-2 text-gray-500 text-center">
-                          {idx + 1}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2 text-gray-800">
-                          {item.description}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2 text-center text-gray-700">
-                          {item.quantity}
-                        </td>
-                        <td className="border border-gray-300 px-3 py-2 text-right text-gray-700">
-                          {formatCurrency(item.unit_price)}
-                        </td>
-                        {hasAnyDiscount && (
-                          <td className="border border-gray-300 px-3 py-2 text-right text-orange-600">
-                            {discountAmt > 0 ? (
-                              <span>-{formatCurrency(discountAmt)}{item.discount_type === 'percentage' ? ` (${item.discount_value}%)` : ''}</span>
-                            ) : '—'}
-                          </td>
-                        )}
-                        {hasAnyForfait && (
-                          <td className="border border-gray-300 px-3 py-2 text-right text-purple-700">
-                            {forfait > 0 ? `+${formatCurrency(forfait)}` : '—'}
-                          </td>
-                        )}
-                        <td className="border border-gray-300 px-3 py-2 text-right font-medium text-gray-800">
-                          {formatCurrency(item.total_price)}
-                        </td>
-                      </tr>
-                    );
-                  })
+                  items.map((item, idx) => (
+                    <tr key={item.id} className="even:bg-gray-50/50">
+                      <td className="border border-gray-300 px-3 py-2 text-gray-500 text-center">
+                        {idx + 1}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-800">
+                        {item.description}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2 text-center text-gray-700">
+                        {item.quantity}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2 text-right text-gray-700">
+                        {formatCurrency(item.unit_price, devise)}
+                      </td>
+                      <td className="border border-gray-300 px-3 py-2 text-right font-medium text-gray-800">
+                        {formatCurrency(item.total_price, devise)}
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>
@@ -279,43 +237,25 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
 
           {/* Totals */}
           <div className="flex justify-end mb-10">
-            <div className="w-80">
-              {(hasAnyDiscount || hasAnyForfait) && (
-                <div className="flex justify-between py-1.5 text-sm text-gray-500">
-                  <span>Total brut</span>
-                  <span>{formatCurrency(grossTotal)}</span>
-                </div>
-              )}
-              {hasAnyDiscount && (
-                <div className="flex justify-between py-1.5 text-sm text-orange-600">
-                  <span>Total remises</span>
-                  <span>-{formatCurrency(totalDiscounts)}</span>
-                </div>
-              )}
-              {hasAnyForfait && (
-                <div className="flex justify-between py-1.5 text-sm text-purple-700">
-                  <span>Total forfaits</span>
-                  <span>+{formatCurrency(totalForfaits)}</span>
-                </div>
-              )}
+            <div className="w-72">
               <div className="flex justify-between py-1.5 text-sm text-gray-600">
                 <span>Sous-total</span>
-                <span>{formatCurrency(subtotal)}</span>
+                <span>{formatCurrency(subtotal, devise)}</span>
               </div>
               {hasTva && (
                 <div className="flex justify-between py-1.5 text-sm text-gray-600">
                   <span>TVA ({(TVA_RATE * 100).toFixed(0)}%)</span>
-                  <span>{formatCurrency(tvaAmount)}</span>
+                  <span>{formatCurrency(tvaAmount, devise)}</span>
                 </div>
               )}
               <div className="flex justify-between py-2 text-base font-bold text-gray-900 border-t-2 border-gray-800 mt-1">
-                <span>Net a payer</span>
-                <span>{formatCurrency(netToPay)}</span>
+                <span>Net à payer</span>
+                <span>{formatCurrency(netToPay, devise)}</span>
               </div>
               {invoice.paid_amount > 0 && (
                 <>
                   <div className="flex justify-between py-1 text-sm text-green-700">
-                    <span>Montant paye</span>
+                    <span>Montant payé</span>
                     <span>{formatCurrency(invoice.paid_amount, 'USD')}</span>
                   </div>
                   {invoice.balance > 0 && (
@@ -347,34 +287,16 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
                   {payments.map(p => {
                     const d = p.devise_paiement || 'USD';
                     const taux = p.taux_applique || 0;
-                    const isSplit = d === 'SPLIT';
-
-                    let amountDisplay: string;
-                    let equivDisplay: string;
-
-                    if (isSplit) {
-                      const usdPart = p.montant_usd || 0;
-                      const cdfPart = p.montant_cdf || 0;
-                      amountDisplay = `${usdPart.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD + ${Math.round(cdfPart).toLocaleString('fr-FR')} CDF`;
-                      const totalUsd = taux > 0 ? usdPart + cdfPart / taux : usdPart;
-                      equivDisplay = `${totalUsd.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
-                    } else if (d === 'USD') {
-                      amountDisplay = formatCurrency(p.payment_amount, 'USD');
-                      equivDisplay = taux > 0
-                        ? `${Math.round(p.payment_amount * taux).toLocaleString('fr-FR')} CDF`
-                        : '—';
-                    } else {
-                      amountDisplay = formatCurrency(p.payment_amount, 'CDF');
-                      equivDisplay = taux > 0
+                    const equiv = d === 'USD' && taux > 0
+                      ? `${Math.round(p.payment_amount * taux).toLocaleString('fr-FR')} CDF`
+                      : d === 'CDF' && taux > 0
                         ? `${(p.payment_amount / taux).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`
                         : '—';
-                    }
-
                     return (
                       <tr key={p.id} className="even:bg-gray-50/50">
                         <td className="border border-gray-300 px-3 py-1.5 text-gray-700">{formatDate(p.payment_date)}</td>
-                        <td className="border border-gray-300 px-3 py-1.5 text-right font-medium text-gray-800">{amountDisplay}</td>
-                        <td className="border border-gray-300 px-3 py-1.5 text-right text-gray-500 text-xs">{equivDisplay}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-right font-medium text-gray-800">{formatCurrency(p.payment_amount, d)}</td>
+                        <td className="border border-gray-300 px-3 py-1.5 text-right text-gray-500 text-xs">{equiv}</td>
                         <td className="border border-gray-300 px-3 py-1.5 text-center text-gray-600 capitalize">{p.payment_method}</td>
                         <td className="border border-gray-300 px-3 py-1.5 text-center text-gray-500 text-xs">{taux > 0 ? `1 USD = ${taux.toLocaleString('fr-FR')} CDF` : '—'}</td>
                       </tr>
@@ -391,7 +313,7 @@ export function PrintableInvoiceView({ invoice, onClose }: { invoice: Invoice; o
               Merci pour votre confiance.
             </p>
             <p className="text-xs text-gray-400 mt-2">
-              Clinique Okapia Medical - Kinshasa, RDC - Facture generee le{' '}
+              Clinique Okapia Medical · Kinshasa, RDC · Facture générée le{' '}
               {new Date().toLocaleDateString('fr-CD')}
             </p>
           </footer>

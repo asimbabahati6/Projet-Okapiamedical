@@ -15,26 +15,14 @@ export function useExchangeRate() {
 
   useEffect(() => {
     async function fetch() {
-      // Try active rate first, fall back to most recent rate
-      const { data: active } = await supabase
+      const { data } = await supabase
         .from('exchange_rates')
         .select('*')
         .eq('is_active', true)
         .order('rate_date', { ascending: false })
         .limit(1)
         .maybeSingle();
-
-      if (active) {
-        setRate(active);
-      } else {
-        const { data: latest } = await supabase
-          .from('exchange_rates')
-          .select('*')
-          .order('rate_date', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        setRate(latest);
-      }
+      setRate(data);
       setLoading(false);
     }
     fetch();

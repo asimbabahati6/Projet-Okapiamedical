@@ -14,9 +14,6 @@ import {
   Eye,
   Info,
   PieChart,
-  Users,
-  UserPlus,
-  Loader2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useFinancialPermissions } from '../../hooks/useFinancialPermissions';
@@ -28,8 +25,6 @@ interface CommissionRow {
   date_commission: string;
   medecin_id: string;
   medecin_nom: string;
-  medecin_nom_libre: string | null;
-  is_libre: boolean;
   facture_id: string | null;
   acte_id: string | null;
   invoice_number: string | null;
@@ -54,8 +49,6 @@ interface BenefSummary {
   total_verse: number;
   solde: number;
   count: number;
-  is_libre: boolean;
-  libre_nom: string | null;
 }
 
 interface Apporteur {
@@ -65,122 +58,6 @@ interface Apporteur {
 
 const fmt = (n: number) => n.toLocaleString('fr-FR', { minimumFractionDigits: 2 });
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('fr-FR');
-
-function ConvertLibreModal({
-  nom,
-  onClose,
-  onSuccess,
-  submitting,
-  setSubmitting,
-}: {
-  nom: string;
-  onClose: () => void;
-  onSuccess: () => void;
-  submitting: boolean;
-  setSubmitting: (v: boolean) => void;
-}) {
-  const [specialite, setSpecialite] = useState('');
-  const [telephone, setTelephone] = useState('');
-
-  async function handleConvert() {
-    setSubmitting(true);
-    try {
-      const { data: newMed, error: insertErr } = await supabase
-        .from('medecins_prestataires')
-        .insert({
-          nom_complet: nom,
-          specialite: specialite || null,
-          telephone: telephone || null,
-          type: 'apporteur',
-          actif: true,
-          source: 'externe',
-        })
-        .select('id')
-        .single();
-      if (insertErr) throw insertErr;
-
-      // Link invoices that had this free-text name to the new registered medecin
-      await supabase
-        .from('invoices')
-        .update({
-          medecin_apporteur_id: newMed.id,
-          medecin_apporteur_nom_libre: null,
-        })
-        .eq('medecin_apporteur_nom_libre', nom)
-        .is('medecin_apporteur_id', null);
-
-      // Link any commissions with this libre name
-      await supabase
-        .from('commissions_medecins')
-        .update({
-          medecin_id: newMed.id,
-          medecin_nom_libre: null,
-        })
-        .eq('medecin_nom_libre', nom)
-        .is('medecin_id', null);
-
-      onSuccess();
-    } catch (err: any) {
-      alert(`Erreur: ${err.message || 'Erreur inconnue'}`);
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-          <UserPlus className="w-5 h-5 text-blue-600" />
-          <h2 className="font-bold text-gray-900">Enregistrer comme apporteur</h2>
-        </div>
-        <div className="p-6 space-y-4">
-          <p className="text-sm text-gray-600">
-            Convertir <strong>"{nom}"</strong> en medecin apporteur enregistre.
-            Toutes ses commissions existantes seront fusionnees.
-          </p>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Specialite (optionnel)</label>
-            <input
-              type="text"
-              value={specialite}
-              onChange={e => setSpecialite(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Ex: Medecine generale"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Telephone (optionnel)</label>
-            <input
-              type="text"
-              value={telephone}
-              onChange={e => setTelephone(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="+243 ..."
-            />
-          </div>
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={handleConvert}
-              disabled={submitting}
-              className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 disabled:opacity-50 text-sm"
-            >
-              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
-              Enregistrer
-            </button>
-            <button
-              onClick={onClose}
-              disabled={submitting}
-              className="px-4 py-2.5 border border-gray-300 rounded-xl font-medium hover:bg-gray-50 text-sm"
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function CommissionsPage() {
   const { isDirecteurGeneral, isGestionnaire, isAccountant, isCaissiere } = useFinancialPermissions();
@@ -209,20 +86,6 @@ export default function CommissionsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [showDetail, setShowDetail] = useState<CommissionRow | null>(null);
-  const [convertingLibre, setConvertingLibre] = useState<string | null>(null);
-  const [convertSubmitting, setConvertSubmitting] = useState(false);
-
-  // Free-text apporteur invoices (not in commissions_medecins yet)
-  const [libreInvoices, setLibreInvoices] = useState<Array<{
-    id: string;
-    invoice_number: string | null;
-    medecin_apporteur_nom_libre: string;
-    pourcentage_commission: number;
-    total_amount: number;
-    net_to_pay: number;
-    paid_amount: number;
-    created_at: string;
-  }>>([]);
 
   useEffect(() => {
     if (canView) loadData();
@@ -278,23 +141,10 @@ export default function CommissionsPage() {
       setCommissions(
         rows.map((r: any) => ({
           ...r,
-          medecin_nom: mMap[r.medecin_id] || r.medecin_nom_libre || 'Inconnu',
-          medecin_nom_libre: r.medecin_nom_libre || null,
-          is_libre: !r.medecin_id && !!r.medecin_nom_libre,
+          medecin_nom: mMap[r.medecin_id] || 'Inconnu',
           invoice_number: r.facture_id ? iMap[r.facture_id] || null : null,
         }))
       );
-
-      // Also fetch invoices with free-text apporteurs
-      const { data: libreData } = await supabase
-        .from('invoices')
-        .select('id, invoice_number, medecin_apporteur_nom_libre, pourcentage_commission, total_amount, net_to_pay, paid_amount, created_at')
-        .not('medecin_apporteur_nom_libre', 'is', null)
-        .is('medecin_apporteur_id', null)
-        .gte('created_at', dateFrom)
-        .lte('created_at', dateTo + 'T23:59:59')
-        .order('created_at', { ascending: false });
-      setLibreInvoices(libreData || []);
     } catch (err: any) {
       showToast(err.message || 'Erreur de chargement', 'error');
     } finally {
@@ -340,8 +190,6 @@ export default function CommissionsPage() {
           total_verse: tv,
           solde: 0,
           count: 0,
-          is_libre: c.is_libre,
-          libre_nom: c.medecin_nom_libre,
         };
       }
       const s = map[c.medecin_id];
@@ -349,35 +197,8 @@ export default function CommissionsPage() {
       s.count++;
     }
     for (const s of Object.values(map)) s.solde = s.total_du - s.total_verse;
-
-    // Add free-text apporteur summaries from invoices
-    const libreMap: Record<string, BenefSummary> = {};
-    for (const inv of libreInvoices) {
-      const nom = inv.medecin_apporteur_nom_libre;
-      const key = `libre_${nom.toLowerCase()}`;
-      if (!map[key] && !libreMap[key]) {
-        libreMap[key] = {
-          medecin_id: key,
-          medecin_nom: nom,
-          total_du: 0,
-          total_verse: 0,
-          solde: 0,
-          count: 0,
-          is_libre: true,
-          libre_nom: nom,
-        };
-      }
-      const target = libreMap[key];
-      if (target) {
-        const comm = inv.total_amount * (inv.pourcentage_commission || 0) / 100;
-        target.total_du += comm;
-        target.solde += comm;
-        target.count++;
-      }
-    }
-
-    return [...Object.values(map), ...Object.values(libreMap)].sort((a, b) => b.solde - a.solde);
-  }, [commissions, versements, libreInvoices]);
+    return Object.values(map).sort((a, b) => b.solde - a.solde);
+  }, [commissions, versements]);
 
   const globalStats = useMemo(() => {
     const totalDu = commissions.reduce((s, c) => s + Number(c.montant_du), 0);
@@ -389,16 +210,6 @@ export default function CommissionsPage() {
       count: commissions.length,
     };
   }, [commissions, versements]);
-
-  const globalWithLibre = useMemo(() => {
-    const libreTotal = libreInvoices.reduce((s, inv) => s + inv.total_amount * (inv.pourcentage_commission || 0) / 100, 0);
-    return {
-      totalDu: globalStats.totalDu + libreTotal,
-      resteAVerser: globalStats.resteAVerser + libreTotal,
-      totalVerse: globalStats.totalVerse,
-      count: globalStats.count + libreInvoices.length,
-    };
-  }, [globalStats, libreInvoices]);
 
   /* ---------- actions ---------- */
 
@@ -490,9 +301,9 @@ export default function CommissionsPage() {
       'RELEVE DES COMMISSIONS — MEDECINS APPORTEURS',
       `Periode;${fmtDate(dateFrom)} au ${fmtDate(dateTo)}`,
       `Genere le;${new Date().toLocaleString('fr-FR')}`,
-      `Total commissions dues;${fmt(globalWithLibre.totalDu)} USD`,
-      `Total verse;${fmt(globalWithLibre.totalVerse)} USD`,
-      `Reste a verser;${fmt(globalWithLibre.resteAVerser)} USD`,
+      `Total commissions dues;${fmt(globalStats.totalDu)} USD`,
+      `Total verse;${fmt(globalStats.totalVerse)} USD`,
+      `Reste a verser;${fmt(globalStats.resteAVerser)} USD`,
       '',
       'Date;Beneficiaire;Acte;Montant Acte;Mode;Taux/Forfait;Montant Base;Prorata;Commission Due;Ref;Statut',
     ];
@@ -579,14 +390,14 @@ export default function CommissionsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPICard
           label="Total commissions dues"
-          value={globalWithLibre.totalDu}
+          value={globalStats.totalDu}
           suffix="USD"
           icon={<DollarSign className="w-5 h-5 text-teal-600" />}
           iconBg="bg-teal-100"
         />
         <KPICard
           label="Reste a verser"
-          value={globalWithLibre.resteAVerser}
+          value={globalStats.resteAVerser}
           suffix="USD"
           icon={<Banknote className="w-5 h-5 text-red-600" />}
           iconBg="bg-red-100"
@@ -594,14 +405,14 @@ export default function CommissionsPage() {
         />
         <KPICard
           label="Total verse"
-          value={globalWithLibre.totalVerse}
+          value={globalStats.totalVerse}
           suffix="USD"
           icon={<CheckCircle className="w-5 h-5 text-green-600" />}
           iconBg="bg-green-100"
         />
         <KPICard
           label="Nombre d'actes"
-          value={globalWithLibre.count}
+          value={globalStats.count}
           icon={<Award className="w-5 h-5 text-blue-600" />}
           iconBg="bg-blue-100"
           isCount
@@ -645,14 +456,7 @@ export default function CommissionsPage() {
               <tbody className="divide-y divide-gray-100">
                 {summaries.map((s) => (
                   <tr key={s.medecin_id} className="hover:bg-gray-50/50">
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {s.medecin_nom}
-                      {s.is_libre && (
-                        <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700">
-                          Non enregistre
-                        </span>
-                      )}
-                    </td>
+                    <td className="px-4 py-3 font-semibold text-gray-900">{s.medecin_nom}</td>
                     <td className="px-4 py-3 text-right tabular-nums">{fmt(s.total_du)}</td>
                     <td className="px-4 py-3 text-right text-green-700 tabular-nums">
                       {fmt(s.total_verse)}
@@ -667,25 +471,14 @@ export default function CommissionsPage() {
                     <td className="px-4 py-3 text-center text-gray-600">{s.count}</td>
                     {canPay && (
                       <td className="px-4 py-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          {s.solde > 0 && !s.is_libre && (
-                            <button
-                              onClick={() => openPay(s.medecin_id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-semibold transition-colors"
-                            >
-                              <CreditCard className="w-3.5 h-3.5" /> Verser
-                            </button>
-                          )}
-                          {s.is_libre && s.libre_nom && (
-                            <button
-                              onClick={() => setConvertingLibre(s.libre_nom!)}
-                              disabled={convertSubmitting}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold transition-colors"
-                            >
-                              <Users className="w-3.5 h-3.5" /> Enregistrer
-                            </button>
-                          )}
-                        </div>
+                        {s.solde > 0 && (
+                          <button
+                            onClick={() => openPay(s.medecin_id)}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-teal-50 text-teal-700 hover:bg-teal-100 text-xs font-semibold transition-colors"
+                          >
+                            <CreditCard className="w-3.5 h-3.5" /> Verser
+                          </button>
+                        )}
                       </td>
                     )}
                   </tr>
@@ -978,21 +771,6 @@ export default function CommissionsPage() {
             </form>
           </div>
         </div>
-      )}
-
-      {/* ── Convert Libre Modal ── */}
-      {convertingLibre && (
-        <ConvertLibreModal
-          nom={convertingLibre}
-          onClose={() => setConvertingLibre(null)}
-          onSuccess={() => {
-            setConvertingLibre(null);
-            loadData();
-            showToast(`"${convertingLibre}" a ete enregistre comme apporteur`, 'success');
-          }}
-          submitting={convertSubmitting}
-          setSubmitting={setConvertSubmitting}
-        />
       )}
 
       {/* ── Detail Modal ── */}

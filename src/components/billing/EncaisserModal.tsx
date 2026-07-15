@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, CreditCard, DollarSign, Banknote, Check, AlertCircle, ArrowRightLeft, Info, Plus, Trash2 } from 'lucide-react';
+import { X, CreditCard, DollarSign, Banknote, Check, AlertCircle, ArrowRightLeft, Info } from 'lucide-react';
 import { Invoice } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { enregistrerMouvementEntree } from '../../services/caisseService';
@@ -13,8 +13,6 @@ const PAYMENT_METHODS = [
   { value: 'Chèque', label: 'Cheque' },
 ];
 
-type PaymentMode = 'usd' | 'cdf' | 'split';
-
 interface EncaisserModalProps {
   invoice: Invoice;
   onClose: () => void;
@@ -26,9 +24,8 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
   const remaining = netToPay - invoice.paid_amount;
   const { rate, usdToCdf } = useExchangeRate();
 
-  const [mode, setMode] = useState<PaymentMode>('usd');
-  const [amountUsd, setAmountUsd] = useState('');
-  const [amountCdf, setAmountCdf] = useState('');
+  const [devise, setDevise] = useState<'USD' | 'CDF'>('USD');
+  const [amount, setAmount] = useState('');
   const [method, setMethod] = useState('Espèces');
   const [reference, setReference] = useState('');
   const [notes, setNotes] = useState('');
@@ -39,37 +36,27 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
     ? `${invoice.patient.first_name} ${invoice.patient.last_name}`
     : 'Patient inconnu';
   const displayNumber = invoice.invoice_number ?? invoice.draft_number ?? '—';
+  const parsedAmount = parseFloat(amount);
 
-  const parsedUsd = parseFloat(amountUsd) || 0;
-  const parsedCdf = parseFloat(amountCdf) || 0;
+  const amountInUSD = devise === 'USD'
+    ? parsedAmount
+    : (usdToCdf > 0 ? Math.round((parsedAmount / usdToCdf) * 100) / 100 : 0);
 
-  const computeTotalInUsd = (): number => {
-    if (mode === 'usd') return parsedUsd;
-    if (mode === 'cdf') return usdToCdf > 0 ? Math.round((parsedCdf / usdToCdf) * 100) / 100 : 0;
-    const usdPart = parsedUsd;
-    const cdfToUsdPart = usdToCdf > 0 ? Math.round((parsedCdf / usdToCdf) * 100) / 100 : 0;
-    return Math.round((usdPart + cdfToUsdPart) * 100) / 100;
-  };
-
-  const totalInUsd = computeTotalInUsd();
-  const isValidAmount = totalInUsd > 0 && totalInUsd <= remaining + 0.01;
-  const hasInput = mode === 'usd' ? parsedUsd > 0 : mode === 'cdf' ? parsedCdf > 0 : (parsedUsd > 0 || parsedCdf > 0);
+  const isValidAmount = !isNaN(parsedAmount) && parsedAmount > 0
+    && amountInUSD > 0 && amountInUSD <= remaining + 0.01;
 
   const remainingCDF = usdToCdf > 0 ? Math.round(remaining * usdToCdf) : 0;
 
   function fillFull() {
-    if (mode === 'usd') {
-      setAmountUsd(remaining.toFixed(2));
-    } else if (mode === 'cdf') {
-      setAmountCdf(Math.round(remaining * usdToCdf).toString());
-    } else {
-      setAmountUsd(remaining.toFixed(2));
-      setAmountCdf('');
+    if (devise === 'USD') {
+      setAmount(remaining.toFixed(2));
+    } else if (usdToCdf > 0) {
+      setAmount(Math.round(remaining * usdToCdf).toString());
     }
   }
 
   async function handleSubmit() {
-    if (!isValidAmount || !hasInput) return;
+    if (!isValidAmount) return;
     setLoading(true);
     setError('');
 
@@ -78,24 +65,19 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
       const userId = userData?.user?.id ?? null;
       const tauxApplique = usdToCdf || null;
 
-      const paymentAmount = mode === 'usd' ? parsedUsd : mode === 'cdf' ? parsedCdf : totalInUsd;
-      const devisePaiement = mode === 'usd' ? 'USD' : mode === 'cdf' ? 'CDF' : 'SPLIT';
-
       const { error: insertErr } = await supabase.from('payment_history').insert({
         invoice_id: invoice.id,
-        payment_amount: paymentAmount,
+        payment_amount: parsedAmount,
         payment_method: method,
-        devise_paiement: devisePaiement,
+        devise_paiement: devise,
         taux_applique: tauxApplique,
         transaction_reference: reference || null,
         notes: notes || null,
         recorded_by: userId,
-        montant_usd: mode === 'split' || mode === 'usd' ? parsedUsd || null : null,
-        montant_cdf: mode === 'split' || mode === 'cdf' ? parsedCdf || null : null,
       });
       if (insertErr) throw insertErr;
 
-      const newPaidUSD = invoice.paid_amount + totalInUsd;
+      const newPaidUSD = invoice.paid_amount + amountInUSD;
       const newBalance = Math.max(netToPay - newPaidUSD, 0);
       const newStatus = newBalance <= 0.01 ? 'paid' : 'partial';
 
@@ -107,37 +89,18 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           status: newStatus,
           payment_method: method,
           payment_date: new Date().toISOString(),
-          devise_paiement: devisePaiement,
+          devise_paiement: devise,
           taux_change_applique: tauxApplique,
         })
         .eq('id', invoice.id);
       if (updateErr) throw updateErr;
 
-      if (mode === 'split') {
-        if (parsedUsd > 0) {
-          await enregistrerMouvementEntree({
-            montant: parsedUsd,
-            devise: 'USD',
-            reference: `PAY-${displayNumber}`,
-            motif: `Paiement facture ${displayNumber} — ${patientName} (part USD)`,
-          });
-        }
-        if (parsedCdf > 0) {
-          await enregistrerMouvementEntree({
-            montant: parsedCdf,
-            devise: 'CDF',
-            reference: `PAY-${displayNumber}`,
-            motif: `Paiement facture ${displayNumber} — ${patientName} (part CDF)`,
-          });
-        }
-      } else {
-        await enregistrerMouvementEntree({
-          montant: mode === 'usd' ? parsedUsd : parsedCdf,
-          devise: mode === 'usd' ? 'USD' : 'CDF',
-          reference: `PAY-${displayNumber}`,
-          motif: `Paiement facture ${displayNumber} — ${patientName}`,
-        });
-      }
+      await enregistrerMouvementEntree({
+        montant: parsedAmount,
+        devise,
+        reference: `PAY-${displayNumber}`,
+        motif: `Paiement facture ${displayNumber} — ${patientName}`,
+      });
 
       onSuccess();
     } catch (err: any) {
@@ -167,7 +130,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
         </div>
 
         <div className="p-6 space-y-5">
-          {/* Invoice summary */}
+          {/* Invoice summary with dual currency */}
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
@@ -206,108 +169,73 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
             </div>
           )}
 
-          {/* Payment mode selector (3-way) */}
+          {/* Currency selector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Mode de paiement devise</label>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { value: 'usd', label: 'USD seul', icon: DollarSign },
-                { value: 'cdf', label: 'CDF seul', icon: Banknote },
-                { value: 'split', label: 'USD + CDF', icon: Plus },
-              ] as const).map(d => (
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Devise du paiement</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(['USD', 'CDF'] as const).map(d => (
                 <button
-                  key={d.value}
+                  key={d}
                   type="button"
-                  onClick={() => { setMode(d.value); setAmountUsd(''); setAmountCdf(''); }}
-                  className={`flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl border-2 font-medium text-xs transition-all ${
-                    mode === d.value
+                  onClick={() => { setDevise(d); setAmount(''); }}
+                  className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all ${
+                    devise === d
                       ? 'border-green-500 bg-green-50 text-green-700'
                       : 'border-gray-200 text-gray-500 hover:border-gray-300'
                   }`}
                 >
-                  <d.icon className="w-3.5 h-3.5" />
-                  {d.label}
+                  <DollarSign className="w-4 h-4" />
+                  {d === 'USD' ? 'Dollar americain (USD)' : 'Franc congolais (CDF)'}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Amount inputs */}
-          {(mode === 'usd' || mode === 'split') && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Montant USD
-                </label>
-                {mode === 'usd' && (
-                  <button type="button" onClick={fillFull} className="text-xs text-green-600 hover:text-green-700 font-medium">
-                    Payer tout
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={amountUsd}
-                  onChange={e => setAmountUsd(e.target.value)}
-                  className="w-full pl-9 pr-14 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors text-sm"
-                  placeholder="0.00"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">USD</span>
-              </div>
-              {mode === 'usd' && parsedUsd > 0 && usdToCdf > 0 && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
-                  <ArrowRightLeft className="w-3 h-3" />
-                  <span>Equivalent: <strong>{Math.round(parsedUsd * usdToCdf).toLocaleString('fr-FR')} CDF</strong></span>
-                </div>
-              )}
+          {/* Amount field */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium text-gray-700">
+                Montant a encaisser ({devise})
+              </label>
+              <button type="button" onClick={fillFull} className="text-xs text-green-600 hover:text-green-700 font-medium">
+                Payer tout
+              </button>
             </div>
-          )}
-
-          {(mode === 'cdf' || mode === 'split') && (
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-sm font-medium text-gray-700">
-                  Montant CDF
-                </label>
-                {mode === 'cdf' && (
-                  <button type="button" onClick={fillFull} className="text-xs text-green-600 hover:text-green-700 font-medium">
-                    Payer tout
-                  </button>
-                )}
-              </div>
-              <div className="relative">
-                <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                  type="number"
-                  step="1"
-                  min="0"
-                  value={amountCdf}
-                  onChange={e => setAmountCdf(e.target.value)}
-                  className="w-full pl-9 pr-14 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors text-sm"
-                  placeholder="0"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">CDF</span>
-              </div>
-              {mode === 'cdf' && parsedCdf > 0 && usdToCdf > 0 && (
-                <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
-                  <ArrowRightLeft className="w-3 h-3" />
-                  <span>Equivalent: <strong>{(parsedCdf / usdToCdf).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD</strong></span>
-                </div>
-              )}
+            <div className="relative">
+              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="number"
+                step={devise === 'CDF' ? '1' : '0.01'}
+                min="1"
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                className="w-full pl-9 pr-16 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-colors text-sm"
+                placeholder={devise === 'CDF' ? '0' : '0.00'}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">{devise}</span>
             </div>
-          )}
 
-          {/* Validation error */}
-          {hasInput && !isValidAmount && (
-            <p className="text-xs text-red-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" />
-              L'equivalent USD ({totalInUsd.toFixed(2)}) depasse le solde restant de {remaining.toFixed(2)} USD
-            </p>
-          )}
+            {/* Conversion display */}
+            {parsedAmount > 0 && usdToCdf > 0 && (
+              <div className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
+                <ArrowRightLeft className="w-3 h-3" />
+                {devise === 'USD'
+                  ? <span>Equivalent: <strong>{Math.round(parsedAmount * usdToCdf).toLocaleString('fr-FR')} CDF</strong></span>
+                  : <span>Equivalent: <strong>{amountInUSD.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</strong></span>
+                }
+              </div>
+            )}
+
+            {amount && !isValidAmount && (
+              <p className="mt-1 text-xs text-red-500 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" />
+                {devise === 'USD'
+                  ? `Le montant ne peut pas depasser ${remaining.toFixed(2)} USD`
+                  : `L'equivalent USD (${amountInUSD.toFixed(2)}) depasse le solde de ${remaining.toFixed(2)} USD`
+                }
+              </p>
+            )}
+          </div>
 
           {/* Payment method */}
           <div>
@@ -355,39 +283,31 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           </div>
 
           {/* Summary before confirm */}
-          {hasInput && isValidAmount && (
+          {parsedAmount > 0 && isValidAmount && (
             <div className="bg-green-50 border border-green-100 rounded-xl p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-semibold text-green-800">
                 <Info className="w-3.5 h-3.5" />
                 Resume du paiement
               </div>
-              {(mode === 'usd' || mode === 'split') && parsedUsd > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-700">Part USD</span>
-                  <span className="font-bold text-green-800">{parsedUsd.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</span>
-                </div>
-              )}
-              {(mode === 'cdf' || mode === 'split') && parsedCdf > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-green-700">Part CDF</span>
-                  <span className="font-bold text-green-800">{Math.round(parsedCdf).toLocaleString('fr-FR')} CDF</span>
-                </div>
-              )}
-              {mode === 'split' && parsedUsd > 0 && parsedCdf > 0 && usdToCdf > 0 && (
-                <div className="flex justify-between text-xs text-green-600 border-t border-green-200 pt-1">
-                  <span>Equivalent total USD</span>
-                  <span className="font-semibold">{totalInUsd.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</span>
-                </div>
-              )}
-              {mode !== 'split' && (
+              <div className="flex justify-between text-sm">
+                <span className="text-green-700">Montant</span>
+                <span className="font-bold text-green-800">
+                  {devise === 'CDF'
+                    ? `${Math.round(parsedAmount).toLocaleString('fr-FR')} CDF`
+                    : `${parsedAmount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD`
+                  }
+                </span>
+              </div>
+              {devise !== 'USD' && usdToCdf > 0 && (
                 <div className="flex justify-between text-xs text-green-600">
-                  <span>Equivalent {mode === 'usd' ? 'CDF' : 'USD'}</span>
-                  <span>
-                    {mode === 'usd'
-                      ? `${Math.round(parsedUsd * usdToCdf).toLocaleString('fr-FR')} CDF`
-                      : `${(parsedCdf / usdToCdf).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD`
-                    }
-                  </span>
+                  <span>Equivalent USD</span>
+                  <span>{amountInUSD.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD</span>
+                </div>
+              )}
+              {devise !== 'CDF' && usdToCdf > 0 && (
+                <div className="flex justify-between text-xs text-green-600">
+                  <span>Equivalent CDF</span>
+                  <span>{Math.round(parsedAmount * usdToCdf).toLocaleString('fr-FR')} CDF</span>
                 </div>
               )}
               <div className="flex justify-between text-xs text-green-600">
@@ -397,7 +317,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
               <div className="flex justify-between text-sm pt-1 border-t border-green-200">
                 <span className="text-green-700">Nouveau solde</span>
                 <span className="font-bold text-green-800">
-                  {Math.max(remaining - totalInUsd, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD
+                  {Math.max(remaining - amountInUSD, 0).toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD
                 </span>
               </div>
             </div>
@@ -414,7 +334,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           <div className="flex gap-3 pt-1">
             <button
               onClick={handleSubmit}
-              disabled={loading || !isValidAmount || !hasInput}
+              disabled={loading || !isValidAmount}
               className="flex-1 flex items-center justify-center gap-2 px-6 py-2.5 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
