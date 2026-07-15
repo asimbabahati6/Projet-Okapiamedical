@@ -65,7 +65,7 @@ export function ImportTarifsModal({ existingActs, usdToCdf, userName, userId, on
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const [result, setResult] = useState<{ updated: number; created: number } | null>(null);
 
-  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ');
+  const normalize = (s: string) => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
 
   const handleFile = useCallback((file: File) => {
     setError('');
@@ -135,6 +135,8 @@ export function ImportTarifsModal({ existingActs, usdToCdf, userName, userId, on
           const match = existingActs.find(
             a => normalize(a.category) === normalize(row.categorie)
               && normalize(a.act_name) === normalize(row.acte)
+          ) || existingActs.find(
+            a => normalize(a.act_name) === normalize(row.acte)
           );
 
           if (match) {

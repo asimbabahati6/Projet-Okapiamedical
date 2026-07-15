@@ -7,7 +7,7 @@ import { logActivity } from '../../utils/activityLogger';
 import { ImportTarifsModal } from '../../components/pricing/ImportTarifsModal';
 
 const ADMIN_ROLES = ['admin', 'medical_director', 'super_admin', 'hospital_admin', 'directeur_general'];
-const IMPORT_ROLES = ['admin', 'medical_director'];
+const IMPORT_ROLES = ['admin', 'medical_director', 'super_admin', 'hospital_admin', 'directeur_general', 'accountant'];
 
 interface MedicalAct {
   id: string;
