@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { X, CreditCard, DollarSign, Banknote, Check, AlertCircle, ArrowRightLeft, Info } from 'lucide-react';
+import { X, CreditCard, DollarSign, Banknote, Check, AlertCircle, ArrowRightLeft, Info, ShieldAlert } from 'lucide-react';
 import { Invoice } from '../../types/database';
 import { supabase } from '../../lib/supabase';
 import { enregistrerMouvementEntree } from '../../services/caisseService';
 import { useExchangeRate } from '../../hooks/useExchangeRate';
+import { useRBAC } from '../../contexts/RBACContext';
 
 const PAYMENT_METHODS = [
   { value: 'Espèces', label: 'Especes' },
@@ -23,6 +24,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
   const netToPay = invoice.net_to_pay ?? invoice.total_amount;
   const remaining = netToPay - invoice.paid_amount;
   const { rate, usdToCdf } = useExchangeRate();
+  const { isSimulationMode } = useRBAC();
 
   const [devise, setDevise] = useState<'USD' | 'CDF'>('USD');
   const [amount, setAmount] = useState('');
@@ -60,6 +62,12 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
     setLoading(true);
     setError('');
 
+    if (isSimulationMode) {
+      setError('Mode simulation — aucune donnee enregistree. Desactivez la simulation pour effectuer un vrai encaissement.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const { data: userData } = await supabase.auth.getUser();
       const userId = userData?.user?.id ?? null;
@@ -75,13 +83,18 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
         notes: notes || null,
         recorded_by: userId,
       });
-      if (insertErr) throw insertErr;
+      if (insertErr) {
+        if (insertErr.code === '42501' || insertErr.message?.includes('row-level security')) {
+          throw new Error('Acces refuse : votre role n\'a pas la permission d\'enregistrer des paiements. Contactez un administrateur.');
+        }
+        throw new Error(insertErr.message || 'Erreur lors de l\'insertion du paiement');
+      }
 
       const newPaidUSD = invoice.paid_amount + amountInUSD;
       const newBalance = Math.max(netToPay - newPaidUSD, 0);
       const newStatus = newBalance <= 0.01 ? 'paid' : 'partial';
 
-      const { error: updateErr } = await supabase
+      const { error: updateErr, count } = await supabase
         .from('invoices')
         .update({
           paid_amount: Math.round(newPaidUSD * 100) / 100,
@@ -92,15 +105,30 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           devise_paiement: devise,
           taux_change_applique: tauxApplique,
         })
-        .eq('id', invoice.id);
-      if (updateErr) throw updateErr;
+        .eq('id', invoice.id)
+        .select();
 
-      await enregistrerMouvementEntree({
-        montant: parsedAmount,
-        devise,
-        reference: `PAY-${displayNumber}`,
-        motif: `Paiement facture ${displayNumber} — ${patientName}`,
-      });
+      if (updateErr) {
+        if (updateErr.code === '42501' || updateErr.message?.includes('row-level security')) {
+          throw new Error('Paiement enregistre mais la mise a jour de la facture est bloquee par les permissions. Contactez un administrateur.');
+        }
+        throw new Error(updateErr.message || 'Erreur lors de la mise a jour de la facture');
+      }
+
+      if (count === 0) {
+        throw new Error('Paiement enregistre mais la facture n\'a pas ete mise a jour (aucune ligne modifiee). Verifiez les permissions RLS.');
+      }
+
+      try {
+        await enregistrerMouvementEntree({
+          montant: parsedAmount,
+          devise,
+          reference: `PAY-${displayNumber}`,
+          motif: `Paiement facture ${displayNumber} — ${patientName}`,
+        });
+      } catch (caisseErr: any) {
+        console.warn('Mouvement caisse non enregistre:', caisseErr.message);
+      }
 
       onSuccess();
     } catch (err: any) {
@@ -324,8 +352,13 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
           )}
 
           {error && (
-            <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div className={`flex items-start gap-2 p-3 border rounded-xl text-sm ${
+              error.includes('simulation') ? 'bg-amber-50 border-amber-200 text-amber-800' :
+              error.includes('permission') || error.includes('Acces refuse') ? 'bg-orange-50 border-orange-200 text-orange-800' :
+              'bg-red-50 border-red-200 text-red-700'
+            }`}>
+              {error.includes('simulation') ? <ShieldAlert className="w-4 h-4 flex-shrink-0 mt-0.5" /> :
+               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
               <p>{error}</p>
             </div>
           )}
