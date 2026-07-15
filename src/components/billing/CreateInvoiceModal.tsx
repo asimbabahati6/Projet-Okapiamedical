@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus, ChevronDown, CheckCircle } from 'lucide-react';
+import { X, Plus, Trash2, Calculator, Receipt, Search, Loader2, Percent, Tag, Users, Stethoscope, UserPlus, ChevronDown, CheckCircle, Package } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 interface CreateInvoiceModalProps {
@@ -36,6 +36,7 @@ interface MedecinPrestataire {
   specialite: string | null;
   type: string;
   source: string;
+  taux_commission_defaut: number | null;
 }
 
 interface InvoiceItem {
@@ -47,6 +48,9 @@ interface InvoiceItem {
   medecin_prestataire_id: string | null;
   mode_remuneration: string | null;
   valeur_remuneration: number | null;
+  discount_type: 'fixed' | 'percentage';
+  discount_value: number;
+  forfait_usd: number;
 }
 
 interface ItemErrors {
@@ -85,6 +89,24 @@ const PAYMENT_METHODS = [
 const TVA_RATE = 16;
 const COMMISSION_QUICK = [5, 10, 15, 20];
 const HONORAIRE_QUICK = [5, 10, 15, 20, 25, 30, 40, 50];
+const FORFAIT_OPTIONS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+
+const ENDOSCOPY_KEYWORDS = [
+  'endoscopie', 'bronchoscopie', 'gastrocopie', 'gastroscopie',
+  'restrocopie', 'rectoscopie', 'colonoscopie', 'anapath', 'anesthesie',
+];
+
+function normalizeForSearch(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+function isEndoscopyAct(description: string): boolean {
+  const normalized = normalizeForSearch(description);
+  return ENDOSCOPY_KEYWORDS.some(kw => normalized.includes(kw));
+}
 
 function makeItem(): InvoiceItem {
   return {
@@ -96,10 +118,12 @@ function makeItem(): InvoiceItem {
     medecin_prestataire_id: null,
     mode_remuneration: null,
     valeur_remuneration: null,
+    discount_type: 'fixed',
+    discount_value: 0,
+    forfait_usd: 0,
   };
 }
 
-// Searchable select with grouped options
 function SearchableSelect({
   value,
   onChange,
@@ -201,6 +225,21 @@ function SearchableSelect({
   );
 }
 
+function computeLineTotal(item: InvoiceItem): { gross: number; discountAmount: number; net: number } {
+  const gross = item.quantity * item.unit_price;
+  let discountAmount = 0;
+  if (item.discount_value > 0) {
+    if (item.discount_type === 'percentage') {
+      discountAmount = parseFloat((gross * Math.min(item.discount_value, 100) / 100).toFixed(2));
+    } else {
+      discountAmount = parseFloat(Math.min(item.discount_value, gross).toFixed(2));
+    }
+  }
+  const afterDiscount = gross - discountAmount;
+  const forfait = item.forfait_usd || 0;
+  return { gross, discountAmount, net: parseFloat((afterDiscount + forfait).toFixed(2)) };
+}
+
 export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalProps) {
   const [searchResults, setSearchResults] = useState<Patient[]>([]);
   const [patientSearch, setPatientSearch] = useState('');
@@ -211,10 +250,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [paymentMethod, setPaymentMethod] = useState('cash');
   const [notes, setNotes] = useState('');
   const [applyTva, setApplyTva] = useState(false);
-  const [discountType, setDiscountType] = useState<'fixed' | 'percentage'>('fixed');
-  const [discountValue, setDiscountValue] = useState<number>(0);
-  const [discountReason, setDiscountReason] = useState<string>('');
-  const [discountReasonDetail, setDiscountReasonDetail] = useState('');
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [sentToCaisse, setSentToCaisse] = useState(false);
@@ -224,8 +259,13 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   const [selectedConventionId, setSelectedConventionId] = useState<string>('');
 
   const [allMedecins, setAllMedecins] = useState<MedecinPrestataire[]>([]);
+  // Apporteur: free-text with autocomplete
+  const [apporteurSearchText, setApporteurSearchText] = useState('');
   const [medecinApporteurId, setMedecinApporteurId] = useState<string>('');
   const [pourcentageCommission, setPourcentageCommission] = useState<number>(0);
+  const [showApporteurDropdown, setShowApporteurDropdown] = useState(false);
+  const [tauxCommissionDefaut, setTauxCommissionDefaut] = useState<number>(10);
+  const apporteurRef = useRef<HTMLDivElement>(null);
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const actSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -237,7 +277,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
 
   useEffect(() => {
     async function load() {
-      const [convRes, medRes] = await Promise.all([
+      const [convRes, medRes, settingsRes] = await Promise.all([
         supabase
           .from('conventions')
           .select('id, nom, code, taux_prise_en_charge')
@@ -245,51 +285,26 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           .order('nom'),
         supabase
           .from('medecins_prestataires')
-          .select('id, nom_complet, specialite, type, source')
+          .select('id, nom_complet, specialite, type, source, taux_commission_defaut')
           .eq('actif', true)
           .order('nom_complet'),
+        supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'taux_commission_apporteur_defaut')
+          .maybeSingle(),
       ]);
       setConventions(convRes.data || []);
-      if (medRes.error) {
-        console.error('Erreur chargement medecins:', medRes.error);
-      }
       setAllMedecins(medRes.data || []);
+      if (settingsRes.data?.setting_value) {
+        setTauxCommissionDefaut(parseFloat(settingsRes.data.setting_value) || 10);
+      }
     }
     load();
   }, []);
 
-  // Build grouped options for prestataire dropdown (interne + externe)
   const prestataireGroups = (() => {
     const eligible = allMedecins.filter(m => m.type === 'prestataire' || m.type === 'les_deux');
-    const internes = eligible.filter(m => m.source === 'interne');
-    const externes = eligible.filter(m => m.source === 'externe');
-    const groups: { label: string; options: { id: string; display: string; sub?: string }[] }[] = [];
-    if (internes.length > 0) {
-      groups.push({
-        label: 'Medecins Okapia',
-        options: internes.map(m => ({
-          id: m.id,
-          display: m.nom_complet,
-          sub: m.specialite || undefined,
-        })),
-      });
-    }
-    if (externes.length > 0) {
-      groups.push({
-        label: 'Medecins externes',
-        options: externes.map(m => ({
-          id: m.id,
-          display: m.nom_complet,
-          sub: m.specialite || undefined,
-        })),
-      });
-    }
-    return groups;
-  })();
-
-  // Build grouped options for apporteur dropdown
-  const apporteurGroups = (() => {
-    const eligible = allMedecins.filter(m => m.type === 'apporteur' || m.type === 'les_deux');
     const internes = eligible.filter(m => m.source === 'interne');
     const externes = eligible.filter(m => m.source === 'externe');
     const groups: { label: string; options: { id: string; display: string; sub?: string }[] }[] = [];
@@ -305,15 +320,25 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
         options: externes.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })),
       });
     }
-    // If no apporteur-typed medecins, show all as fallback
-    if (groups.length === 0 && allMedecins.length > 0) {
-      const intAll = allMedecins.filter(m => m.source === 'interne');
-      const extAll = allMedecins.filter(m => m.source === 'externe');
-      if (intAll.length > 0) groups.push({ label: 'Medecins Okapia', options: intAll.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })) });
-      if (extAll.length > 0) groups.push({ label: 'Medecins externes', options: extAll.map(m => ({ id: m.id, display: m.nom_complet, sub: m.specialite || undefined })) });
-    }
     return groups;
   })();
+
+  // Apporteur autocomplete: filter medecins by search text
+  const apporteurSuggestions = (() => {
+    if (apporteurSearchText.length < 1) return [];
+    const term = normalizeForSearch(apporteurSearchText);
+    const eligible = allMedecins.filter(m => m.type === 'apporteur' || m.type === 'les_deux');
+    return eligible.filter(m => normalizeForSearch(m.nom_complet).includes(term)).slice(0, 15);
+  })();
+
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (apporteurRef.current && !apporteurRef.current.contains(e.target as Node))
+        setShowApporteurDropdown(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   useEffect(() => {
     function handleActClickOutside(e: MouseEvent) {
@@ -374,9 +399,10 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   }
 
   function selectMedicalAct(itemId: string, act: MedicalActSuggestion) {
+    const isForfaitAct = isEndoscopyAct(act.act_name);
     setItems(prev => prev.map(i =>
       i.id === itemId
-        ? { ...i, description: act.act_name, unit_price: act.price_usd }
+        ? { ...i, description: act.act_name, unit_price: act.price_usd, forfait_usd: isForfaitAct ? i.forfait_usd : 0 }
         : i
     ));
     setActiveActDropdown(null);
@@ -475,7 +501,14 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   }
 
   function updateItem(id: string, field: keyof InvoiceItem, value: string | number | null) {
-    setItems(prev => prev.map(i => (i.id === id ? { ...i, [field]: value } : i)));
+    setItems(prev => prev.map(i => {
+      if (i.id !== id) return i;
+      const updated = { ...i, [field]: value };
+      if (field === 'description' && typeof value === 'string' && !isEndoscopyAct(value)) {
+        updated.forfait_usd = 0;
+      }
+      return updated;
+    }));
     setFieldErrors(prev => {
       if (!prev.items?.[id]) return prev;
       const itemErrs = { ...prev.items[id] };
@@ -498,14 +531,41 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
     }));
   }
 
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unit_price, 0);
-  const discountApplied = discountType === 'percentage'
-    ? parseFloat((subtotal * Math.min(discountValue, 100) / 100).toFixed(2))
-    : parseFloat(Math.min(discountValue, subtotal).toFixed(2));
-  const afterDiscount = parseFloat((subtotal - discountApplied).toFixed(2));
-  const tvaAmount = applyTva ? parseFloat((afterDiscount * TVA_RATE / 100).toFixed(2)) : 0;
-  const netToPay = parseFloat((afterDiscount + tvaAmount).toFixed(2));
+  // Apporteur: select from autocomplete
+  function selectApporteur(m: MedecinPrestataire) {
+    setMedecinApporteurId(m.id);
+    setApporteurSearchText(m.nom_complet);
+    setShowApporteurDropdown(false);
+    const commRate = m.taux_commission_defaut ?? tauxCommissionDefaut;
+    setPourcentageCommission(commRate);
+  }
+
+  function clearApporteur() {
+    setMedecinApporteurId('');
+    setApporteurSearchText('');
+    setPourcentageCommission(0);
+  }
+
+  function handleApporteurTextChange(value: string) {
+    setApporteurSearchText(value);
+    setMedecinApporteurId('');
+    if (value.length >= 1) {
+      setShowApporteurDropdown(true);
+    } else {
+      setShowApporteurDropdown(false);
+      setPourcentageCommission(0);
+    }
+    if (value.length >= 2 && !medecinApporteurId) {
+      setPourcentageCommission(tauxCommissionDefaut);
+    }
+  }
+
+  const subtotal = items.reduce((sum, i) => sum + computeLineTotal(i).net, 0);
   const validItemCount = items.filter(i => i.description.trim() && i.unit_price > 0).length;
+  const tvaAmount = applyTva ? parseFloat((subtotal * TVA_RATE / 100).toFixed(2)) : 0;
+  const netToPay = parseFloat((subtotal + tvaAmount).toFixed(2));
+
+  const hasApporteur = medecinApporteurId || apporteurSearchText.trim().length >= 2;
 
   function computeHonoraire(item: InvoiceItem): number {
     if (!item.medecin_prestataire_id || !item.valeur_remuneration) return 0;
@@ -517,7 +577,7 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
   }
 
   const totalHonoraires = items.reduce((sum, i) => sum + computeHonoraire(i), 0);
-  const totalCommission = medecinApporteurId && pourcentageCommission > 0
+  const totalCommission = hasApporteur && pourcentageCommission > 0
     ? parseFloat((subtotal * pourcentageCommission / 100).toFixed(2))
     : 0;
 
@@ -583,6 +643,9 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
       const validItems = items.filter(i => i.description.trim() && i.unit_price > 0 && i.quantity >= 1);
       const typeFacture = clientType === 'conventionne' ? 'conventionne' : 'cash';
 
+      const isApporteurLibre = !medecinApporteurId && apporteurSearchText.trim().length >= 2;
+      const apporteurNomLibre = isApporteurLibre ? apporteurSearchText.trim() : null;
+
       const { data: invoice, error: invoiceError } = await supabase
         .from('invoices')
         .insert({
@@ -596,31 +659,38 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
           tva_rate: applyTva ? TVA_RATE : 0,
           tva_amount: tvaAmount,
           net_to_pay: netToPay,
-          discount_value: discountValue > 0 ? discountValue : 0,
-          discount_type: discountType,
-          discount_reason: discountReason || null,
-          discount_reason_detail: discountReason === 'autre' ? (discountReasonDetail || null) : null,
+          discount_value: 0,
+          discount_type: 'fixed',
           type_facture: typeFacture,
           convention_id: clientType === 'conventionne' ? selectedConventionId : null,
           medecin_apporteur_id: medecinApporteurId || null,
-          pourcentage_commission: medecinApporteurId ? (pourcentageCommission || null) : null,
+          medecin_apporteur_nom_libre: apporteurNomLibre,
+          pourcentage_commission: hasApporteur ? (pourcentageCommission || null) : null,
+          taux_commission_defaut_applique: isApporteurLibre ? tauxCommissionDefaut : null,
         })
         .select('id')
         .single();
 
       if (invoiceError) throw invoiceError;
 
-      const itemRows = validItems.map(item => ({
-        invoice_id: invoice.id,
-        description: item.description.trim(),
-        item_type: item.item_type,
-        quantity: item.quantity,
-        unit_price: item.unit_price,
-        total_price: parseFloat((item.quantity * item.unit_price).toFixed(2)),
-        medecin_prestataire_id: item.medecin_prestataire_id || null,
-        mode_remuneration: item.medecin_prestataire_id ? (item.mode_remuneration || null) : null,
-        valeur_remuneration: item.medecin_prestataire_id ? (item.valeur_remuneration || null) : null,
-      }));
+      const itemRows = validItems.map(item => {
+        const { discountAmount, net } = computeLineTotal(item);
+        return {
+          invoice_id: invoice.id,
+          description: item.description.trim(),
+          item_type: item.item_type,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          total_price: net,
+          medecin_prestataire_id: item.medecin_prestataire_id || null,
+          mode_remuneration: item.medecin_prestataire_id ? (item.mode_remuneration || null) : null,
+          valeur_remuneration: item.medecin_prestataire_id ? (item.valeur_remuneration || null) : null,
+          discount_type: item.discount_value > 0 ? item.discount_type : null,
+          discount_value: item.discount_value || 0,
+          discount_amount: discountAmount,
+          forfait_usd: item.forfait_usd || 0,
+        };
+      });
 
       const { error: itemsError } = await supabase.from('invoice_items').insert(itemRows);
       if (itemsError) throw itemsError;
@@ -813,8 +883,9 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 <div className="space-y-3">
                   {items.map((item, idx) => {
                     const ie = fieldErrors.items?.[item.id];
-                    const itemSubtotal = item.quantity * item.unit_price;
+                    const { gross, discountAmount, net } = computeLineTotal(item);
                     const honAmount = computeHonoraire(item);
+                    const showForfait = isEndoscopyAct(item.description);
 
                     return (
                       <div key={item.id} className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
@@ -931,6 +1002,93 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                           </div>
                         </div>
 
+                        {/* Per-line Discount */}
+                        <div className="border-t border-gray-200 pt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Tag className="w-3.5 h-3.5 text-orange-500" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase">Remise (optionnel)</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex rounded-md border border-gray-300 overflow-hidden">
+                              <button
+                                type="button"
+                                onClick={() => updateItem(item.id, 'discount_type', 'fixed')}
+                                className={`px-2 py-1 text-xs font-medium transition-colors ${
+                                  item.discount_type === 'fixed' ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                                }`}
+                              >
+                                USD
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => updateItem(item.id, 'discount_type', 'percentage')}
+                                className={`px-2 py-1 text-xs font-medium transition-colors flex items-center gap-0.5 ${
+                                  item.discount_type === 'percentage' ? 'bg-orange-500 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'
+                                }`}
+                              >
+                                <Percent className="w-3 h-3" />
+                              </button>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              max={item.discount_type === 'percentage' ? 100 : gross}
+                              step="0.01"
+                              value={item.discount_value || ''}
+                              onChange={(e) => updateItem(item.id, 'discount_value', Math.max(0, parseFloat(e.target.value) || 0))}
+                              className="w-28 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-orange-400 focus:border-transparent"
+                              placeholder="0"
+                            />
+                            {discountAmount > 0 && (
+                              <span className="text-xs text-orange-600 font-medium">
+                                -{discountAmount.toFixed(2)} USD
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Forfait Endoscopie */}
+                        {showForfait && (
+                          <div className="border-t border-gray-200 pt-3">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Package className="w-3.5 h-3.5 text-purple-600" />
+                              <span className="text-xs font-semibold text-purple-700 uppercase">Forfait endoscopie</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => updateItem(item.id, 'forfait_usd', 0)}
+                                className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                                  !item.forfait_usd
+                                    ? 'bg-gray-200 border-gray-400 text-gray-700 font-semibold'
+                                    : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                                }`}
+                              >
+                                Aucun
+                              </button>
+                              {FORFAIT_OPTIONS.map(v => (
+                                <button
+                                  key={v}
+                                  type="button"
+                                  onClick={() => updateItem(item.id, 'forfait_usd', v)}
+                                  className={`px-2 py-1 text-xs rounded-md border transition-colors ${
+                                    item.forfait_usd === v
+                                      ? 'bg-purple-100 border-purple-400 text-purple-700 font-semibold'
+                                      : 'border-gray-200 text-gray-500 hover:bg-gray-100'
+                                  }`}
+                                >
+                                  {v} USD
+                                </button>
+                              ))}
+                            </div>
+                            {item.forfait_usd > 0 && (
+                              <p className="text-xs font-medium text-purple-700 bg-purple-50 px-2 py-1 rounded mt-1.5">
+                                Forfait : +{item.forfait_usd.toFixed(2)} USD
+                              </p>
+                            )}
+                          </div>
+                        )}
+
                         {/* Medecin Prestataire per line */}
                         <div className="border-t border-gray-200 pt-3">
                           <div className="flex items-center gap-2 mb-2">
@@ -1012,8 +1170,13 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                         </div>
 
                         <div className="text-right">
-                          <span className={`text-sm font-semibold ${itemSubtotal > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
-                            Sous-total: {itemSubtotal.toFixed(2)} USD
+                          <span className={`text-sm font-semibold ${net > 0 ? 'text-gray-700' : 'text-gray-400'}`}>
+                            Sous-total: {net.toFixed(2)} USD
+                            {(discountAmount > 0 || (item.forfait_usd > 0 && showForfait)) && (
+                              <span className="text-xs text-gray-400 font-normal ml-1">
+                                (brut: {gross.toFixed(2)}{discountAmount > 0 ? ` -${discountAmount.toFixed(2)}` : ''}{item.forfait_usd > 0 && showForfait ? ` +${item.forfait_usd.toFixed(2)} forfait` : ''})
+                              </span>
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1022,22 +1185,73 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 </div>
               </div>
 
-              {/* Medecin Apporteur */}
+              {/* Medecin Apporteur - Free text with autocomplete */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <UserPlus className="w-5 h-5 text-blue-700" />
                   <h3 className="text-sm font-semibold text-gray-800">Medecin apporteur (optionnel)</h3>
                 </div>
-                <SearchableSelect
-                  value={medecinApporteurId}
-                  onChange={(val) => {
-                    setMedecinApporteurId(val);
-                    if (!val) setPourcentageCommission(0);
-                  }}
-                  placeholder="-- Aucun --"
-                  groups={apporteurGroups}
-                />
+                <div className="relative" ref={apporteurRef}>
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Saisir le nom du medecin apporteur..."
+                    value={apporteurSearchText}
+                    onChange={(e) => handleApporteurTextChange(e.target.value)}
+                    onFocus={() => {
+                      if (apporteurSearchText.length >= 1 && !medecinApporteurId)
+                        setShowApporteurDropdown(true);
+                    }}
+                    className="w-full pl-9 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                  />
+                  {apporteurSearchText && (
+                    <button
+                      type="button"
+                      onClick={clearApporteur}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-red-500"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                  {showApporteurDropdown && !medecinApporteurId && apporteurSuggestions.length > 0 && (
+                    <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
+                      {apporteurSuggestions.map(m => (
+                        <button
+                          key={m.id}
+                          type="button"
+                          onClick={() => selectApporteur(m)}
+                          className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0"
+                        >
+                          <span className="font-medium text-gray-900">{m.nom_complet}</span>
+                          {m.specialite && <span className="text-xs text-gray-400 ml-2">({m.specialite})</span>}
+                          <span className="text-xs text-blue-500 ml-2">
+                            {m.source === 'interne' ? 'Okapia' : 'Externe'}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {showApporteurDropdown && !medecinApporteurId && apporteurSearchText.length >= 2 && apporteurSuggestions.length === 0 && (
+                    <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg p-3">
+                      <p className="text-xs text-gray-500 text-center">
+                        Aucun apporteur enregistre pour "{apporteurSearchText}".
+                        Le nom sera saisi librement avec le taux par defaut ({tauxCommissionDefaut}%).
+                      </p>
+                    </div>
+                  )}
+                </div>
                 {medecinApporteurId && (
+                  <p className="text-xs text-green-600 font-medium flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Apporteur enregistre — commission selon son taux configure
+                  </p>
+                )}
+                {!medecinApporteurId && apporteurSearchText.trim().length >= 2 && (
+                  <p className="text-xs text-amber-600 font-medium">
+                    Apporteur libre — taux par defaut: {tauxCommissionDefaut}%
+                  </p>
+                )}
+                {hasApporteur && (
                   <div className="space-y-2">
                     <div>
                       <label className="block text-xs text-gray-500 mb-1">Commission (%)</label>
@@ -1115,84 +1329,6 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 />
               </div>
 
-              {/* Discount / Remise */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-orange-500" />
-                  <h3 className="text-sm font-semibold text-gray-800">Remise / Reduction</h3>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Type de remise</label>
-                    <div className="flex rounded-lg border border-gray-300 overflow-hidden">
-                      <button
-                        type="button"
-                        onClick={() => setDiscountType('fixed')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${
-                          discountType === 'fixed' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        Montant fixe
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setDiscountType('percentage')}
-                        className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1 ${
-                          discountType === 'percentage' ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        <Percent className="w-3.5 h-3.5" />
-                        Pourcentage
-                      </button>
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">
-                      Valeur {discountType === 'percentage' ? '(%)' : '(USD)'}
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max={discountType === 'percentage' ? 100 : subtotal}
-                      step="0.01"
-                      value={discountValue || ''}
-                      onChange={(e) => setDiscountValue(Math.max(0, parseFloat(e.target.value) || 0))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                      placeholder="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-500 mb-1">Motif de reduction</label>
-                    <select
-                      value={discountReason}
-                      onChange={(e) => setDiscountReason(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    >
-                      <option value="">Aucun motif</option>
-                      <option value="personnel">Personnel</option>
-                      <option value="partenaire">Partenaire</option>
-                      <option value="indigence">Indigence</option>
-                      <option value="autre">Autre</option>
-                    </select>
-                  </div>
-                </div>
-                {discountReason === 'autre' && (
-                  <input
-                    type="text"
-                    value={discountReasonDetail}
-                    onChange={(e) => setDiscountReasonDetail(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
-                    placeholder="Precisez le motif de la reduction..."
-                  />
-                )}
-                {discountApplied > 0 && (
-                  <p className="text-sm text-orange-600 font-medium">
-                    Remise appliquee : -{discountApplied.toFixed(2)} USD
-                    {discountType === 'percentage' && ` (${discountValue}%)`}
-                  </p>
-                )}
-              </div>
-
               {/* Totals Summary */}
               <div className="bg-gradient-to-br from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-4">
@@ -1201,19 +1337,9 @@ export function CreateInvoiceModal({ onClose, onSuccess }: CreateInvoiceModalPro
                 </div>
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Sous-total ({validItemCount} article(s))</span>
+                    <span className="text-gray-600">Total ({validItemCount} article(s), remises et forfaits inclus)</span>
                     <span className="font-medium text-gray-900">{subtotal.toFixed(2)} USD</span>
                   </div>
-                  {discountApplied > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-orange-600">
-                        Remise {discountType === 'percentage' ? `(${discountValue}%)` : ''}
-                        {discountReason && discountReason !== 'autre' ? ` - ${discountReason.charAt(0).toUpperCase() + discountReason.slice(1)}` : ''}
-                        {discountReason === 'autre' && discountReasonDetail ? ` - ${discountReasonDetail}` : ''}
-                      </span>
-                      <span className="font-medium text-orange-600">-{discountApplied.toFixed(2)} USD</span>
-                    </div>
-                  )}
                   {applyTva && (
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">TVA ({TVA_RATE}%)</span>
