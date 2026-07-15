@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Receipt, Search, Plus, DollarSign, TrendingUp, FileText, Eye, Printer, CheckCircle, X as XIcon, ArrowRightLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { CreateInvoiceModal } from '../../components/billing/CreateInvoiceModal';
@@ -33,10 +34,35 @@ export function BillingPage() {
   const [encaisserInvoice, setEncaisserInvoice] = useState<Invoice | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const { usdToCdf } = useExchangeRate();
+  const location = useLocation();
 
   useEffect(() => {
     fetchInvoices();
   }, []);
+
+  useEffect(() => {
+    const state = location.state as { encaisserInvoiceId?: string } | null;
+    if (state?.encaisserInvoiceId && invoices.length > 0) {
+      const row = invoices.find(inv => inv.id === state.encaisserInvoiceId);
+      if (row && row.status !== 'paid' && row.status !== 'cancelled') {
+        const full: Invoice = {
+          id: row.id,
+          invoice_number: row.invoice_number,
+          patient_id: row.patient_id,
+          total_amount: row.amount,
+          paid_amount: row.paid_amount,
+          balance: row.balance,
+          status: row.status as Invoice['status'],
+          payment_method: row.payment_method || null,
+          payment_date: null,
+          net_to_pay: row.net_to_pay,
+          created_at: row.created_at,
+        };
+        setEncaisserInvoice(full);
+      }
+      window.history.replaceState({}, '');
+    }
+  }, [location.state, invoices]);
 
   async function fetchInvoices() {
     try {

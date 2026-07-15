@@ -11,7 +11,10 @@ export type NotificationType =
   | 'signature_required'
   | 'workflow_assigned'
   | 'consultation_scheduled'
-  | 'medication_low_stock';
+  | 'medication_low_stock'
+  | 'payment_received'
+  | 'invoice_partial'
+  | 'tarifs_imported';
 
 export type NotificationPriority = 'low' | 'normal' | 'high' | 'critical';
 
@@ -184,6 +187,58 @@ export async function notifyLowStock(pharmacistIds: string[], medicationName: st
       priority: 'normal',
       actionUrl: `/tableau-de-bord/pharmacy`
     })
+  );
+
+  await Promise.all(promises);
+}
+
+export async function notifyPaymentReceived(params: {
+  invoiceNumber: string;
+  patientName: string;
+  amount: number;
+  devise: string;
+  newStatus: 'paid' | 'partial';
+  remainingBalance: number;
+  caissierName: string;
+}) {
+  const billingRoles = ['super_admin', 'hospital_admin', 'directeur_general', 'gestionnaire', 'caissiere', 'finance_manager', 'accountant'];
+  const { data: roles } = await supabase.from('roles').select('id, name').in('name', billingRoles);
+  if (!roles || roles.length === 0) return;
+  const roleIds = roles.map((r: { id: string }) => r.id);
+  const { data: recipients } = await supabase
+    .from('user_profiles')
+    .select('id')
+    .in('role_id', roleIds)
+    .limit(30);
+
+  if (!recipients || recipients.length === 0) return;
+
+  const type: NotificationType = params.newStatus === 'paid' ? 'payment_received' : 'invoice_partial';
+  const title = params.newStatus === 'paid'
+    ? `Paiement complet — ${params.invoiceNumber}`
+    : `Paiement partiel — ${params.invoiceNumber}`;
+  const message = params.newStatus === 'paid'
+    ? `${params.patientName} : ${params.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${params.devise} encaisse par ${params.caissierName}`
+    : `${params.patientName} : ${params.amount.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} ${params.devise} encaisse par ${params.caissierName}. Solde restant : ${params.remainingBalance.toLocaleString('fr-FR', { minimumFractionDigits: 2 })} USD`;
+
+  const promises = recipients.map((r: Record<string, unknown>) =>
+    sendNotification({
+      recipientId: r.id as string,
+      notificationType: type,
+      title,
+      message,
+      priority: params.newStatus === 'paid' ? 'normal' : 'high',
+      actionUrl: '/staff/billing',
+      metadata: {
+        invoice_number: params.invoiceNumber,
+        patient_name: params.patientName,
+        amount: params.amount,
+        devise: params.devise,
+        new_status: params.newStatus,
+        remaining_balance: params.remainingBalance,
+        caissier: params.caissierName,
+      },
+    }).catch(err => console.warn('Notification not sent:', err.message))
   );
 
   await Promise.all(promises);

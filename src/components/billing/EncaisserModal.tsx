@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase';
 import { enregistrerMouvementEntree } from '../../services/caisseService';
 import { useExchangeRate } from '../../hooks/useExchangeRate';
 import { useRBAC } from '../../contexts/RBACContext';
+import { useAuth } from '../../contexts/AuthContext';
+import { notifyPaymentReceived } from '../../utils/notificationService';
 
 const PAYMENT_METHODS = [
   { value: 'Espèces', label: 'Especes' },
@@ -25,6 +27,7 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
   const remaining = netToPay - invoice.paid_amount;
   const { rate, usdToCdf } = useExchangeRate();
   const { isSimulationMode } = useRBAC();
+  const { profile } = useAuth();
 
   const [devise, setDevise] = useState<'USD' | 'CDF'>('USD');
   const [amount, setAmount] = useState('');
@@ -129,6 +132,16 @@ export function EncaisserModal({ invoice, onClose, onSuccess }: EncaisserModalPr
       } catch (caisseErr: any) {
         console.warn('Mouvement caisse non enregistre:', caisseErr.message);
       }
+
+      notifyPaymentReceived({
+        invoiceNumber: displayNumber,
+        patientName,
+        amount: parsedAmount,
+        devise,
+        newStatus: newStatus as 'paid' | 'partial',
+        remainingBalance: Math.round(newBalance * 100) / 100,
+        caissierName: profile?.full_name || 'Caissier',
+      }).catch(() => {});
 
       onSuccess();
     } catch (err: any) {
