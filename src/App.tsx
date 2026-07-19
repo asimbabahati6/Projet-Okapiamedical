@@ -204,7 +204,7 @@ export default function App() {
                       <Route path="admin-tasks" element={<Lazy><AdminTasksPage /></Lazy>} />
                       <Route path="admin-vendors" element={<Lazy><AdminVendorsPage /></Lazy>} />
                       <Route path="documents" element={<DocumentsPage />} />
-                      <Route path="medical-report/:consultationId" element={<Lazy><MedicalReportPage /></Lazy>} />
+                      <Route path="medical-report/:consultationId?" element={<Lazy><MedicalReportPage /></Lazy>} />
                       <Route path="messaging" element={<Lazy><MessagingPage /></Lazy>} />
                       <Route path="okapia-connect" element={<Lazy><MessagingPage /></Lazy>} />
                       <Route path="feedback" element={<FeedbackDashboard />} />
