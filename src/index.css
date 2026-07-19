@@ -231,3 +231,106 @@
 .animate-queue-pulse {
   animation: queue-pulse 2s ease-in-out infinite;
 }
+
+/* =====================================================
+   OKAPIA Design System — fondations
+   Encre vert-profond · Émeraude · Ivoire · Bronze
+   ===================================================== */
+
+@layer base {
+  body {
+    @apply font-sans text-ink bg-white antialiased;
+    font-feature-settings: 'ss01' on;
+  }
+
+  :focus-visible {
+    outline: 2px solid theme('colors.brand.600');
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Eyebrow : petit label mono au-dessus des titres */
+  .eyebrow {
+    @apply font-mono text-[11px] uppercase text-brand-500;
+    letter-spacing: 0.18em;
+  }
+  .eyebrow--light {
+    @apply text-brand-300;
+  }
+
+  /* Titres display */
+  .display-xl {
+    @apply font-display font-semibold text-ink;
+    font-size: clamp(2.25rem, 5vw, 3.75rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+  }
+  .display-lg {
+    @apply font-display font-semibold text-ink;
+    font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+    line-height: 1.1;
+    letter-spacing: -0.015em;
+  }
+
+  /* Boutons */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-medium text-sm transition-all duration-200 select-none;
+    padding: 0.75rem 1.5rem;
+  }
+  .btn-primary {
+    @apply btn bg-brand-600 text-white hover:bg-brand-700 shadow-soft hover:shadow-lift;
+  }
+  .btn-secondary {
+    @apply btn bg-transparent text-ink border border-line hover:border-ink/30 hover:bg-sand;
+  }
+  .btn-on-dark {
+    @apply btn bg-white text-ink hover:bg-sand;
+  }
+  .btn-ghost-dark {
+    @apply btn text-white/85 border border-white/20 hover:bg-white/10 hover:text-white;
+  }
+
+  /* Cartes */
+  .card {
+    @apply bg-white rounded-2xl border border-line shadow-soft;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-lift hover:-translate-y-0.5;
+  }
+
+  /* Hairline */
+  .hairline {
+    @apply border-t border-line;
+  }
+}
+
+/* Signature : rayures d'okapi — bandes verticales irrégulières */
+.okapi-stripes {
+  background-image: repeating-linear-gradient(
+    90deg,
+    currentColor 0px, currentColor 3px,
+    transparent 3px, transparent 10px,
+    currentColor 10px, currentColor 12px,
+    transparent 12px, transparent 22px,
+    currentColor 22px, currentColor 26px,
+    transparent 26px, transparent 34px
+  );
+}
+
+/* Apparition douce au chargement */
+@keyframes okapia-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.rise { animation: okapia-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.rise-1 { animation-delay: 0.05s; }
+.rise-2 { animation-delay: 0.15s; }
+.rise-3 { animation-delay: 0.25s; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .rise-1, .rise-2, .rise-3 {
+    animation: none !important;
+  }
+}

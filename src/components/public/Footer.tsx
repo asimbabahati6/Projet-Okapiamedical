@@ -15,8 +15,9 @@ export function Footer() {
   const { t } = useLanguage();
 
   return (
-    <footer className="bg-gray-900 text-gray-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+    <footer className="relative bg-ink text-white/70 overflow-hidden">
+      <div className="okapi-stripes absolute top-0 left-0 h-full w-16 text-white opacity-[0.04] pointer-events-none" aria-hidden="true" />
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 relative">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           <div>
             <div className="okapia-logo-wrapper mb-4">
@@ -27,7 +28,7 @@ export function Footer() {
                   className="okapia-logo okapia-logo-footer"
                 />
               </div>
-              <span className="text-xl font-bold text-white">OKAPIA Medical</span>
+              <span className="font-display font-semibold text-lg text-white tracking-tight">OKAPIA <span className="text-brand-300">Medical</span></span>
             </div>
             <p className="text-sm mb-4">
               {t.home.mission_text}
@@ -40,7 +41,7 @@ export function Footer() {
                   href={s.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-full bg-gray-800 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                  className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
                   title={s.id.charAt(0).toUpperCase() + s.id.slice(1)}
                   style={{ color: s.color }}
                 >
@@ -51,13 +52,13 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">{t.common.contact}</h3>
+            <h3 className="eyebrow eyebrow--light mb-5">{t.common.contact}</h3>
             <div className="space-y-3">
               <a
                 href="https://maps.google.com/?q=OKAPIA+Medical,+Chauss%C3%A9e+Mz%C3%A9e+Kabila+16.881,+Galerie+Manfield,+Kinshasa"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-start gap-3 hover:text-blue-400 transition-colors group cursor-pointer"
+                className="flex items-start gap-3 hover:text-brand-300 transition-colors group cursor-pointer"
                 title="Voir OKAPIA Medical sur Google Maps"
               >
                 <MapPin className="w-5 h-5 flex-shrink-0 mt-0.5 group-hover:scale-110 transition-transform" />
@@ -82,16 +83,16 @@ export function Footer() {
           </div>
 
           <div>
-            <h3 className="text-white font-semibold mb-4">Horaires d'ouverture</h3>
+            <h3 className="eyebrow eyebrow--light mb-5">Horaires d'ouverture</h3>
             <div className="space-y-1 mb-2">
               <p className="text-sm">Lundi - Vendredi</p>
-              <p className="text-2xl font-bold text-blue-400">08h00 - 17h00</p>
+              <p className="font-display text-2xl font-semibold text-white">08h00 - 17h00</p>
             </div>
             <div className="space-y-1">
               <p className="text-sm">Samedi - Dimanche</p>
-              <p className="text-2xl font-bold text-blue-400">08h00 - 14h00</p>
+              <p className="font-display text-2xl font-semibold text-white">08h00 - 14h00</p>
             </div>
-            <p className="text-sm mt-4 text-gray-400">Services d'urgence 24/7</p>
+            <p className="text-sm mt-4 inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span><span className="text-brand-300 font-medium">Services d'urgence 24/7</span></p>
           </div>
 
           <div className="flex justify-center md:justify-start lg:justify-center">
@@ -103,7 +104,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm">
+        <div className="border-t border-white/10 mt-12 pt-8 text-center text-sm text-white/50">
           <p>&copy; {new Date().getFullYear()} OKAPIA Medical. Tous droits reserves.</p>
         </div>
       </div>

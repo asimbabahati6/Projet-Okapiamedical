@@ -80,34 +80,36 @@ export function Home({ onNavigate }: HomeProps) {
     <div className="min-h-screen bg-white">
       <HeroSlider onNavigate={onNavigate} />
 
-      <section className="py-16 bg-gray-50">
+      <section className="py-20 lg:py-24 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">{t.home.mission_title}</h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <div className="max-w-2xl mb-14">
+            <p className="eyebrow mb-4">Notre mission</p>
+            <h2 className="display-lg mb-5">{t.home.mission_title}</h2>
+            <p className="text-lg text-ink-muted leading-relaxed">
               {t.home.mission_text}
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="bg-white p-6 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                <div className="bg-blue-100 w-12 h-12 rounded-lg flex items-center justify-center mb-4">
-                  <feature.icon className="w-6 h-6 text-blue-600" />
+              <div key={index} className="card card-hover p-6">
+                <div className="bg-brand-50 w-11 h-11 rounded-xl flex items-center justify-center mb-5">
+                  <feature.icon className="w-5 h-5 text-brand-600" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600 text-sm">{feature.description}</p>
+                <h3 className="font-display font-semibold text-ink mb-2">{feature.title}</h3>
+                <p className="text-ink-muted text-sm leading-relaxed">{feature.description}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="py-16">
+      <section className="py-20 lg:py-24 bg-sand">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">{t.home.services_title}</h2>
-            <p className="text-lg text-gray-600">
+          <div className="max-w-2xl mb-14">
+            <p className="eyebrow mb-4">Nos services</p>
+            <h2 className="display-lg mb-5">{t.home.services_title}</h2>
+            <p className="text-lg text-ink-muted">
               {language === 'fr' && 'Services de santé complets pour tous vos besoins'}
               {language === 'en' && 'Comprehensive healthcare services for all your needs'}
               {language === 'ar' && 'خدمات رعاية صحية شاملة لجميع احتياجاتك'}
@@ -137,10 +139,10 @@ export function Home({ onNavigate }: HomeProps) {
                   );
                 })}
               </div>
-              <div className="text-center mt-8">
+              <div className="mt-10">
                 <button
                   onClick={() => onNavigate('services')}
-                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                  className="btn-secondary !px-7"
                 >
                   {language === 'fr' && 'Voir tous les services'}
                   {language === 'en' && 'View all services'}
@@ -152,20 +154,25 @@ export function Home({ onNavigate }: HomeProps) {
         </div>
       </section>
 
-      <section className="py-16 bg-blue-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <Award className="w-16 h-16 mx-auto mb-6" />
-          <h2 className="text-3xl font-bold mb-4">Excellence en soins de santé accréditée</h2>
-          <p className="text-xl text-blue-100 max-w-2xl mx-auto mb-8">
-            OKAPIA Médical est accrédité selon les normes internationales de soins de santé et s'engage à fournir
-            des services médicaux de classe mondiale.
-          </p>
-          <button
-            onClick={() => onNavigate('about')}
-            className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-blue-50 transition-colors"
-          >
-            {t.common.about}
-          </button>
+      <section className="relative py-20 lg:py-24 bg-ink text-white overflow-hidden">
+        <div className="okapi-stripes absolute top-0 right-0 h-full w-24 text-white opacity-[0.05] pointer-events-none" aria-hidden="true" />
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div className="max-w-3xl">
+            <p className="eyebrow eyebrow--light mb-4 inline-flex items-center gap-2">
+              <Award className="w-4 h-4" />
+              Accréditation internationale
+            </p>
+            <h2 className="font-display font-semibold text-white mb-5" style={{ fontSize: 'clamp(1.75rem, 3.2vw, 2.5rem)', lineHeight: 1.1, letterSpacing: '-0.015em' }}>
+              Excellence en soins de santé accréditée
+            </h2>
+            <p className="text-lg text-white/70 leading-relaxed mb-9">
+              OKAPIA Médical est accrédité selon les normes internationales de soins de santé et s'engage à fournir
+              des services médicaux de classe mondiale.
+            </p>
+            <button onClick={() => onNavigate('about')} className="btn-on-dark !px-7">
+              {t.common.about}
+            </button>
+          </div>
         </div>
       </section>
     </div>

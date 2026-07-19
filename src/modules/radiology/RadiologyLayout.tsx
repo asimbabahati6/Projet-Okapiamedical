@@ -75,25 +75,25 @@ export default function RadiologyLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-sand">
       <div className="flex">
         {/* Sidebar */}
         <aside
           className={`${
             sidebarOpen ? 'w-64' : 'w-20'
-          } bg-gradient-to-b from-cyan-600 to-cyan-700 min-h-screen transition-all duration-300 flex flex-col`}
+          } bg-ink min-h-screen transition-all duration-300 flex flex-col`}
         >
           {/* Header */}
-          <div className="p-4 flex items-center justify-between border-b border-cyan-500">
+          <div className="p-4 flex items-center justify-between border-b border-white/10">
             {sidebarOpen && (
               <div className="flex items-center gap-2">
                 <Activity className="w-6 h-6 text-white" />
-                <span className="text-white font-bold text-lg">Radiologie</span>
+                <span className="font-display font-semibold text-lg text-white tracking-tight">Radiologie</span>
               </div>
             )}
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="p-2 hover:bg-cyan-500 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/10 rounded-lg transition-colors"
             >
               {sidebarOpen ? (
                 <X className="w-5 h-5 text-white" />
@@ -110,10 +110,10 @@ export default function RadiologyLayout() {
                 key={item.path}
                 to={item.path}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors ${
                     isActive
-                      ? 'bg-white text-cyan-700'
-                      : 'text-cyan-50 hover:bg-cyan-500'
+                      ? 'bg-white/10 text-white font-medium'
+                      : 'text-white/60 hover:text-white hover:bg-white/5'
                   }`
                 }
               >
@@ -124,10 +124,10 @@ export default function RadiologyLayout() {
           </nav>
 
           {/* Footer */}
-          <div className="p-4 border-t border-cyan-500">
+          <div className="p-4 border-t border-white/10">
             <button
               onClick={handleSignOut}
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-cyan-50 hover:bg-cyan-500 transition-colors w-full"
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-white/60 hover:text-red-300 hover:bg-red-500/10 transition-colors w-full"
             >
               <LogOut className="w-5 h-5 flex-shrink-0" />
               {sidebarOpen && <span className="font-medium">Déconnexion</span>}
