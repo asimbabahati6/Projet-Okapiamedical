@@ -28,7 +28,7 @@ export default function MedicalReportPage() {
   const [patientSearch, setPatientSearch] = useState('');
   const [patients, setPatients] = useState<PatientOption[]>([]);
   const [showPatientDropdown, setShowPatientDropdown] = useState(false);
-  const DOCTOR_ROLES = ['doctor', 'medecin', 'admin', 'medical_director', 'medecin_chef_staff'];
+  const DOCTOR_ROLES = ['doctor', 'medecin', 'admin', 'super_admin', 'hospital_admin', 'medical_director', 'medecin_chef_staff'];
   const isDoctorRole = DOCTOR_ROLES.includes(profile?.role?.name || '');
 
   useEffect(() => {
