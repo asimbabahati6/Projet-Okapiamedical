@@ -122,20 +122,20 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
+      <div className="min-h-screen bg-sand flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600" />
       </div>
     );
   }
 
   if (!post) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-sand flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500 text-lg mb-4">Article introuvable</p>
+          <p className="text-ink-muted text-lg mb-4">Article introuvable</p>
           <button
             onClick={() => onNavigate('news')}
-            className="text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 mx-auto"
+            className="text-brand-600 hover:text-blue-800 font-medium flex items-center gap-2 mx-auto"
           >
             <ArrowLeft className="w-4 h-4" />
             Retour aux actualites
@@ -152,17 +152,17 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
   const articleUrl = `${window.location.origin}/#news/${post.slug || post.id}`;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-sand">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => onNavigate('news')}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-800 font-medium mb-8 transition-colors"
+          className="flex items-center gap-2 text-brand-600 hover:text-blue-800 font-medium mb-8 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
           Retour aux actualites
         </button>
 
-        <article className="bg-white rounded-xl shadow-lg overflow-hidden">
+        <article className="card overflow-hidden">
           {imageUrl && (
             <div className="h-64 md:h-96 overflow-hidden">
               <img
@@ -175,14 +175,14 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
 
           <div className="p-8 md:p-12">
             {post.category && (
-              <span className="inline-block px-3 py-1 bg-blue-100 text-blue-800 text-sm font-medium rounded-full mb-4">
+              <span className="inline-block px-3 py-1 bg-brand-50 text-blue-800 text-sm font-medium rounded-full mb-4">
                 {getLocalizedText(post.category as unknown as Record<string, unknown>, 'name')}
               </span>
             )}
 
-            <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">{title}</h1>
+            <h1 className="font-display font-semibold text-ink mb-6" style={{ fontSize: 'clamp(1.75rem, 3.5vw, 2.5rem)', lineHeight: 1.12, letterSpacing: '-0.015em' }}>{title}</h1>
 
-            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-6 pb-6 border-b border-gray-200">
+            <div className="flex flex-wrap items-center gap-4 text-sm text-ink-muted mb-6 pb-6 border-b border-line">
               {post.author && (
                 <div className="flex items-center gap-2">
                   {post.author.avatar_url ? (
@@ -208,22 +208,22 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
             </div>
 
             {/* Social sharing */}
-            <div className="mb-8 pb-8 border-b border-gray-200">
-              <p className="text-sm font-medium text-gray-700 mb-3">Partager cet article</p>
+            <div className="mb-8 pb-8 border-b border-line">
+              <p className="text-sm font-medium text-ink mb-3">Partager cet article</p>
               <SocialShareButtons url={articleUrl} title={title} size="md" />
             </div>
 
             <div
-              className="prose prose-lg max-w-none text-gray-700"
+              className="prose prose-lg max-w-none text-ink"
               dangerouslySetInnerHTML={{ __html: content }}
             />
 
             {post.tags && post.tags.length > 0 && (
-              <div className="mt-8 pt-8 border-t border-gray-200">
+              <div className="mt-8 pt-8 border-t border-line">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Tag className="w-4 h-4 text-gray-400" />
+                  <Tag className="w-4 h-4 text-ink-muted/70" />
                   {post.tags.map((tag, index) => (
-                    <span key={index} className="text-sm text-gray-600 bg-gray-100 px-3 py-1 rounded-full">
+                    <span key={index} className="text-sm text-ink-muted bg-sand-dark px-3 py-1 rounded-full">
                       {tag}
                     </span>
                   ))}
@@ -232,8 +232,8 @@ export function NewsDetail({ slug, onNavigate }: NewsDetailProps) {
             )}
 
             {/* Bottom sharing */}
-            <div className="mt-8 pt-8 border-t border-gray-200">
-              <p className="text-sm font-medium text-gray-700 mb-3">Vous avez aime cet article ? Partagez-le !</p>
+            <div className="mt-8 pt-8 border-t border-line">
+              <p className="text-sm font-medium text-ink mb-3">Vous avez aime cet article ? Partagez-le !</p>
               <SocialShareButtons url={articleUrl} title={title} size="md" />
             </div>
           </div>

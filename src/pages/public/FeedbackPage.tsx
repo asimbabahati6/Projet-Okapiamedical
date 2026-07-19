@@ -10,8 +10,8 @@ export function FeedbackPage() {
   if (!token) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-white flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-xl p-10 max-w-md w-full text-center">
-          <p className="text-gray-600">Lien de feedback invalide ou expiré.</p>
+        <div className="card p-10 max-w-md w-full text-center">
+          <p className="text-ink-muted">Lien de feedback invalide ou expiré.</p>
         </div>
       </div>
     );

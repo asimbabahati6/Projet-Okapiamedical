@@ -69,21 +69,22 @@ export function Doctors() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-sand flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">{t.common.loading}</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-600 mx-auto"></div>
+          <p className="mt-4 text-ink-muted">{t.common.loading}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <div className="min-h-screen bg-sand py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">{t.doctors.title}</h1>
-          <p className="text-lg text-gray-600">Rencontrez nos professionnels de santé expérimentés</p>
+          <p className="eyebrow mb-4">Notre équipe</p>
+          <h1 className="display-lg mb-4">{t.doctors.title}</h1>
+          <p className="text-lg text-ink-muted">Rencontrez nos professionnels de santé expérimentés</p>
         </div>
 
         <div className="mb-8">
@@ -92,8 +93,8 @@ export function Doctors() {
               onClick={() => setSelectedDepartment('all')}
               className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
                 selectedDepartment === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-100'
+                  ? 'bg-brand-600 text-white'
+                  : 'bg-white text-ink hover:bg-sand-dark'
               }`}
             >
               Tous les départements
@@ -104,8 +105,8 @@ export function Doctors() {
                 onClick={() => setSelectedDepartment(dept.id)}
                 className={`px-6 py-2 rounded-full text-sm font-medium transition-colors ${
                   selectedDepartment === dept.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 hover:bg-gray-100'
+                    ? 'bg-brand-600 text-white'
+                    : 'bg-white text-ink hover:bg-sand-dark'
                 }`}
               >
                 {dept.name}
@@ -116,16 +117,16 @@ export function Doctors() {
 
         {filteredDoctors.length === 0 ? (
           <div className="text-center py-12">
-            <User className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">Aucun médecin trouvé</p>
+            <User className="w-16 h-16 text-ink-muted/70 mx-auto mb-4" />
+            <p className="text-ink-muted">Aucun médecin trouvé</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredDoctors.map((doctor) => (
-              <div key={doctor.id} className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              <div key={doctor.id} className="card hover:shadow-md transition-shadow overflow-hidden">
                 <div className="p-6">
                   <div className="flex items-center gap-4 mb-4">
-                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-16 h-16 bg-brand-50 rounded-full flex items-center justify-center flex-shrink-0">
                       {doctor.user_profile?.avatar_url ? (
                         <img
                           src={doctor.user_profile.avatar_url}
@@ -133,15 +134,15 @@ export function Doctors() {
                           className="w-full h-full rounded-full object-cover"
                         />
                       ) : (
-                        <User className="w-8 h-8 text-blue-600" />
+                        <User className="w-8 h-8 text-brand-600" />
                       )}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">
+                      <h3 className="text-lg font-semibold text-ink">
                         {formatDoctorName(doctor.user_profile?.full_name)}
                       </h3>
                       {doctor.user_profile?.department && (
-                        <p className="text-sm text-gray-600">{doctor.user_profile.department.name}</p>
+                        <p className="text-sm text-ink-muted">{doctor.user_profile.department.name}</p>
                       )}
                     </div>
                   </div>
@@ -149,17 +150,17 @@ export function Doctors() {
                   <div className="space-y-3 mb-6">
                     {doctor.specialization && (
                       <div className="flex items-start gap-2">
-                        <Stethoscope className="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5" />
+                        <Stethoscope className="w-5 h-5 text-ink-muted/70 flex-shrink-0 mt-0.5" />
                         <div>
-                          <p className="text-sm font-medium text-gray-700">{t.doctors.specialization}</p>
-                          <p className="text-sm text-gray-600">{doctor.specialization}</p>
+                          <p className="text-sm font-medium text-ink">{t.doctors.specialization}</p>
+                          <p className="text-sm text-ink-muted">{doctor.specialization}</p>
                         </div>
                       </div>
                     )}
 
                     {doctor.years_of_experience > 0 && (
                       <div className="flex items-center gap-2">
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-ink-muted">
                           {doctor.years_of_experience} {t.doctors.experience}
                         </p>
                       </div>
@@ -167,14 +168,14 @@ export function Doctors() {
 
                     {doctor.consultation_fee && (
                       <div className="flex items-center gap-2">
-                        <p className="text-sm font-medium text-gray-700">{t.doctors.consultation_fee}:</p>
-                        <p className="text-sm text-gray-600">${doctor.consultation_fee}</p>
+                        <p className="text-sm font-medium text-ink">{t.doctors.consultation_fee}:</p>
+                        <p className="text-sm text-ink-muted">${doctor.consultation_fee}</p>
                       </div>
                     )}
                   </div>
 
                   {doctor.bio && (
-                    <p className="text-sm text-gray-600 mb-6 line-clamp-3">{doctor.bio}</p>
+                    <p className="text-sm text-ink-muted mb-6 line-clamp-3">{doctor.bio}</p>
                   )}
                 </div>
               </div>
