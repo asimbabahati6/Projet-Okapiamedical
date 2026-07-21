@@ -12,9 +12,10 @@ import { News } from './News';
 import { NewsDetail } from './NewsDetail';
 import { About } from './About';
 import { PatientRegistration } from './PatientRegistration';
+import { LabResults } from './LabResults';
 
 const validPages = new Set([
-  'home', 'services', 'appointments', 'news', 'news-detail', 'about', 'contact', 'register',
+  'home', 'services', 'appointments', 'news', 'news-detail', 'about', 'contact', 'register', 'resultats',
 ]);
 
 export function PublicLayout() {
@@ -105,6 +106,8 @@ export function PublicLayout() {
         return <Contact />;
       case 'register':
         return <PatientRegistration />;
+      case 'resultats':
+        return <LabResults />;
       default:
         return <Home onNavigate={handleNavigate} />;
     }
