@@ -93,6 +93,11 @@ export function Footer() {
               <p className="font-display text-2xl font-semibold text-white">08h00 - 14h00</p>
             </div>
             <p className="text-sm mt-4 inline-flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-brand-400 animate-pulse"></span><span className="text-brand-300 font-medium">Services d'urgence 24/7</span></p>
+            <p className="text-sm mt-4">
+              <a href="#resultats" className="inline-flex items-center gap-2 text-white/70 hover:text-brand-300 transition-colors">
+                Consulter mes résultats d'analyses →
+              </a>
+            </p>
           </div>
 
           <div className="flex justify-center md:justify-start lg:justify-center">
